@@ -59,6 +59,14 @@ and works on macOS, Windows and Linux.
 `wls wifi` records signal strength, noise, channel and link rate of the
 current Wi-Fi connection. It is implemented for macOS so far.
 
+### Bluetooth
+
+The Bluetooth section of `wls web` lists Bluetooth Low Energy devices around
+you with their signal strength, the name and maker where a device broadcasts
+them, and whether it accepts connections. Nothing is connected to. It is
+implemented for macOS so far and uses the helper app described below; macOS
+asks for Bluetooth permission the first time.
+
 ### Network names on macOS
 
 macOS gives Wi-Fi network names (SSID) and BSSIDs only to an application that

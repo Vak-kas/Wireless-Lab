@@ -22,6 +22,7 @@ from pathlib import Path
 
 APP = Path.home() / "Library" / "Application Support" / "WirelessLab" / "WirelessLabHelper.app"
 _SOURCE = Path(__file__).parent / "macos_helper_src"
+VERSION = 2  # must match "helper" in main.swift; an older installed helper is rebuilt
 _CACHE_SECONDS = 5.0
 _cache: dict[tuple[str, ...], tuple[float, dict]] = {}
 
@@ -36,6 +37,16 @@ def binary(app: Path = APP) -> Path:
 
 def installed(app: Path = APP) -> bool:
     return binary(app).is_file()
+
+
+def current(app: Path = APP) -> bool:
+    """Installed and new enough to understand every command this version uses."""
+    if not installed(app):
+        return False
+    try:
+        return int(cached("status").get("helper", 1)) >= VERSION
+    except HelperError:
+        return False
 
 
 def build(app: Path = APP) -> None:
@@ -111,7 +122,7 @@ def request_permission(app: Path = APP, timeout: float = 150.0) -> str:
 
 def setup(app: Path = APP) -> str:
     """Build if needed, ask for permission if needed. Returns the location status."""
-    if not installed(app):
+    if not current(app):
         build(app)
     status = str(run("status", app=app).get("location", "unknown"))
     if status == "not_determined":

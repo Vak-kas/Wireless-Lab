@@ -12,8 +12,10 @@
 //   WirelessLabHelper status      {"location": "..."}
 //   WirelessLabHelper link        current connection
 //   WirelessLabHelper scan        nearby networks
+//   WirelessLabHelper bluetooth N nearby Bluetooth devices, listening N seconds
 
 import AppKit
+import CoreBluetooth
 import CoreLocation
 import CoreWLAN
 import Foundation
@@ -59,6 +61,7 @@ func locationStatus() -> String {
 
 func emit(_ object: [String: Any]) {
     var out = object
+    out["helper"] = 2  // raised when commands are added; the caller rebuilds an older helper
     out["location"] = locationStatus()
     let data = try! JSONSerialization.data(withJSONObject: out, options: [.sortedKeys])
     FileHandle.standardOutput.write(data)
@@ -119,6 +122,83 @@ func scan(_ interfaceName: String?) {
     }
 }
 
+final class BluetoothScan: NSObject, CBCentralManagerDelegate {
+    var central: CBCentralManager!
+    var found: [UUID: [String: Any]] = [:]
+    var stateKnown = false
+
+    override init() {
+        super.init()
+        central = CBCentralManager(
+            delegate: self, queue: nil, options: [CBCentralManagerOptionShowPowerAlertKey: false])
+    }
+
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        switch central.state {
+        case .unknown, .resetting: return
+        default: stateKnown = true
+        }
+        if central.state == .poweredOn {
+            central.scanForPeripherals(
+                withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+        }
+    }
+
+    func centralManager(
+        _ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
+        advertisementData: [String: Any], rssi RSSI: NSNumber
+    ) {
+        let rssi = RSSI.intValue
+        if rssi >= 0 { return }  // 127 means "not available"
+        var entry = found[peripheral.identifier] ?? ["id": peripheral.identifier.uuidString, "seen": 0]
+        entry["rssi"] = max(rssi, entry["rssi"] as? Int ?? -200)
+        entry["seen"] = (entry["seen"] as? Int ?? 0) + 1
+        if let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name {
+            entry["name"] = name
+        }
+        if let connectable = advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber {
+            entry["connectable"] = connectable.boolValue
+        }
+        if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
+            let bytes = [UInt8](data)
+            if bytes.count >= 2 { entry["company"] = Int(bytes[0]) | (Int(bytes[1]) << 8) }
+        }
+        if let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] {
+            entry["services"] = services.map { $0.uuidString }
+        }
+        found[peripheral.identifier] = entry
+    }
+
+    var stateName: String {
+        switch central.state {
+        case .poweredOn: return "on"
+        case .poweredOff: return "off"
+        case .unauthorized: return "unauthorized"
+        case .unsupported: return "unsupported"
+        default: return "unknown"
+        }
+    }
+}
+
+func spin(seconds: Double, until done: () -> Bool = { false }) {
+    let deadline = Date().addingTimeInterval(seconds)
+    while !done() && Date() < deadline {
+        RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+    }
+}
+
+func bluetooth(seconds: Double) {
+    // The first use shows the macOS permission question; give the user time to answer.
+    let asking = CBCentralManager.authorization == .notDetermined
+    let scan = BluetoothScan()
+    spin(seconds: asking ? 120 : 5, until: { scan.stateKnown })
+    if scan.central.state == .poweredOn {
+        spin(seconds: seconds)
+        scan.central.stopScan()
+    }
+    emit(["bluetooth": scan.stateName, "devices": Array(scan.found.values)])
+}
+
 final class Authorizer: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         location.waitUntilKnown()
@@ -152,6 +232,8 @@ case "link":
     link(interfaceName)
 case "scan":
     scan(interfaceName)
+case "bluetooth":
+    bluetooth(seconds: min(max(Double(interfaceName ?? "") ?? 5, 1), 30))
 default:
     let app = NSApplication.shared
     let authorizer = Authorizer()

@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -26,7 +26,8 @@ from wls.core.devices import Capability, DeviceManager, DeviceProvider
 from wls.analysis.diagnosis import diagnose_samples
 from wls.core.runs import list_runs, load_run, run_path
 from wls.core.storage import read_run
-from wls.measurements import PlanError, pick_wifi, wifi_backend
+from wls.core.bluetooth import BluetoothBackend
+from wls.measurements import PlanError, bluetooth_backend, pick_wifi, wifi_backend
 from wls.probes.wifi_link import WifiBackend
 from wls.web.live import Busy, LiveManager, kinds
 
@@ -54,10 +55,13 @@ def create_app(
     runs_dir: str | Path,
     providers: Callable[[], Iterable[DeviceProvider]],
     wifi: WifiBackend | None | object = _AUTO,
+    bluetooth: BluetoothBackend | None | object = _AUTO,
 ) -> FastAPI:
     live = LiveManager(runs_dir)
     backend: WifiBackend | None = wifi_backend() if wifi is _AUTO else wifi  # type: ignore[assignment]
     scan_lock = asyncio.Lock()
+    bt: BluetoothBackend | None = bluetooth_backend() if bluetooth is _AUTO else bluetooth  # type: ignore[assignment]
+    bt_lock = asyncio.Lock()
 
     async def wifi_interface() -> tuple[str, str, bool, str] | None:
         """(interface, device name, names available, why not) of the Wi-Fi device, if any."""
@@ -200,6 +204,40 @@ def create_app(
             "names_hidden": bool(entries) and all(e.ssid is None for e in entries),
             "names_reason": found[3],
         }
+
+    # --- Bluetooth -----------------------------------------------------------------
+
+    @app.get("/api/bluetooth")
+    async def bluetooth_status() -> dict:
+        if bt is None:
+            return {"supported": False, "ready": False, "can_setup": False,
+                    "reason": "Bluetooth is not supported on this system yet"}  # fmt: skip
+        ready = await asyncio.to_thread(bt.ready)
+        return {"supported": True, "ready": ready, "can_setup": bt.setup is not None, "reason": ""}
+
+    @app.post("/api/bluetooth/setup")
+    async def bluetooth_setup() -> dict:
+        if bt is None or bt.setup is None:
+            raise HTTPException(404, "nothing to set up on this system")
+        async with bt_lock:
+            try:
+                state = await asyncio.to_thread(bt.setup)
+            except RuntimeError as exc:
+                raise HTTPException(503, str(exc)) from None
+        return {"state": state}
+
+    @app.get("/api/bluetooth/scan")
+    async def bluetooth_scan(seconds: float = Query(default=5.0, ge=1.0, le=30.0)) -> dict:
+        if bt is None:
+            raise HTTPException(404, "Bluetooth is not supported on this system yet")
+        if not await asyncio.to_thread(bt.ready):
+            raise HTTPException(409, "Bluetooth needs a one-time setup first")
+        async with bt_lock:  # one scan at a time
+            try:
+                result = await asyncio.to_thread(bt.scan, seconds)
+            except RuntimeError as exc:
+                raise HTTPException(503, str(exc)) from None
+        return {"state": result.state, "devices": [asdict(d) for d in result.devices]}
 
     # --- live measurement -------------------------------------------------------
 

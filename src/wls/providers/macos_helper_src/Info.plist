@@ -20,6 +20,8 @@
     <string>13.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Wireless Lab uses Bluetooth to list the Bluetooth devices around you and their signal strength. It does not connect to them.</string>
     <key>NSLocationUsageDescription</key>
     <string>macOS shows Wi-Fi network names only to apps allowed to use Location Services. Wireless Lab uses this to list network names. Your location is not read, stored or sent anywhere.</string>
     <key>NSLocationWhenInUseUsageDescription</key>

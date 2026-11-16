@@ -244,6 +244,21 @@ const TEXT = {
   navHome: ["Home", "홈"], navWifi: ["Wi-Fi", "Wi-Fi"], navBluetooth: ["Bluetooth", "블루투스"], navCellular: ["Mobile network", "기지국"],
   open: ["Open", "열기"], openWifi: ["See Wi-Fi around you", "주변 Wi-Fi 보기"], soon: ["coming", "준비 중"],
   btLead: ["Find Bluetooth devices around you and see how strong each signal is.", "주변의 블루투스 기기를 찾아 각각의 신호 세기를 보여 줍니다."],
+  btNearby: ["Bluetooth devices around you", "주변 블루투스 기기"], btSearch: ["Search again", "다시 검색"],
+  btScanning: ["Listening for 5 seconds…", "5초 동안 찾는 중입니다…"],
+  btTurnOn: ["Turn on Bluetooth search", "블루투스 검색 켜기"],
+  btSetupBody: ["A one-time setup is needed. macOS will ask for permission (it may ask twice: Location, then Bluetooth). Choose Allow.",
+                "처음 한 번 설정이 필요합니다. macOS가 권한을 물으면 '허용'을 눌러 주세요. 위치와 블루투스, 두 번 물을 수 있습니다."],
+  btSettingUp: ["Setting up… answer the macOS questions that appear.", "설정 중입니다… 화면에 뜨는 macOS 질문에 답해 주세요."],
+  btOff: ["Bluetooth is turned off on this computer.", "이 컴퓨터의 블루투스가 꺼져 있습니다."],
+  btDenied: ["Bluetooth is not allowed for Wireless Lab Helper. Allow it in System Settings > Privacy & Security > Bluetooth.",
+             "Wireless Lab Helper의 블루투스 사용이 허용되지 않았습니다. 시스템 설정 > 개인정보 보호 및 보안 > 블루투스에서 허용해 주세요."],
+  btUnavailable: ["Bluetooth is not available.", "블루투스를 사용할 수 없습니다."],
+  btNone: ["No devices found.", "찾은 기기가 없습니다."], btFailed: ["The search failed.", "검색하지 못했습니다."],
+  btNote: ["Only what devices broadcast about themselves is shown; nothing is connected to. Many devices broadcast no name, and phones change their identifier every few minutes.",
+           "기기가 스스로 방송하는 정보만 보여 주며, 어떤 기기에도 연결하지 않습니다. 이름을 방송하지 않는 기기가 많고, 휴대폰은 몇 분마다 식별자를 바꿉니다."],
+  colMaker: ["Maker", "제조사"], colConnect: ["Accepts connections", "연결 허용"], noName: ["(no name)", "(이름 없음)"],
+  yes: ["Yes", "예"], no: ["No", "아니요"],
   btPlan: [["List of nearby Bluetooth devices with signal strength", "Device type and maker where the device announces it", "A record of how a device's signal changes over time"],
            ["주변 블루투스 기기 목록과 신호 세기", "기기가 스스로 알리는 경우 기기 종류와 제조사", "기기의 신호가 시간에 따라 변하는 기록"]],
   btNeeds: ["Needs nothing extra: the Bluetooth built into this computer is enough.", "추가 장비가 필요 없습니다. 이 컴퓨터에 내장된 블루투스로 충분합니다."],
@@ -465,6 +480,74 @@ async function scan() {
   scanBusy = false; renderNearby();
 }
 
+// --- Bluetooth section ------------------------------------------------------------------
+let btStatus = null, btResult = null, btBusy = false;
+
+function renderBluetooth() {
+  const box = $("bt-box");
+  if (!box) return;
+  const head = $("bt-count"), button = $("bt-scan"), note = $("bt-note");
+  button.hidden = !(btStatus && btStatus.ready);
+  button.disabled = btBusy;
+  head.textContent = "";
+  note.textContent = "";
+  const message = (text) => box.replaceChildren(el("div", { className: "empty", textContent: text }));
+  if (!btStatus) { box.replaceChildren(); return; }
+  if (!btStatus.supported) { message(btStatus.reason); return; }
+  if (!btStatus.ready) {
+    const start = el("button", { className: "primary", type: "button", textContent: t("btTurnOn") });
+    const info = el("span", { textContent: t("btSetupBody") });
+    start.onclick = async () => {
+      start.disabled = true; info.textContent = t("btSettingUp");
+      try {
+        const response = await fetch("/api/bluetooth/setup", { method: "POST" });
+        const answer = await response.json();
+        if (!response.ok) throw new Error(answer.detail || `HTTP ${response.status}`);
+        btResult = null;
+        await loadBluetooth();
+      } catch (error) { info.textContent = `${t("btFailed")} ${error.message}`; start.disabled = false; }
+    };
+    box.replaceChildren(el("div", { className: "cta", style: "padding:24px" }, el("div", {}, info), start));
+    return;
+  }
+  if (btBusy && !btResult) { message(t("btScanning")); return; }
+  if (!btResult) { box.replaceChildren(); return; }
+  if (btResult.error) { message(`${t("btFailed")} ${btResult.error}`); return; }
+  if (btResult.state !== "on") {
+    message(t(btResult.state === "off" ? "btOff" : btResult.state === "unauthorized" ? "btDenied" : "btUnavailable"));
+    return;
+  }
+  head.textContent = btBusy ? t("btScanning") : t("count", btResult.devices.length);
+  note.textContent = t("btNote");
+  if (!btResult.devices.length) { message(t("btNone")); return; }
+  box.replaceChildren(
+    el("div", { className: "net head" }, el("div", { textContent: t("colSignal") }), el("div", { textContent: t("colName") }),
+      el("div", { textContent: t("colMaker") }), el("div", { textContent: t("colConnect") })),
+    ...btResult.devices.map((d) => {
+      const [tone, , level] = grade(d.rssi_dbm);
+      return el("div", { className: "net" },
+        el("div", { className: "sig" }, bars(level, tone), el("span", { textContent: `${d.rssi_dbm.toFixed(0)} dBm` })),
+        el("div", { className: `name ${d.name ? "" : "hidden-name"}`, textContent: d.name || t("noName") }),
+        el("div", { className: "dim", textContent: d.maker || "–" }),
+        el("div", { className: "dim", textContent: d.connectable === null ? "–" : t(d.connectable ? "yes" : "no") }));
+    }));
+}
+
+async function btScan() {
+  if (btBusy) return;
+  btBusy = true; renderBluetooth();
+  try { btResult = await getJSON("/api/bluetooth/scan?seconds=5"); }
+  catch (error) { btResult = { error: String(error.message || error) }; }
+  btBusy = false; renderBluetooth();
+}
+
+async function loadBluetooth() {
+  try { btStatus = await getJSON("/api/bluetooth"); }
+  catch (error) { btStatus = { supported: false, ready: false, reason: String(error.message || error) }; }
+  renderBluetooth();
+  if (btStatus.ready && !btResult) btScan();
+}
+
 const SECTIONS = ["home", "wifi", "bluetooth", "cellular"];
 const NAV_TEXT = { home: "navHome", wifi: "navWifi", bluetooth: "navBluetooth", cellular: "navCellular" };
 
@@ -514,7 +597,7 @@ function showSection(section, remember = true) {
       el("div", { style: "margin:-4px 0 16px" }, goButton("wifi", t("openWifi"))),
       checkCard(),
       el("div", { className: "grid2" },
-        el("div", { className: "card plain" }, el("h3", {}, t("navBluetooth"), soon()),
+        el("div", { className: "card plain" }, el("h3", {}, t("navBluetooth")),
           el("p", { textContent: t("btLead") }), goButton("bluetooth", t("open"))),
         el("div", { className: "card plain" }, el("h3", {}, t("navCellular"), soon()),
           el("p", { textContent: t("cellLead") }), goButton("cellular", t("open")))));
@@ -531,7 +614,16 @@ function showSection(section, remember = true) {
     renderNearby();
     if (!scanResult) scan();
   } else if (section === "bluetooth") {
-    main.replaceChildren(...plannedSection(t("navBluetooth"), t("btLead"), t("btPlan"), t("btNeeds")));
+    const again = el("button", { className: "utility", id: "bt-scan", type: "button", textContent: t("btSearch"), hidden: true });
+    again.onclick = btScan;
+    main.replaceChildren(
+      el("h1", { className: "title", textContent: t("navBluetooth") }),
+      el("p", { className: "lead", textContent: t("btLead") }),
+      el("div", { className: "section-head" }, el("h3", {}, t("btNearby"), el("small", { id: "bt-count" })), again),
+      el("div", { className: "card nets", id: "bt-box", style: "padding:0" }),
+      el("div", { className: "note", id: "bt-note" }));
+    renderBluetooth();
+    loadBluetooth();
   } else {
     main.replaceChildren(...plannedSection(t("navCellular"), t("cellLead"), t("cellPlan"), t("cellNeeds")));
   }

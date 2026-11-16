@@ -13,6 +13,7 @@ import sys
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from wls.core.bluetooth import BluetoothBackend
 from wls.core.controller import Controller, ExperimentConfig
 from wls.core.devices import Capability, Device, DeviceManager, DeviceProvider
 from wls.core.interfaces import Probe, Recorder
@@ -51,6 +52,15 @@ def wifi_backend() -> WifiBackend | None:
         except ImportError:
             return None
         return wifi_macos.backend()
+    return None
+
+
+def bluetooth_backend() -> BluetoothBackend | None:
+    """Bluetooth support of this operating system, if any."""
+    if sys.platform == "darwin":
+        from wls.providers import bluetooth_macos
+
+        return bluetooth_macos.backend()
     return None
 
 
