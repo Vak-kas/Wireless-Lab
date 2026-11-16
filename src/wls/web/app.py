@@ -10,6 +10,7 @@ requests only from this page itself.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import asynccontextmanager
@@ -21,11 +22,12 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from wls import __version__
-from wls.core.devices import DeviceManager, DeviceProvider
+from wls.core.devices import Capability, DeviceManager, DeviceProvider
 from wls.analysis.diagnosis import diagnose_samples
 from wls.core.runs import list_runs, load_run, run_path
 from wls.core.storage import read_run
-from wls.measurements import PlanError
+from wls.measurements import PlanError, pick_wifi, wifi_backend
+from wls.probes.wifi_link import WifiBackend
 from wls.web.live import Busy, LiveManager, kinds
 
 _STATIC = Path(__file__).parent / "static"
@@ -45,10 +47,29 @@ def _hostname(value: str) -> str:
     return value.rsplit(":", 1)[0] if ":" in value else value
 
 
+_AUTO = object()
+
+
 def create_app(
-    runs_dir: str | Path, providers: Callable[[], Iterable[DeviceProvider]]
+    runs_dir: str | Path,
+    providers: Callable[[], Iterable[DeviceProvider]],
+    wifi: WifiBackend | None | object = _AUTO,
 ) -> FastAPI:
     live = LiveManager(runs_dir)
+    backend: WifiBackend | None = wifi_backend() if wifi is _AUTO else wifi  # type: ignore[assignment]
+    scan_lock = asyncio.Lock()
+
+    async def wifi_interface() -> tuple[str, str, bool, str] | None:
+        """(interface, device name, names available, why not) of the Wi-Fi device, if any."""
+        if backend is None:
+            return None
+        manager = DeviceManager([backend.provider])  # type: ignore[list-item]
+        for device in await manager.refresh():
+            if device.id.startswith(backend.id_prefix):
+                identity = device.support(Capability.WIFI_IDENTITY)
+                name = device.id.removeprefix(backend.id_prefix)
+                return name, device.name, identity.supported, identity.reason
+        return None
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -116,6 +137,7 @@ def create_app(
                 "verdict": result.verdict.value,
                 "headline": result.headline,
                 "details": list(result.details),
+                "wifi_suspect": result.wifi_suspect,
             }
         return {
             **asdict(detail.info),
@@ -123,6 +145,43 @@ def create_app(
             "duration": detail.duration,
             "series": [asdict(s) for s in detail.series],
             "events": [asdict(e) for e in detail.events],
+        }
+
+    # --- Wi-Fi right now ---------------------------------------------------------
+
+    @app.get("/api/wifi")
+    async def wifi_now() -> dict:
+        found = await wifi_interface()
+        if found is None:
+            reason = "no Wi-Fi interface" if backend else "Wi-Fi is not supported on this system yet"
+            return {"supported": False, "reason": reason, "link": None}
+        interface, name, names, why = found
+        reading = backend.link_reader(interface)()  # type: ignore[union-attr]
+        return {
+            "supported": True,
+            "reason": "",
+            "interface": interface,
+            "name": name,
+            "names_available": names,
+            "names_reason": why,
+            "link": reading.values() if reading else None,
+        }
+
+    @app.get("/api/wifi/scan")
+    async def wifi_scan() -> dict:
+        found = await wifi_interface()
+        if found is None:
+            raise HTTPException(404, "no Wi-Fi interface to scan with")
+        interface = found[0]
+        async with scan_lock:  # one scan at a time; a scan takes several seconds
+            try:
+                entries = await asyncio.to_thread(backend.scanner(interface))  # type: ignore[union-attr]
+            except RuntimeError as exc:
+                raise HTTPException(503, str(exc)) from None
+        return {
+            "networks": [asdict(e) for e in entries],
+            "names_hidden": bool(entries) and all(e.ssid is None for e in entries),
+            "names_reason": found[3],
         }
 
     # --- live measurement -------------------------------------------------------

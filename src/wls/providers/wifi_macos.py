@@ -13,7 +13,7 @@ from __future__ import annotations
 import CoreWLAN  # available on macOS only; importers must guard this module
 
 from wls.core.devices import SUPPORTED, Capability, Device, DeviceKind, unsupported
-from wls.probes.wifi_link import LinkReading, Reader
+from wls.probes.wifi_link import LinkReading, Reader, ScanEntry, Scanner, WifiBackend
 
 _BAND_GHZ = {1: 2.4, 2: 5.0, 3: 6.0}
 _WIDTH_MHZ = {1: 20, 2: 40, 3: 80, 4: 160}
@@ -63,6 +63,52 @@ def link_reader(interface_name: str) -> Reader:
     return read
 
 
+# CWSecurity values, strongest meaning first.
+_SECURITY = (
+    ((12, 10, 9, 8, 7), "enterprise"),
+    ((13,), "WPA2/WPA3"),
+    ((11,), "WPA3"),
+    ((4, 5, 3), "WPA2"),
+    ((2,), "WPA"),
+    ((1, 6), "WEP"),
+    ((0,), "open"),
+)
+
+
+def security_label(supported: set[int]) -> str:
+    for codes, label in _SECURITY:
+        if supported.intersection(codes):
+            return label
+    return ""
+
+
+def scanner(interface_name: str) -> Scanner:
+    def scan() -> list[ScanEntry]:
+        """Blocks for several seconds; call from a worker thread."""
+        networks, error = _interface(interface_name).scanForNetworksWithName_error_(None, None)
+        if networks is None:
+            raise RuntimeError(f"Wi-Fi scan failed: {error}")
+        entries = []
+        for network in networks:
+            channel = network.wlanChannel()
+            supported = {code for code in range(14) if network.supportsSecurity_(code)}
+            ssid, bssid = network.ssid(), network.bssid()
+            entries.append(
+                ScanEntry(
+                    rssi_dbm=float(network.rssiValue()),
+                    ssid=str(ssid) if ssid is not None else None,
+                    bssid=str(bssid) if bssid is not None else None,
+                    channel=channel.channelNumber() if channel else None,
+                    band_ghz=_BAND_GHZ.get(channel.channelBand()) if channel else None,
+                    width_mhz=_WIDTH_MHZ.get(channel.channelWidth()) if channel else None,
+                    security=security_label(supported),
+                )
+            )
+        return sorted(entries, key=lambda e: e.rssi_dbm, reverse=True)
+
+    return scan
+
+
 class MacWifiProvider:
     name = "wifi-macos"
 
@@ -91,7 +137,7 @@ class MacWifiProvider:
                     {
                         Capability.WIFI_LINK_INFO: SUPPORTED,
                         Capability.WIFI_IDENTITY: identity,
-                        Capability.WIFI_SCAN: unsupported("not implemented yet"),
+                        Capability.WIFI_SCAN: SUPPORTED,
                         Capability.WIFI_MONITOR: unsupported("not implemented yet"),
                         Capability.WIFI_INJECT: unsupported(
                             "macOS drivers do not allow frame injection"
@@ -101,3 +147,7 @@ class MacWifiProvider:
                 )
             )
         return devices
+
+
+def backend() -> WifiBackend:
+    return WifiBackend(MacWifiProvider(), link_reader, scanner, ID_PREFIX)

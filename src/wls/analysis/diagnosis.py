@@ -11,7 +11,7 @@ measured period.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from wls.analysis.summary import (
@@ -47,6 +47,7 @@ class Diagnosis:
     verdict: Verdict
     headline: str
     details: tuple[str, ...] = field(default=())
+    wifi_suspect: bool = False  # weak, noisy or dropping Wi-Fi was observed
 
 
 def _problems(s: LatencySummary, max_avg: float, max_jitter: float) -> list[str]:
@@ -86,6 +87,18 @@ def _wifi_notes(
 
 
 def diagnose(
+    internet: LatencySummary,
+    gateway: LatencySummary | None = None,
+    wifi_connected: MetricSummary | None = None,
+    wifi_rssi: MetricSummary | None = None,
+    wifi_snr: MetricSummary | None = None,
+) -> Diagnosis:
+    result = _diagnose(internet, gateway, wifi_connected, wifi_rssi, wifi_snr)
+    _, suspect = _wifi_notes(wifi_connected, wifi_rssi, wifi_snr)
+    return replace(result, wifi_suspect=suspect)
+
+
+def _diagnose(
     internet: LatencySummary,
     gateway: LatencySummary | None = None,
     wifi_connected: MetricSummary | None = None,

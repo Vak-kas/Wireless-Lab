@@ -170,3 +170,9 @@ def test_diagnose_command_measures_together_and_prints_a_result(tmp_path, capsys
 def test_router_whose_ping_replies_vary_a_little_is_not_blamed():
     # Seen on a healthy network: 3 ms average to the router with 12 ms of variation.
     assert diagnose(lat(11, jitter=3), lat(3, jitter=12), **GOOD_WIFI).verdict is Verdict.OK
+
+
+def test_wifi_suspect_flag_follows_the_signal():
+    assert diagnose(lat(120), lat(60), **WEAK_WIFI).wifi_suspect is True
+    assert diagnose(lat(120), lat(60), **GOOD_WIFI).wifi_suspect is False
+    assert diagnose(lat(15), lat(2)).wifi_suspect is False

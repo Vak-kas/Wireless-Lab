@@ -27,136 +27,295 @@
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--canvas); color: var(--ink);
-         font: 400 15px/1.33 Inter, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
-         font-feature-settings: "lnum"; -webkit-font-smoothing: antialiased; }
-  header { display: flex; align-items: baseline; gap: 12px; padding: 16px 24px;
+         font: 400 15px/1.45 Inter, -apple-system, system-ui, "Segoe UI", "Apple SD Gothic Neo",
+               "Malgun Gothic", Helvetica, Arial, sans-serif;
+         font-feature-settings: "lnum"; -webkit-font-smoothing: antialiased; word-break: keep-all; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 24px;
            background: var(--surface); border-bottom: 1px solid var(--hairline);
            position: sticky; top: 0; z-index: 1; }
-  header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.25px; margin: 0; }
-  header span { color: var(--ink-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis;
-                white-space: nowrap; }
-  .layout { display: grid; grid-template-columns: 296px 1fr; min-height: calc(100vh - 57px);
-            max-width: 1300px; margin: 0 auto; }
-  aside { padding: 16px 12px 32px 24px; overflow: auto; }
-  main { padding: 28px 24px 48px; min-width: 0; }
+  header button { all: unset; cursor: pointer; font-size: 20px; font-weight: 700; letter-spacing: -0.25px; }
+  header button:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 4px; }
+  .layout { display: grid; grid-template-columns: 288px 1fr; min-height: calc(100vh - 57px);
+            max-width: 1240px; margin: 0 auto; }
+  aside { padding: 20px 12px 32px 24px; }
+  main { padding: 32px 24px 56px; min-width: 0; }
   h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.125px; color: var(--ink-muted);
-       margin: 20px 12px 8px; }
+       margin: 24px 12px 8px; }
+  aside > h2:first-child { margin-top: 4px; }
+
+  /* buttons and fields */
+  button.primary, button.utility { font: 500 16px/1.5 inherit; font-family: inherit; cursor: pointer;
+                                   transition: transform .08s; }
+  button.primary { background: var(--primary); color: #fff; border: 0; border-radius: 9999px;
+                   padding: 8px 22px; }
+  button.primary:active { background: #005bab; transform: scale(0.96); }
+  button.primary:disabled, button.utility:disabled { opacity: .5; cursor: default; }
+  button.utility { background: var(--surface); color: var(--ink); border: 1px solid var(--hairline);
+                   border-radius: 8px; padding: 4px 14px; font-size: 14px; }
+  button.utility:active { transform: scale(0.96); }
+  button:focus-visible, summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  select, input { width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+                  border: 1px solid var(--hairline); border-radius: 4px; padding: 6px; }
+  select:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 0; }
+  .panel { display: grid; gap: 8px; padding: 8px 12px; justify-items: start; }
+  .panel select, .panel #target { justify-self: stretch; }
+  .inline { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); font-size: 14px; }
+  .inline input { width: 80px; }
+  .note { font-size: 13px; color: var(--ink-muted); line-height: 1.45; }
+  .note:empty { display: none; }
+  .note.bad { color: var(--bad); }
+
+  /* sidebar */
   .run { display: block; width: 100%; text-align: left; border: 0; background: none; color: inherit;
          font: inherit; padding: 8px 12px; border-radius: 5px; cursor: pointer;
          box-shadow: inset 2px 0 0 transparent; }
   .run:active { background: var(--hairline); }
   .run[aria-current="true"] { background: var(--primary-soft); box-shadow: inset 2px 0 0 var(--primary); }
   .run:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-  .run b { display: block; font-weight: 600; text-transform: capitalize; }
+  .run b { display: block; font-weight: 600; }
   .run small { color: var(--ink-faint); font-size: 12px; }
   .badge { font-size: 12px; font-weight: 600; letter-spacing: 0.125px; line-height: 1.33;
            padding: 2px 8px; border-radius: 9999px; background: var(--surface);
-           border: 1px solid var(--hairline); margin-left: 8px; vertical-align: 2px;
-           white-space: nowrap; text-transform: none; }
-  .badge::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-                   background: currentColor; margin-right: 6px; vertical-align: 1px; }
+           border: 1px solid var(--hairline); margin-left: 8px; vertical-align: 2px; white-space: nowrap; }
   .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .none { color: var(--ink-faint); }
+  details.more { margin: 16px 0 0; }
+  details.more > summary { cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.125px;
+                           color: var(--ink-muted); padding: 4px 12px; border-radius: 5px; }
   .device { padding: 8px 12px; }
   .device b { font-weight: 600; }
   .device ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px; }
   .device li { color: var(--ink-faint); }
   .device li.yes { color: var(--ink-2); }
+  .foot { color: var(--ink-faint); font-size: 12px; padding: 16px 12px 0; overflow-wrap: anywhere; }
+
+  /* main */
+  .eyebrow { font-size: 14px; color: var(--ink-muted); margin: 0 0 6px; }
+  .title { font-size: 40px; font-weight: 700; line-height: 1.15; letter-spacing: -1px; margin: 0; }
+  .title .badge { vertical-align: 9px; }
+  .lead { color: var(--ink-muted); font-size: 16px; line-height: 1.5; margin: 10px 0 0; max-width: 640px; }
+  .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
+          padding: 24px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.125px; line-height: 1.4; margin: 0 0 12px; }
+  .card h3 small { display: block; color: var(--ink-muted); font-size: 14px; font-weight: 400; letter-spacing: 0; }
+  .card.chart { padding-bottom: 16px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+                  margin: 32px 0 12px; }
+  .section-head h3 { font-size: 22px; font-weight: 700; letter-spacing: -0.25px; margin: 0; }
+  .section-head h3 small { font-size: 14px; font-weight: 400; color: var(--ink-muted); margin-left: 8px;
+                           letter-spacing: 0; }
+
+  /* now: current signal */
+  .now { display: grid; grid-template-columns: auto 1fr; gap: 8px 32px; align-items: center; }
+  .now .label { grid-column: 1 / -1; color: var(--ink-muted); font-size: 14px; }
+  .now .word { font-size: 54px; font-weight: 700; line-height: 1.04; letter-spacing: -1.875px; }
+  .now .dbm { color: var(--ink-muted); font-size: 16px; margin-top: 6px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px 24px; }
+  .facts div { font-size: 20px; font-weight: 600; letter-spacing: -0.125px; }
+  .facts small { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.125px;
+                 color: var(--ink-muted); margin-bottom: 2px; }
+  .bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 16px; vertical-align: -2px; }
+  .bars i { width: 4px; border-radius: 1px; background: var(--hairline); }
+  .bars i:nth-child(1) { height: 25%; } .bars i:nth-child(2) { height: 50%; }
+  .bars i:nth-child(3) { height: 75%; } .bars i:nth-child(4) { height: 100%; }
+  .bars i.on { background: currentColor; }
+  .bars.big { height: 40px; gap: 6px; margin-right: 16px; vertical-align: -4px; }
+  .bars.big i { width: 9px; border-radius: 2px; }
+
+  /* check call to action */
+  .cta { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+  .cta b { display: block; font-size: 20px; font-weight: 600; letter-spacing: -0.125px; }
+  .cta span { color: var(--ink-muted); font-size: 14px; }
+
+  /* nearby networks */
+  .nets { padding: 4px 0; }
+  .net { display: grid; grid-template-columns: 96px minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr);
+         gap: 12px; align-items: center; padding: 12px 24px; border-top: 1px solid var(--hairline); }
+  .net:first-child { border-top: 0; }
+  .net.head { font-size: 12px; font-weight: 600; letter-spacing: 0.125px; color: var(--ink-muted);
+              padding-top: 10px; padding-bottom: 10px; }
+  .net .sig { white-space: nowrap; }
+  .net .sig span { color: var(--ink-muted); font-size: 13px; margin-left: 8px; }
+  .net .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .net .name.hidden-name { font-weight: 400; color: var(--ink-faint); }
+  .net .dim { color: var(--ink-muted); font-size: 14px; }
+
+  /* result tiles and details */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;
+           margin: 28px 0 8px; }
+  .tile { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
+          padding: 20px 24px; box-shadow: var(--shadow); }
+  .tile small { display: block; color: var(--ink-muted); font-size: 14px; }
+  .tile b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -0.625px; line-height: 1.23;
+            margin: 6px 0 4px; }
+  .tile b::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+                    background: currentColor; margin-right: 10px; vertical-align: 3px; }
+  .tile span { color: var(--ink-muted); font-size: 14px; }
+  .progress { height: 4px; border-radius: 9999px; background: var(--hairline); margin: 24px 0 4px;
+              overflow: hidden; max-width: 640px; }
+  .progress i { display: block; height: 100%; background: var(--primary); border-radius: 9999px;
+                transition: width .4s linear; }
+  details.detail { margin-top: 28px; }
+  details.detail > summary { cursor: pointer; color: var(--ink-muted); font-size: 14px; padding: 6px 0;
+                             width: fit-content; border-radius: 5px; }
   .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
            margin: 20px 0 24px; }
   .chip { background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px;
           padding: 12px 16px; font-size: 16px; font-weight: 600; letter-spacing: -0.125px; }
   .chip small { display: block; color: var(--ink-muted); font-size: 12px; font-weight: 600;
                 letter-spacing: 0.125px; margin-bottom: 4px; }
-  .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
-          padding: 24px 24px 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
-  .card h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.125px; line-height: 1.4;
-             margin: 0 0 12px; text-transform: capitalize; }
-  .card h3 small { display: block; color: var(--ink-muted); font-size: 14px; font-weight: 400;
-                   letter-spacing: 0; text-transform: none; }
   canvas { width: 100%; height: 200px; display: block; }
-  .empty { color: var(--ink-faint); padding: 48px 0; text-align: center; }
-  .title { font-size: 40px; font-weight: 700; line-height: 1.1; letter-spacing: -1px; margin: 0;
-           text-transform: capitalize; }
-  .title .badge { vertical-align: 9px; }
+  .empty { color: var(--ink-faint); padding: 32px 24px; text-align: center; }
   .legend { color: var(--ink-muted); font-size: 14px; margin: -8px 0 16px; }
-  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px;
-            background: var(--band); border: 1px solid var(--warn); vertical-align: -1px;
-            margin-right: 6px; }
-  .panel { display: grid; gap: 8px; padding: 4px 12px 8px; }
-  .panel[hidden] { display: none; }
-  select, input { width: 100%; font: inherit; color: var(--ink); background: var(--surface);
-                  border: 1px solid var(--hairline); border-radius: 4px; padding: 6px; }
-  select:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 0; }
-  .inline { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); font-size: 14px; }
-  .inline input { width: 88px; }
-  button.primary, button.utility { font: 500 16px/1.5 inherit; font-family: inherit; cursor: pointer;
-                                   justify-self: start; transition: transform .08s; }
-  button.primary { background: var(--primary); color: #fff; border: 0; border-radius: 9999px;
-                   padding: 6px 20px; }
-  button.primary:active { background: #005bab; transform: scale(0.96); }
-  button.primary:disabled { opacity: .5; cursor: default; }
-  button.utility { background: var(--surface); color: var(--ink); border: 1px solid var(--hairline);
-                   border-radius: 8px; padding: 4px 14px; }
-  button.utility:active { transform: scale(0.96); }
-  button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  .note { font-size: 13px; color: var(--ink-muted); }
-  .note:empty { display: none; }
-  .note.bad { color: var(--bad); }
-  .live { color: var(--primary); }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; background: var(--band);
+            border: 1px solid var(--warn); vertical-align: -1px; margin-right: 6px; }
   .alert { border: 1px solid var(--hairline); border-left: 3px solid var(--bad); border-radius: 8px;
-           background: var(--surface); padding: 12px 16px; margin: 16px 0; font-size: 14px; }
-  .result { background: var(--surface); border: 1px solid var(--hairline); border-left: 3px solid var(--warn);
-            border-radius: 8px; padding: 16px 20px; margin: 20px 0 0; }
-  .result.fine { border-left-color: var(--ok); }
-  .result b { font-size: 20px; font-weight: 600; letter-spacing: -0.125px; line-height: 1.4; }
-  .result ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-muted); font-size: 14px; }
-  .result ul:empty { display: none; }
+           background: var(--surface); padding: 12px 16px; margin: 16px 0 0; font-size: 14px; }
+  .alert.soft { border-left-color: var(--ink-faint); color: var(--ink-muted); }
   @media (max-width: 840px) {
     .layout { grid-template-columns: 1fr; }
-    aside { padding: 8px 12px 0; }
-    main { padding: 20px 16px 40px; }
-    .title { font-size: 26px; letter-spacing: -0.625px; }
+    aside { padding: 12px 12px 0; order: 2; }
+    main { padding: 24px 16px 32px; }
+    .title { font-size: 28px; letter-spacing: -0.625px; }
+    .now { grid-template-columns: 1fr; }
+    .now .word { font-size: 40px; letter-spacing: -1px; }
+    .net { grid-template-columns: 84px 1fr; padding: 12px 16px; }
+    .net.head { display: none; }
+    .net .dim { grid-column: 2; }
   }
 </style>
 </head>
 <body>
-<header><h1>Wireless Lab</h1><span id="version"></span></header>
+<header><button id="home" type="button">Wireless Lab</button></header>
 <div class="layout">
   <aside>
-    <h2>New measurement</h2>
-    <form class="panel" id="starter">
-      <select id="kind" aria-label="Measurement"></select>
-      <input id="target" type="text" placeholder="Address, e.g. 1.1.1.1" aria-label="Address"
-             autocomplete="off" spellcheck="false">
-      <label class="inline" id="duration-row"><input id="duration" type="number" min="1" max="3600"
-             aria-label="Duration in seconds"><span>seconds</span></label>
-      <button class="primary" id="start" type="submit">Start</button>
-      <div class="note bad" id="starter-error" role="alert"></div>
-    </form>
+    <h2 id="h-runs"></h2>
+    <div id="runs"></div>
     <div class="panel" id="running" hidden>
       <b id="running-title"></b>
-      <div class="note" id="running-state">measuring…</div>
-      <button class="utility" id="stop" type="button">Stop</button>
+      <div class="note" id="running-state"></div>
+      <button class="utility" id="stop" type="button"></button>
     </div>
-    <h2>Runs</h2>
-    <div id="runs"><div class="empty">Loading…</div></div>
-    <h2>Devices</h2>
-    <div id="devices"></div>
+    <details class="more" id="more-measure">
+      <summary id="h-new"></summary>
+      <form class="panel" id="starter">
+        <select id="kind"></select>
+        <div class="note" id="kind-help"></div>
+        <input id="target" type="text" autocomplete="off" spellcheck="false">
+        <label class="inline" id="duration-row"><input id="duration" type="number" min="1" max="3600"><span id="seconds"></span></label>
+        <button class="primary" id="start" type="submit"></button>
+        <div class="note bad" id="starter-error" role="alert"></div>
+      </form>
+    </details>
+    <details class="more"><summary id="h-devices"></summary><div id="devices"></div></details>
+    <div class="foot" id="foot"></div>
   </aside>
-  <main id="main"><div class="empty">Select a run on the left.</div></main>
+  <main id="main"></main>
 </div>
 <script>
 "use strict";
-const LABELS = {
-  rtt_ms: ["Latency", "ms"], rssi_dbm: ["Signal strength", "dBm"], noise_dbm: ["Noise", "dBm"],
-  snr_db: ["Signal above noise", "dB"], tx_rate_mbps: ["Link rate", "Mbps"],
-  down_mbps: ["Download", "Mbps"], up_mbps: ["Upload", "Mbps"], channel: ["Channel", ""],
-  band_ghz: ["Band", "GHz"], width_mhz: ["Channel width", "MHz"],
+// --- language ---------------------------------------------------------------------
+const KO = (navigator.language || "en").toLowerCase().startsWith("ko");
+document.documentElement.lang = KO ? "ko" : "en";
+const TEXT = {
+  otherMeasurements: ["Other measurements", "다른 측정 하기"], history: ["Past checks", "지난 기록"],
+  devices: ["Devices and what they can do", "연결된 장치와 가능한 기능"],
+  start: ["Start", "시작"], stop: ["Stop", "중지"], seconds: ["seconds", "초 동안"],
+  address: ["Address, e.g. 1.1.1.1", "주소 (예: 1.1.1.1)"],
+  noRuns: ["Nothing recorded yet.", "아직 기록이 없습니다."],
+  nowLabel: ["Your Wi-Fi signal right now", "지금 내 Wi-Fi 신호"],
+  noWifi: ["Wi-Fi is not available", "Wi-Fi를 쓸 수 없습니다"],
+  notConnectedLong: ["This computer is not connected to a Wi-Fi network.", "이 컴퓨터가 Wi-Fi에 연결되어 있지 않습니다."],
+  channel: ["Channel", "채널"], band: ["Band", "주파수 대역"], width: ["Channel width", "채널 폭"], rate: ["Link rate", "연결 속도"],
+  ctaTitle: ["Is your internet slow?", "인터넷이 느린가요?"],
+  ctaBody: ["A 10-second check tells you whether the cause is Wi-Fi, your router, or your internet provider.",
+            "10초 동안 재서 원인이 Wi-Fi인지, 공유기인지, 통신사 쪽인지 알려 줍니다."],
+  ctaButton: ["Check my connection", "연결 확인하기"],
+  nearby: ["Wi-Fi around you", "주변 Wi-Fi"], count: [(n) => `${n} found`, (n) => `${n}개`],
+  rescan: ["Search again", "다시 검색"], scanning: ["Searching… this takes about 7 seconds.", "검색 중입니다… 7초쯤 걸립니다."],
+  scanFailed: ["The search failed.", "검색하지 못했습니다."], noNetworks: ["No networks found.", "찾은 Wi-Fi가 없습니다."],
+  namesHidden: ["Network names are hidden: macOS gives them only to an installed app that was allowed to use Location. Signal, channel and security are shown.",
+                "네트워크 이름이 보이지 않습니다. macOS는 위치 권한을 받은 설치형 앱에만 이름을 알려 줍니다. 신호 세기, 채널, 보안 방식은 그대로 보입니다."],
+  colSignal: ["Signal", "신호"], colName: ["Name", "이름"], colChannel: ["Channel", "채널"], colSecurity: ["Security", "보안"],
+  hiddenName: ["(name hidden)", "(이름 숨김)"],
+  secOpen: ["No password", "암호 없음"], secWep: ["WEP (unsafe)", "WEP (취약)"], secEnterprise: ["Enterprise login", "기업용 인증"],
+  measuring: ["measuring…", "측정 중…"], checking: ["Checking your connection…", "연결 상태를 확인하고 있습니다…"],
+  measuringTitle: ["Measuring…", "측정하고 있습니다…"],
+  remaining: [(s) => `About ${s} s left`, (s) => `약 ${s}초 남음`],
+  waiting: ["Waiting for the first results…", "첫 결과를 기다리는 중…"],
+  details: ["Show the numbers and charts", "자세한 수치와 그래프 보기"],
+  started: ["Measured at", "측정 시각"], duration: ["Length", "측정 길이"], elapsed: ["Elapsed", "경과"],
+  samples: ["Values recorded", "기록된 값"], flat: ["Nothing changed during this measurement.", "측정하는 동안 값이 변하지 않았습니다."],
+  loss: ["packets lost", "패킷 손실"], connected: ["time connected", "연결 유지"],
+  now: ["now", "현재"], avg: ["avg", "평균"], min: ["min", "최소"], max: ["max", "최대"],
+  testActive: ["test active", "시험 구간"], mark: ["dashed line: mark", "점선: 표시"],
+  unsealed: ["ended abnormally", "비정상 종료"], modified: ["changed after saving", "저장 후 변경됨"],
+  unsealedTip: ["The measurement did not end normally; data may be incomplete.", "측정이 정상적으로 끝나지 않아 데이터가 일부만 있을 수 있습니다."],
+  modifiedTip: ["The file was changed after it was saved.", "저장된 뒤에 파일 내용이 바뀌었습니다."],
+  note: ["Note", "참고"], error: ["Error", "오류"], savedIn: ["Saved in", "저장 위치"],
+  good: ["Good", "좋음"], fair: ["Fair", "보통"], poor: ["Poor", "나쁨"], weak: ["Weak", "약함"],
+  noAnswer: ["No answer", "응답 없음"], notMeasured: ["Not measured", "측정 안 됨"], notConnected: ["Not connected", "연결 안 됨"],
+  tileWifi: ["Wi-Fi signal", "Wi-Fi 신호"], tileRouter: ["To your router", "공유기까지"], tileInternet: ["To the internet", "인터넷까지"],
+  delay: [(ms, loss) => `${ms} ms delay` + (loss ? `, ${loss}% lost` : ""), (ms, loss) => `응답 ${ms} ms` + (loss ? `, 손실 ${loss}%` : "")],
 };
+const t = (key, ...args) => { const v = TEXT[key][KO ? 1 : 0]; return typeof v === "function" ? v(...args) : v; };
+const KIND = {
+  diagnose: ["Connection check", "연결 확인"], ping: ["Response time", "응답 시간 측정"], wifi: ["Wi-Fi signal log", "Wi-Fi 신호 기록"],
+  speed: ["Speed test", "속도 측정"], demo: ["Demo", "데모"], simulated: ["Simulated experiment", "가상 실험"], run: ["Measurement", "측정"],
+};
+const KIND_HELP = {
+  diagnose: ["Measures your router, the internet and Wi-Fi together and says where the problem is.",
+             "공유기, 인터넷, Wi-Fi를 함께 재서 문제가 어디인지 알려 줍니다."],
+  ping: ["Measures how long a signal takes to reach an address and come back (ping).",
+         "어떤 주소까지 신호가 갔다 오는 데 걸리는 시간을 잽니다. (ping이라고 부릅니다)"],
+  wifi: ["Records how your Wi-Fi signal strength changes over time.", "Wi-Fi 신호 세기가 시간에 따라 어떻게 변하는지 기록합니다."],
+  speed: ["Measures download and upload speed. Uses real data, possibly hundreds of MB.",
+          "다운로드와 업로드 속도를 잽니다. 실제 데이터를 수백 MB까지 쓸 수 있습니다."],
+};
+const PROBE = { internet: ["Internet", "인터넷"], router: ["Router", "공유기"], wifi: ["Wi-Fi", "Wi-Fi"],
+                ping: ["Response", "응답"], speed: ["Speed", "속도"], sim: ["Simulated", "가상"] };
+const METRIC = {
+  rtt_ms: [["Response time", "응답 시간"], "ms"], rssi_dbm: [["Signal strength", "신호 세기"], "dBm"],
+  noise_dbm: [["Noise", "잡음"], "dBm"], snr_db: [["Signal above noise", "잡음 대비 신호"], "dB"],
+  tx_rate_mbps: [["Link rate", "연결 속도"], "Mbps"], down_mbps: [["Download", "다운로드"], "Mbps"],
+  up_mbps: [["Upload", "업로드"], "Mbps"], channel: [["Channel", "채널"], ""],
+  band_ghz: [["Band", "대역"], "GHz"], width_mhz: [["Channel width", "채널 폭"], "MHz"],
+};
+const CAPABILITY = {
+  net_probe: ["Response time and speed", "응답 시간·속도 측정"], wifi_link_info: ["Wi-Fi signal", "Wi-Fi 신호 측정"],
+  wifi_identity: ["Network names", "네트워크 이름 확인"], wifi_scan: ["Search nearby Wi-Fi", "주변 Wi-Fi 검색"],
+  wifi_monitor: ["Monitor mode", "모니터 모드"], wifi_inject: ["Frame transmission", "프레임 송신"],
+  sdr_rx: ["Radio reception", "전파 수신"], sdr_tx: ["Radio transmission", "전파 송신"],
+};
+const VERDICT = {
+  ok: [["No problem found", "문제 없습니다"],
+       ["Your Wi-Fi, router and internet all responded normally during this check.", "재는 동안 Wi-Fi, 공유기, 인터넷 모두 정상적으로 응답했습니다."]],
+  local_problem: [["The problem is close to you", "가까운 곳에 문제가 있습니다"],
+       ["The connection between this computer and your router is slow or dropping. Your internet provider is probably not the cause.",
+        "이 컴퓨터와 공유기 사이가 느리거나 끊깁니다. 통신사 문제일 가능성은 낮습니다."]],
+  internet_problem: [["The problem is beyond your router", "공유기 바깥쪽 문제입니다"],
+       ["Your Wi-Fi and router are fine. The slowdown is on the internet side: your provider, or the address that was tested.",
+        "Wi-Fi와 공유기는 정상입니다. 통신사 회선이나 상대 서버 쪽이 느립니다."]],
+  no_connectivity: [["No connection", "연결이 되지 않습니다"],
+       ["Neither your router nor the internet answered.", "공유기와 인터넷 모두 응답하지 않았습니다."]],
+  wifi_not_connected: [["Wi-Fi is not connected", "Wi-Fi가 연결되어 있지 않습니다"],
+       ["This computer is not connected to any Wi-Fi network.", "이 컴퓨터가 어떤 Wi-Fi에도 연결되어 있지 않습니다."]],
+  inconclusive: [["Could not tell where the problem is", "원인을 가려내지 못했습니다"],
+       ["The connection looks poor, but this check could not locate the cause.", "연결 상태가 좋지 않지만 이번 측정으로는 위치를 찾지 못했습니다."]],
+};
+const WIFI_HINT = ["Weak or unstable Wi-Fi is a likely cause. Try again closer to the router.",
+                   "Wi-Fi 신호가 약하거나 불안정한 것이 원인일 가능성이 큽니다. 공유기 가까이에서 다시 확인해 보세요."];
+const pick = (pair) => pair[KO ? 1 : 0];
+const kindName = (k) => pick(KIND[k] || [k, k]);
+const probeName = (p) => pick(PROBE[p] || [p, p]);
+
+// --- helpers ------------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, ...children) => {
   const node = Object.assign(document.createElement(tag), props);
-  node.append(...children);
+  node.append(...children.filter((c) => c !== null && c !== undefined));
   return node;
 };
 const getJSON = async (url) => {
@@ -166,50 +325,124 @@ const getJSON = async (url) => {
 };
 const fmt = (v) => Number.isInteger(v) ? String(v) : Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const when = (iso) => iso ? new Date(iso).toLocaleString(KO ? "ko-KR" : undefined,
+  { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+const stats = (values) => ({
+  min: Math.min(...values), max: Math.max(...values),
+  avg: values.reduce((a, b) => a + b, 0) / values.length,
+});
+const seriesOf = (run, probe, metric) => {
+  const s = run.series.find((x) => x.probe === probe && x.metric === metric);
+  return s && s.points.length ? stats(s.points.map((p) => p[1])) : null;
+};
+// Signal strength in plain words. The limits are rules of thumb.
+const grade = (rssi) => rssi >= -60 ? ["ok", t("good"), rssi >= -50 ? 4 : 3] : rssi >= -70 ? ["warn", t("fair"), 2] : ["bad", t("weak"), 1];
+const bars = (level, tone, big = false) => el("span", { className: `bars ${tone} ${big ? "big" : ""}` },
+  ...[1, 2, 3, 4].map((i) => el("i", { className: i <= level ? "on" : "" })));
 
 function badge(run) {
-  if (!run.sealed) return el("span", { className: "badge warn", textContent: "not sealed",
-    title: "The run did not end normally; data may be incomplete." });
-  if (!run.intact) return el("span", { className: "badge bad", textContent: "modified",
-    title: "Content does not match the seal." });
-  return el("span", { className: "badge ok", textContent: "verified",
-    title: "Complete and unmodified." });
+  if (!run.sealed) return el("span", { className: "badge warn", textContent: t("unsealed"), title: t("unsealedTip") });
+  if (!run.intact) return el("span", { className: "badge bad", textContent: t("modified"), title: t("modifiedTip") });
+  return null;  // a normal run needs no label
 }
-const when = (iso) => iso ? new Date(iso).toLocaleString() : "";
 
-async function loadRuns(select = null, notices = [], open = true) {
-  const box = document.getElementById("runs");
-  const { runs } = await getJSON("/api/runs");
-  box.replaceChildren();
-  if (!runs.length) {
-    box.append(el("div", { className: "empty", textContent: "No runs yet." }));
+// --- home: signal right now, the check button, nearby Wi-Fi ----------------------------
+let viewing = null;  // null (home), "live", or the name of the run on screen
+let scanResult = null, scanBusy = false;
+
+function renderNow(box, status) {
+  if (!status.supported || !status.link || !status.link.associated) {
+    box.replaceChildren(el("div", { className: "label", textContent: t("nowLabel") }),
+      el("div", {}, el("div", { className: "word none", textContent: status.supported ? t("notConnected") : t("noWifi") }),
+        el("div", { className: "dbm", textContent: status.supported ? t("notConnectedLong") : status.reason })));
     return;
   }
-  let chosen = null;
-  for (const run of runs) {
-    const button = el("button", { className: "run", type: "button" },
-      el("b", {}, run.kind, badge(run)), el("small", { textContent: when(run.started_utc) }));
-    button.onclick = () => showRun(run.name, button);
-    if (run.name === select || run.name === viewing) chosen = [run.name, button];
-    box.append(button);
-  }
-  if (!open) return;
-  if (chosen && chosen[0] === select) showRun(chosen[0], chosen[1], notices);
-  else if (chosen) chosen[1].setAttribute("aria-current", "true");
-  else box.firstElementChild.click();
+  const link = status.link;
+  const [tone, word, level] = grade(link.rssi_dbm);
+  const fact = (label, value) => value === undefined ? null : el("div", {}, el("small", { textContent: label }), value);
+  box.replaceChildren(
+    el("div", { className: "label", textContent: t("nowLabel") }),
+    el("div", {}, el("div", { className: `word ${tone}` }, bars(level, tone, true), word),
+      el("div", { className: "dbm", textContent: `${link.rssi_dbm.toFixed(0)} dBm` })),
+    el("div", { className: "facts" },
+      fact(t("channel"), link.channel === undefined ? undefined : String(link.channel)),
+      fact(t("band"), link.band_ghz === undefined ? undefined : `${link.band_ghz} GHz`),
+      fact(t("width"), link.width_mhz === undefined ? undefined : `${link.width_mhz} MHz`),
+      fact(t("rate"), link.tx_rate_mbps === undefined ? undefined : `${link.tx_rate_mbps.toFixed(0)} Mbps`)));
 }
 
-async function loadDevices() {
-  const box = document.getElementById("devices");
-  const { devices } = await getJSON("/api/devices");
-  box.replaceChildren(...devices.map((d) => el("div", { className: "device" },
-    el("b", { textContent: d.name }),
-    el("ul", {}, ...d.capabilities.map((c) => el("li", {
-      className: c.supported ? "yes" : "", title: c.reason,
-      textContent: (c.supported ? "✓ " : "– ") + c.name.replaceAll("_", " "),
-    }))))));
+function securityText(code) {
+  if (code === "open") return el("span", { className: "warn", textContent: t("secOpen") });
+  if (code === "WEP") return el("span", { className: "warn", textContent: t("secWep") });
+  if (code === "enterprise") return t("secEnterprise");
+  return code || "–";
 }
 
+function renderNearby() {
+  const head = $("nearby-count"), box = $("nearby"), button = $("rescan");
+  if (!box) return;
+  button.disabled = scanBusy;
+  if (scanBusy && !scanResult) { head.textContent = ""; box.replaceChildren(el("div", { className: "empty", textContent: t("scanning") })); return; }
+  if (!scanResult) { box.replaceChildren(); return; }
+  if (scanResult.error) { head.textContent = ""; box.replaceChildren(el("div", { className: "empty", textContent: `${t("scanFailed")} ${scanResult.error}` })); return; }
+  const networks = scanResult.networks;
+  head.textContent = scanBusy ? t("scanning") : t("count", networks.length);
+  if (!networks.length) { box.replaceChildren(el("div", { className: "empty", textContent: t("noNetworks") })); return; }
+  const rows = networks.map((n) => {
+    const [tone, , level] = grade(n.rssi_dbm);
+    const place = [n.channel !== null ? `${t("channel")} ${n.channel}` : null, n.band_ghz ? `${n.band_ghz} GHz` : null,
+                   n.width_mhz ? `${n.width_mhz} MHz` : null].filter(Boolean).join(" · ");
+    return el("div", { className: "net" },
+      el("div", { className: "sig" }, bars(level, tone), el("span", { textContent: `${n.rssi_dbm.toFixed(0)} dBm` })),
+      el("div", { className: `name ${n.ssid ? "" : "hidden-name"}`, textContent: n.ssid || t("hiddenName") }),
+      el("div", { className: "dim", textContent: place }),
+      el("div", { className: "dim" }, securityText(n.security)));
+  });
+  box.replaceChildren(
+    el("div", { className: "net head" }, el("div", { textContent: t("colSignal") }), el("div", { textContent: t("colName") }),
+      el("div", { textContent: t("colChannel") }), el("div", { textContent: t("colSecurity") })),
+    ...rows);
+  $("nearby-note").textContent = scanResult.names_hidden ? t("namesHidden") : "";
+}
+
+async function scan() {
+  if (scanBusy) return;
+  scanBusy = true; renderNearby();
+  try { scanResult = await getJSON("/api/wifi/scan"); }
+  catch (error) { scanResult = { error: String(error.message || error), networks: [] }; }
+  scanBusy = false; renderNearby();
+}
+
+function showHome() {
+  viewing = null;
+  document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
+  const now = el("div", { className: "card now", id: "now" });
+  const check = el("button", { className: "primary", type: "button", textContent: t("ctaButton") });
+  check.onclick = () => startMeasurement({ kind: "diagnose", duration: 10 }, check, "home-error");
+  const rescan = el("button", { className: "utility", id: "rescan", type: "button", textContent: t("rescan") });
+  rescan.onclick = scan;
+  $("main").replaceChildren(
+    now,
+    el("div", { className: "card cta" },
+      el("div", {}, el("b", { textContent: t("ctaTitle") }), el("span", { textContent: t("ctaBody") }),
+        el("div", { className: "note bad", id: "home-error", role: "alert" })),
+      check),
+    el("div", { className: "section-head" },
+      el("h3", {}, t("nearby"), el("small", { id: "nearby-count" })), rescan),
+    el("div", { className: "note", id: "nearby-note", style: "margin:-4px 0 12px" }),
+    el("div", { className: "card nets", id: "nearby", style: "padding:0" }));
+  refreshNow();
+  renderNearby();
+  if (!scanResult) scan();
+}
+
+async function refreshNow() {
+  if (viewing !== null || !$("now")) return;
+  try { renderNow($("now"), await getJSON("/api/wifi")); } catch { /* keep the last reading */ }
+}
+setInterval(refreshNow, 2000);
+
+// --- charts -------------------------------------------------------------------------
 function testBands(events, duration) {
   const bands = []; let start = null;
   for (const e of events) {
@@ -222,8 +455,9 @@ function testBands(events, duration) {
 }
 
 function draw(canvas, points, duration, bands, marks) {
-  const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth, height = canvas.clientHeight;
+  if (!width || !height) return;  // inside a closed <details>
+  const ratio = window.devicePixelRatio || 1;
   canvas.width = width * ratio; canvas.height = height * ratio;
   const g = canvas.getContext("2d"); g.scale(ratio, ratio);
   const pad = { l: 46, r: 10, t: 8, b: 22 };
@@ -232,12 +466,11 @@ function draw(canvas, points, duration, bands, marks) {
   if (lo === hi) { lo -= 1; hi += 1; }
   const margin = (hi - lo) * 0.1; lo -= margin; hi += margin;
   const span = Math.max(duration, 1e-9);
-  const x = (t) => pad.l + (t / span) * (width - pad.l - pad.r);
+  const x = (v) => pad.l + (v / span) * (width - pad.l - pad.r);
   const y = (v) => pad.t + (1 - (v - lo) / (hi - lo)) * (height - pad.t - pad.b);
 
   g.fillStyle = css("--band");
   for (const [a, b] of bands) g.fillRect(x(a), pad.t, Math.max(x(b) - x(a), 1), height - pad.t - pad.b);
-
   g.font = "11px system-ui, sans-serif"; g.fillStyle = css("--ink-muted");
   g.strokeStyle = css("--grid"); g.lineWidth = 1;
   g.textAlign = "right"; g.textBaseline = "middle";
@@ -247,35 +480,57 @@ function draw(canvas, points, duration, bands, marks) {
     g.fillText(fmt(v), pad.l - 6, y(v));
   }
   g.textAlign = "center"; g.textBaseline = "top";
+  const unit = KO ? "초" : " s";
   for (let i = 0; i <= 4; i++) {
-    const t = (span * i) / 4;
-    g.fillText(`${t.toFixed(t < 10 ? 1 : 0)} s`, Math.min(Math.max(x(t), pad.l + 12), width - 16), height - pad.b + 5);
+    const v = (span * i) / 4;
+    g.fillText(`${v.toFixed(v < 10 ? 1 : 0)}${unit}`, Math.min(Math.max(x(v), pad.l + 12), width - 16), height - pad.b + 5);
   }
   g.strokeStyle = css("--ink-muted"); g.setLineDash([3, 3]);
-  for (const t of marks) { g.beginPath(); g.moveTo(x(t), pad.t); g.lineTo(x(t), height - pad.b); g.stroke(); }
+  for (const m of marks) { g.beginPath(); g.moveTo(x(m), pad.t); g.lineTo(x(m), height - pad.b); g.stroke(); }
   g.setLineDash([]);
-
   g.strokeStyle = css("--primary"); g.fillStyle = css("--primary"); g.lineWidth = 1.6; g.lineJoin = "round";
   g.beginPath();
-  points.forEach(([t, v], i) => (i ? g.lineTo(x(t), y(v)) : g.moveTo(x(t), y(v))));
+  points.forEach(([a, v], i) => (i ? g.lineTo(x(a), y(v)) : g.moveTo(x(a), y(v))));
   g.stroke();
-  if (points.length <= 60) for (const [t, v] of points) { g.beginPath(); g.arc(x(t), y(v), 2.2, 0, 7); g.fill(); }
+  if (points.length <= 60) for (const [a, v] of points) { g.beginPath(); g.arc(x(a), y(v), 2.2, 0, 7); g.fill(); }
 }
 
-const stats = (values) => ({
-  min: Math.min(...values), max: Math.max(...values),
-  avg: values.reduce((a, b) => a + b, 0) / values.length,
-});
+// --- plain-language tiles for a connection check ----------------------------------------
+function tile(label, word, tone, detail) {
+  return el("div", { className: "tile" }, el("small", { textContent: label }),
+    el("b", { className: tone, textContent: word }), el("span", { textContent: detail || "" }));
+}
 
-let viewing = null;  // "live" or the name of the run on screen
+function latencyTile(label, run, probe, fairAbove, poorAbove) {
+  const rtt = seriesOf(run, probe, "rtt_ms"), lost = seriesOf(run, probe, "lost");
+  if (!lost) return tile(label, t("notMeasured"), "none", "");
+  const loss = Math.round(100 * lost.avg);
+  if (!rtt) return tile(label, t("noAnswer"), "bad", "");
+  const tone = loss > 2 || rtt.avg > poorAbove ? "bad" : rtt.avg > fairAbove ? "warn" : "ok";
+  const word = tone === "bad" ? t("poor") : tone === "warn" ? t("fair") : t("good");
+  return tile(label, word, tone, t("delay", fmt(Math.round(rtt.avg * 10) / 10), loss));
+}
 
-function renderRun(run, live, notices = []) {
-  const main = document.getElementById("main");
+function wifiTile(run) {
+  const connected = seriesOf(run, "wifi", "associated"), rssi = seriesOf(run, "wifi", "rssi_dbm");
+  if (!connected) return tile(t("tileWifi"), t("notMeasured"), "none", "");
+  if (!rssi) return tile(t("tileWifi"), t("notConnected"), "bad", "");
+  const [tone, word] = grade(rssi.avg);
+  return tile(t("tileWifi"), word, tone, `${rssi.avg.toFixed(0)} dBm`);
+}
+
+const tilesFor = (run) => el("div", { className: "tiles" },
+  wifiTile(run), latencyTile(t("tileRouter"), run, "router", 10, 20), latencyTile(t("tileInternet"), run, "internet", 50, 100));
+
+// --- one run on screen ------------------------------------------------------------------
+let detailsOpen = false;
+
+function renderRun(run, live, notices = [], progress = null) {
+  const isCheck = run.kind === "diagnose";
   const chips = el("div", { className: "chips" });
   const chip = (label, value) => chips.append(el("div", { className: "chip" }, el("small", { textContent: label }), value));
-  if (!live) chip("Started", when(run.started_utc));
-  chip(live ? "Elapsed" : "Duration", `${run.duration.toFixed(1)} s`);
-  chip("Samples", String(run.sample_count));
+  if (!live) chip(t("started"), when(run.started_utc));
+  chip(t(live ? "elapsed" : "duration"), `${run.duration.toFixed(1)}${KO ? "초" : " s"}`);
 
   const bands = testBands(run.events, run.duration);
   const marks = run.events.filter((e) => e.kind === "mark").map((e) => e.t);
@@ -283,32 +538,54 @@ function renderRun(run, live, notices = []) {
   for (const s of run.series) {
     const values = s.points.map((p) => p[1]);
     const { min, max, avg } = stats(values);
-    if (s.metric === "lost") { chip(`${s.probe} · packet loss`, `${(100 * avg).toFixed(1)} %`); continue; }
-    if (s.metric === "associated") { chip(`${s.probe} · connected`, `${(100 * avg).toFixed(0)} % of the time`); continue; }
-    const [label, unit] = LABELS[s.metric] || [s.metric, ""];
-    if (min === max) { chip(`${s.probe} · ${label}`, `${fmt(min)} ${unit}`.trim()); continue; }
+    const who = probeName(s.probe);
+    if (s.metric === "lost") { chip(`${who} · ${t("loss")}`, `${(100 * avg).toFixed(1)}%`); continue; }
+    if (s.metric === "associated") { chip(`${who} · ${t("connected")}`, `${(100 * avg).toFixed(0)}%`); continue; }
+    const [names, unit] = METRIC[s.metric] || [[s.metric, s.metric], ""];
+    const label = pick(names);
+    if (min === max) { chip(`${who} · ${label}`, `${fmt(min)} ${unit}`.trim()); continue; }
     const canvas = el("canvas");
-    const last = values[values.length - 1];
-    const summary = live ? `now ${fmt(last)} · avg ${fmt(avg)} ${unit}`
-                         : `min ${fmt(min)} · avg ${fmt(avg)} · max ${fmt(max)} ${unit}`;
-    const card = el("div", { className: "card" },
-      el("h3", {}, `${s.probe} · ${label}`, el("small", { textContent: summary })), canvas);
-    cards.push([canvas, s.points, card]);
+    const summary = live ? `${t("now")} ${fmt(values[values.length - 1])} · ${t("avg")} ${fmt(avg)} ${unit}`
+                         : `${t("min")} ${fmt(min)} · ${t("avg")} ${fmt(avg)} · ${t("max")} ${fmt(max)} ${unit}`;
+    cards.push([canvas, s.points, el("div", { className: "card chart" },
+      el("h3", {}, `${who} · ${label}`, el("small", { textContent: summary })), canvas)]);
   }
-  const status = live ? el("span", { className: "badge live", textContent: "measuring" }) : badge(run);
-  const nodes = [el("h1", { className: "title" }, run.kind, status)];
+
+  const nodes = [];
+  const verdict = !live && run.diagnosis ? VERDICT[run.diagnosis.verdict] : null;
+  if (live) {
+    nodes.push(el("p", { className: "eyebrow", textContent: kindName(run.kind) }),
+      el("h1", { className: "title", textContent: t(isCheck ? "checking" : "measuringTitle") }));
+    if (progress) nodes.push(
+      el("div", { className: "progress" }, el("i", { style: `width:${Math.min(100, 100 * progress[0] / progress[1])}%` })),
+      el("div", { className: "note", textContent: t("remaining", Math.max(0, Math.ceil(progress[1] - progress[0]))) }));
+  } else if (verdict) {
+    nodes.push(el("p", { className: "eyebrow", textContent: `${kindName(run.kind)} · ${when(run.started_utc)}` }),
+      el("h1", { className: "title" }, pick(verdict[0]), badge(run)),
+      el("p", { className: "lead", textContent: pick(verdict[1]) }));
+    if (run.diagnosis.wifi_suspect && run.diagnosis.verdict !== "ok")
+      nodes.push(el("div", { className: "alert soft", textContent: pick(WIFI_HINT) }));
+  } else {
+    nodes.push(el("p", { className: "eyebrow", textContent: when(run.started_utc) }),
+      el("h1", { className: "title" }, kindName(run.kind), badge(run)),
+      KIND_HELP[run.kind] ? el("p", { className: "lead", textContent: pick(KIND_HELP[run.kind]) }) : null);
+  }
   for (const text of notices) nodes.push(el("div", { className: "alert", textContent: text }));
-  if (run.diagnosis) nodes.push(el("div", { className: `result ${run.diagnosis.verdict === "ok" ? "fine" : ""}` },
-    el("b", { textContent: run.diagnosis.headline }),
-    el("ul", {}, ...run.diagnosis.details.map((d) => el("li", { textContent: d })))));
-  nodes.push(chips);
-  if (bands.length || marks.length) nodes.push(el("div", { className: "legend" },
-    el("span", { className: "swatch" }), "test active", marks.length ? "  ·  dashed line: mark" : ""));
-  nodes.push(...cards.map((c) => c[2]));
-  if (!cards.length) nodes.push(el("div", { className: "empty",
-    textContent: live ? "Waiting for the first samples…" : "Nothing varied during this run." }));
-  main.replaceChildren(...nodes);
+  if (isCheck && run.series.length) nodes.push(tilesFor(run));
+
+  const body = [chips];
+  if (bands.length || marks.length) body.push(el("div", { className: "legend" },
+    el("span", { className: "swatch" }), t("testActive"), marks.length ? `  ·  ${t("mark")}` : ""));
+  body.push(...cards.map((c) => c[2]));
+  if (!cards.length) body.push(el("div", { className: "empty", textContent: t(live ? "waiting" : "flat") }));
   const redraw = () => cards.forEach(([canvas, points]) => draw(canvas, points, run.duration, bands, marks));
+  if (isCheck) {
+    const box = el("details", { className: "detail", open: detailsOpen }, el("summary", { textContent: t("details") }), ...body);
+    box.ontoggle = () => { detailsOpen = box.open; redraw(); };
+    nodes.push(box);
+  } else nodes.push(...body);
+
+  $("main").replaceChildren(...nodes.filter(Boolean));
   redraw();
   window.onresize = redraw;
 }
@@ -319,22 +596,45 @@ async function showRun(name, button, notices = []) {
   viewing = name;
   let run;
   try { run = await getJSON(`/api/runs/${encodeURIComponent(name)}`); }
-  catch (error) {
-    document.getElementById("main").replaceChildren(el("div", { className: "empty", textContent: String(error) }));
-    return;
-  }
+  catch (error) { $("main").replaceChildren(el("div", { className: "empty", textContent: String(error) })); return; }
   if (viewing === name) renderRun(run, false, notices);
 }
 
-// --- starting a measurement and following it live ---------------------------------
+// --- sidebar ------------------------------------------------------------------------------
+async function loadRuns(select = null, notices = []) {
+  const { runs } = await getJSON("/api/runs");
+  const box = $("runs");
+  box.replaceChildren();
+  if (!runs.length) { box.append(el("div", { className: "note", style: "padding:4px 12px", textContent: t("noRuns") })); return; }
+  for (const run of runs) {
+    const button = el("button", { className: "run", type: "button" },
+      el("b", {}, kindName(run.kind), badge(run)), el("small", { textContent: when(run.started_utc) }));
+    button.onclick = () => showRun(run.name, button);
+    if (run.name === viewing) button.setAttribute("aria-current", "true");
+    box.append(button);
+    if (run.name === select) showRun(run.name, button, notices);
+  }
+}
 
-const $ = (id) => document.getElementById(id);
+async function loadDevices() {
+  const { devices } = await getJSON("/api/devices");
+  $("devices").replaceChildren(...devices.map((d) => el("div", { className: "device" },
+    el("b", { textContent: d.name }),
+    el("ul", {}, ...d.capabilities.map((c) => el("li", {
+      className: c.supported ? "yes" : "", title: c.reason,
+      textContent: (c.supported ? "✓ " : "– ") + pick(CAPABILITY[c.name] || [c.name, c.name]),
+    }))))));
+}
+
+// --- starting a measurement and following it live ---------------------------------------
 let kinds = {};
+let requested = null;  // seconds asked for, to show progress
 
 function syncForm() {
   const kind = kinds[$("kind").value];
   if (!kind) return;
-  $("target").hidden = kind.target === null;
+  $("kind-help").textContent = KIND_HELP[kind.kind] ? pick(KIND_HELP[kind.kind]) : "";
+  $("target").hidden = kind.kind !== "ping";
   $("target").value = kind.target || "";
   $("duration-row").hidden = kind.duration === null;
   $("duration").value = kind.duration || "";
@@ -345,38 +645,40 @@ function syncForm() {
 async function loadKinds() {
   const data = await getJSON("/api/kinds");
   kinds = Object.fromEntries(data.kinds.map((k) => [k.kind, k]));
-  $("kind").replaceChildren(...data.kinds.map((k) => el("option", { value: k.kind, textContent: k.label })));
+  $("kind").replaceChildren(...data.kinds.map((k) => el("option", { value: k.kind, textContent: kindName(k.kind) })));
   $("kind").onchange = syncForm;
   syncForm();
 }
 
 function setRunning(on, title = "") {
-  $("starter").hidden = on;
+  $("more-measure").hidden = on;
   $("running").hidden = !on;
   $("running-title").textContent = title;
+  $("running-state").textContent = t("measuring");
   $("stop").disabled = false;
 }
 
 function follow() {
   viewing = "live";
   document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
-  const live = { kind: "", duration: 0, sample_count: 0, events: [], notices: [], errors: [], series: new Map() };
+  const live = { kind: "", duration: 0, events: [], notices: [], errors: [], series: new Map() };
   const snapshot = () => ({ ...live, series: [...live.series.values()] });
   let dirty = true;
   const timer = setInterval(() => {
-    if (dirty && viewing === "live") { dirty = false; renderRun(snapshot(), true, [...live.notices, ...live.errors]); }
+    if (!dirty || viewing !== "live") return;
+    dirty = false;
+    renderRun(snapshot(), true, [...live.notices, ...live.errors], requested ? [live.duration, requested] : null);
   }, 400);
   const source = new EventSource("/api/measure/stream");
-  const end = () => { source.close(); clearInterval(timer); setRunning(false); };
+  const end = () => { source.close(); clearInterval(timer); setRunning(false); requested = null; };
   source.onmessage = async (event) => {
     const message = JSON.parse(event.data);
     dirty = true;
     if (message.type === "started") {
       live.kind = message.kind;
-      live.notices = message.notes.map((n) => `Note: ${n}`);
-      setRunning(true, message.title);
+      live.notices = message.notes.map((n) => `${t("note")}: ${n}`);
+      setRunning(true, kindName(message.kind));
     } else if (message.type === "sample") {
-      live.sample_count += Object.keys(message.values).length;
       live.duration = Math.max(live.duration, message.t);
       for (const [metric, value] of Object.entries(message.values)) {
         const key = `${message.probe}\u0000${metric}`;
@@ -386,26 +688,20 @@ function follow() {
     } else if (message.type === "state") {
       live.duration = Math.max(live.duration, message.t);
       live.events.push({ t: message.t, kind: "state", label: message.state });
-      $("running-state").textContent = message.state.replaceAll("_", " ") + "…";
     } else if (message.type === "error") {
-      live.errors.push(`Error: ${message.message}`);
+      live.errors.push(`${t("error")}: ${message.message}`);
     } else if (message.type === "finished") {
-      end();
       const stay = viewing === "live";
-      await loadRuns(stay ? message.name : null, live.errors, stay);
+      end();
+      await loadRuns(stay ? message.name : null, live.errors);
     }
   };
   source.onerror = end;  // do not auto-reconnect: a reconnect would replay the whole run
 }
 
-$("starter").onsubmit = async (event) => {
-  event.preventDefault();
-  const kind = kinds[$("kind").value];
-  const body = { kind: kind.kind };
-  if (kind.target !== null) body.target = $("target").value.trim();
-  if (kind.duration !== null && $("duration").value) body.duration = Number($("duration").value);
-  $("start").disabled = true;
-  $("starter-error").textContent = "";
+async function startMeasurement(body, button, errorBox) {
+  button.disabled = true;
+  if ($(errorBox)) $(errorBox).textContent = "";
   try {
     const response = await fetch("/api/measure", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -415,24 +711,45 @@ $("starter").onsubmit = async (event) => {
       const detail = Array.isArray(problem.detail) ? problem.detail.map((d) => d.msg).join("; ") : problem.detail;
       throw new Error(detail || `HTTP ${response.status}`);
     }
+    requested = body.duration || null;
+    detailsOpen = false;
     follow();
   } catch (error) {
-    $("starter-error").textContent = error.message;
+    if ($(errorBox)) $(errorBox).textContent = error.message;
   } finally {
-    $("start").disabled = false;
+    button.disabled = false;
   }
+}
+
+$("starter").onsubmit = (event) => {
+  event.preventDefault();
+  const kind = kinds[$("kind").value];
+  const body = { kind: kind.kind };
+  if (kind.kind === "ping") body.target = $("target").value.trim();
+  if (kind.duration !== null && $("duration").value) body.duration = Number($("duration").value);
+  startMeasurement(body, $("start"), "starter-error");
 };
 $("stop").onclick = async () => {
   $("stop").disabled = true;
   await fetch("/api/measure/stop", { method: "POST" });
 };
+$("home").onclick = showHome;
 
-getJSON("/api/info").then((i) => { $("version").textContent = `v${i.version} · ${i.runs_dir}`; });
+// --- start --------------------------------------------------------------------------------
+$("h-new").textContent = t("otherMeasurements");
+$("h-runs").textContent = t("history");
+$("h-devices").textContent = t("devices");
+$("start").textContent = t("start");
+$("stop").textContent = t("stop");
+$("seconds").textContent = t("seconds");
+$("target").placeholder = t("address");
+getJSON("/api/info").then((i) => { $("foot").textContent = `${t("savedIn")}: ${i.runs_dir} · v${i.version}`; });
 loadDevices().catch(() => {});
+showHome();
 (async () => {
   await loadKinds();
   const status = await getJSON("/api/measure");
-  await loadRuns(null, [], !status.running);
+  await loadRuns();
   if (status.running) follow();
 })().catch((e) => { $("runs").textContent = String(e); });
 </script>

@@ -33,9 +33,8 @@ def wait_idle(client, timeout=5.0):
 
 def test_kinds_are_listed_with_defaults(client):
     kinds = {k["kind"]: k for k in client.get("/api/kinds").json()["kinds"]}
-    assert {"diagnose", "ping", "wifi", "speed", "demo"} <= set(kinds)
+    assert set(kinds) == {"diagnose", "ping", "wifi", "speed"}  # the demo is not offered in the UI
     assert kinds["ping"]["target"] == "1.1.1.1"
-    assert kinds["demo"]["available"] is True
     assert kinds["wifi"]["available"] or kinds["wifi"]["reason"]
 
 

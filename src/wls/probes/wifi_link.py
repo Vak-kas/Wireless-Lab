@@ -40,6 +40,32 @@ class LinkReading:
 Reader = Callable[[], LinkReading | None]
 
 
+@dataclass(frozen=True, slots=True)
+class ScanEntry:
+    """One network seen in a scan. Name and BSSID are None when the OS hides them."""
+
+    rssi_dbm: float
+    ssid: str | None = None
+    bssid: str | None = None
+    channel: int | None = None
+    band_ghz: float | None = None
+    width_mhz: int | None = None
+    security: str = ""  # "open", "WEP", "WPA", "WPA2", "WPA2/WPA3", "WPA3", "enterprise" or ""
+
+
+Scanner = Callable[[], list[ScanEntry]]
+
+
+@dataclass(frozen=True, slots=True)
+class WifiBackend:
+    """What an operating system offers for Wi-Fi."""
+
+    provider: object  # a DeviceProvider
+    link_reader: Callable[[str], Reader]
+    scanner: Callable[[str], Scanner]
+    id_prefix: str
+
+
 @dataclass
 class WifiLinkProbe:
     device_id: str

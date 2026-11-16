@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -20,7 +19,7 @@ from wls.core.interfaces import Probe, Recorder
 from wls.core.state_machine import Command, State
 from wls.probes.ping import PingProbe, ping_command
 from wls.probes.speed import DEFAULT_DOWN_URL, DEFAULT_UP_URL, SpeedProbe, check_url
-from wls.probes.wifi_link import Reader, WifiLinkProbe
+from wls.probes.wifi_link import WifiBackend, WifiLinkProbe
 from wls.providers.host import LocalHostProvider
 from wls.providers.netinfo import default_gateway
 from wls.providers.sim import SimProbe, SimProvider, sim_host
@@ -44,14 +43,14 @@ class Plan:
     extra_providers: tuple[DeviceProvider, ...] = field(default=())
 
 
-def wifi_backend() -> tuple[DeviceProvider, Callable[[str], Reader], str] | None:
-    """Wi-Fi provider, reader factory and device id prefix for this OS, if any."""
+def wifi_backend() -> WifiBackend | None:
+    """Wi-Fi support of this operating system, if any."""
     if sys.platform == "darwin":
         try:
             from wls.providers import wifi_macos
         except ImportError:
             return None
-        return wifi_macos.MacWifiProvider(), wifi_macos.link_reader, wifi_macos.ID_PREFIX
+        return wifi_macos.backend()
     return None
 
 
@@ -59,11 +58,11 @@ def providers() -> list[DeviceProvider]:
     found: list[DeviceProvider] = [LocalHostProvider()]
     backend = wifi_backend()
     if backend is not None:
-        found.append(backend[0])
+        found.append(backend.provider)
     return found
 
 
-async def _pick_wifi(prefix: str, iface: str | None) -> Device:
+async def pick_wifi(prefix: str, iface: str | None) -> Device:
     manager = DeviceManager(providers())
     devices = [d for d in await manager.refresh() if d.id.startswith(prefix)]
     if iface is not None:
@@ -92,8 +91,8 @@ async def plan_wifi(iface: str | None = None, interval: float = 1.0) -> Plan:
     backend = wifi_backend()
     if backend is None:
         raise PlanError(f"Wi-Fi measurement is not supported on {sys.platform} yet")
-    _, make_reader, prefix = backend
-    device = await _pick_wifi(prefix, iface)
+    make_reader, prefix = backend.link_reader, backend.id_prefix
+    device = await pick_wifi(prefix, iface)
     notes = []
     identity = device.support(Capability.WIFI_IDENTITY)
     if not identity.supported:
@@ -113,9 +112,9 @@ async def plan_diagnose(target: str = "1.1.1.1", interval: float = 1.0) -> Plan:
         notes.append("the router address could not be determined")
     backend = wifi_backend()
     if backend is not None:
-        _, make_reader, prefix = backend
+        make_reader, prefix = backend.link_reader, backend.id_prefix
         try:
-            device = await _pick_wifi(prefix, None)
+            device = await pick_wifi(prefix, None)
         except PlanError:
             device = None
         if device is not None:

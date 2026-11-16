@@ -41,8 +41,11 @@ together for 10 seconds and says where the problem is: Wi-Fi, the local
 network, or beyond the router. Its thresholds are rules of thumb and the
 result describes only the measured period.
 
-`wls web` opens the same measurements in the browser: start one, watch it
-live, stop it, and browse recorded runs as charts with their seal status. It
+`wls web` is the easy way in. The first screen shows your Wi-Fi signal right
+now in plain words, the Wi-Fi networks around you, and one button that checks
+the connection and says where a problem is. Other measurements, charts and
+past results are one click away. The page is in Korean or English, following
+the browser language. It
 listens on this computer only, has no login, and refuses requests coming from
 other web pages.
 

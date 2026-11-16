@@ -45,8 +45,6 @@ def kinds() -> list[dict]:
          "duration": 30, "available": wifi, "reason": no_wifi},
         {"kind": "speed", "label": "Speed (uses data)", "target": None,
          "duration": None, "available": True, "reason": ""},
-        {"kind": "demo", "label": "Demo (simulated)", "target": None,
-         "duration": 10, "available": True, "reason": ""},
     ]  # fmt: skip
 
 
