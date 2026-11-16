@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wireless-lab"
+version = "0.0.1"
+description = "Local wireless measurement and experiment-control engine (Wi-Fi first)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=1.5.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wls"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Import from src/ directly. On macOS, files under .venv can get the "hidden"
+# flag (synced Desktop folders), and Python 3.13 then skips the editable .pth.
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+
+# OS
+.DS_Store
+
+# Measurement output: may contain real SSIDs, BSSIDs and locations. Never commit.
+runs/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.pcap
+*.pcapng
