@@ -18,6 +18,7 @@ from wls.core.controller import Controller, ExperimentConfig
 from wls.core.devices import Capability, Device, DeviceManager, DeviceProvider
 from wls.core.interfaces import Probe, Recorder
 from wls.core.state_machine import Command, State
+from wls.probes.ble_track import BleTrackProbe
 from wls.probes.ping import PingProbe, ping_command
 from wls.probes.speed import DEFAULT_DOWN_URL, DEFAULT_UP_URL, SpeedProbe, check_url
 from wls.probes.wifi_link import WifiBackend, WifiLinkProbe
@@ -153,6 +154,19 @@ def plan_speed(
         notes=("this transfers real data for the whole duration",),
         max_duration=2 * seconds + 30.0,
     )
+
+
+def plan_bt_track(
+    device_id: str, name: str | None = None, backend: BluetoothBackend | None = None
+) -> Plan:
+    backend = backend if backend is not None else bluetooth_backend()
+    if backend is None:
+        raise PlanError("Bluetooth is not supported on this system yet")
+    if not device_id:
+        raise PlanError("a device is required")
+    probe = BleTrackProbe(backend.scan, device_id)
+    title = name or "a Bluetooth device"
+    return Plan("bt-track", title, (probe,), stall_timeout=12.0)
 
 
 def plan_demo(interval: float = 0.2) -> Plan:

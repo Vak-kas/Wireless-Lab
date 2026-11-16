@@ -15,6 +15,7 @@ from wls.core.storage import SqliteRecorder
 from wls.measurements import (
     Plan,
     PlanError,
+    plan_bt_track,
     plan_demo,
     plan_diagnose,
     plan_ping,
@@ -48,8 +49,10 @@ def kinds() -> list[dict]:
     ]  # fmt: skip
 
 
-async def make_plan(kind: str, target: str | None) -> Plan:
+async def make_plan(kind: str, target: str | None, name: str | None = None) -> Plan:
     match kind:
+        case "bt-track":
+            return plan_bt_track(target or "", name)
         case "diagnose":
             return await plan_diagnose(target or "1.1.1.1")
         case "ping":
@@ -146,10 +149,12 @@ class LiveManager:
     def running(self) -> bool:
         return self.current is not None and not self.current.finished
 
-    async def start(self, kind: str, target: str | None, duration: float | None) -> LiveRun:
+    async def start(
+        self, kind: str, target: str | None, duration: float | None, name: str | None = None
+    ) -> LiveRun:
         if self.running:
             raise Busy("a measurement is already running")
-        plan = await make_plan(kind, target)
+        plan = await make_plan(kind, target, name)
         if self.running:  # another request won the race while the plan was built
             raise Busy("a measurement is already running")
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")

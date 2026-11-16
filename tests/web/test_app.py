@@ -137,3 +137,11 @@ def test_diagnose_runs_carry_their_result(tmp_path):
 
 def test_other_runs_have_no_diagnosis(client):
     assert client.get("/api/runs/20261116T010000Z-ping.sqlite").json()["diagnosis"] is None
+
+
+def test_kind_with_a_hyphen_is_parsed(tmp_path):
+    from wls.core.storage import SqliteRecorder
+    SqliteRecorder(tmp_path / "20261116T040000Z-bt-track.sqlite").close()
+    from wls.core.runs import list_runs
+    (info,) = list_runs(tmp_path)
+    assert info.kind == "bt-track"

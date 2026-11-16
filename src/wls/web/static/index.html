@@ -166,6 +166,11 @@
   .net .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .net .name.hidden-name { font-weight: 400; color: var(--ink-faint); }
   .net .dim { color: var(--ink-muted); font-size: 14px; }
+  #bt-box .net { grid-template-columns: 96px minmax(0, 1.3fr) minmax(0, 1fr) 70px 84px; }
+  .net .track { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--primary);
+                border: 1px solid var(--hairline); border-radius: 8px; padding: 3px 10px; text-align: center; }
+  .net .track:hover { background: var(--primary-soft); }
+  .net .track:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
   /* result tiles and details */
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;
@@ -275,6 +280,7 @@ const TEXT = {
   btNote: ["Only what devices broadcast about themselves is shown; nothing is connected to. Many devices broadcast no name, and phones change their identifier every few minutes.",
            "기기가 스스로 방송하는 정보만 보여 주며, 어떤 기기에도 연결하지 않습니다. 이름을 방송하지 않는 기기가 많고, 휴대폰은 몇 분마다 식별자를 바꿉니다."],
   colMaker: ["Maker", "제조사"], colConnect: ["Accepts connections", "연결 허용"], noName: ["(no name)", "(이름 없음)"],
+  track: ["Track", "신호 추적"], heardPct: ["heard", "신호 들림"], trackHelp: ["Follow this device's signal over time until you stop it.", "이 기기의 신호를 중지할 때까지 계속 기록합니다."],
   yes: ["Yes", "예"], no: ["No", "아니요"],
   btPlan: [["List of nearby Bluetooth devices with signal strength", "Device type and maker where the device announces it", "A record of how a device's signal changes over time"],
            ["주변 블루투스 기기 목록과 신호 세기", "기기가 스스로 알리는 경우 기기 종류와 제조사", "기기의 신호가 시간에 따라 변하는 기록"]],
@@ -326,7 +332,7 @@ const TEXT = {
 const t = (key, ...args) => { const v = TEXT[key][KO ? 1 : 0]; return typeof v === "function" ? v(...args) : v; };
 const KIND = {
   diagnose: ["Connection check", "연결 확인"], ping: ["Response time", "응답 시간 측정"], wifi: ["Wi-Fi signal log", "Wi-Fi 신호 기록"],
-  speed: ["Speed test", "속도 측정"], demo: ["Demo", "데모"], simulated: ["Simulated experiment", "가상 실험"], run: ["Measurement", "측정"],
+  speed: ["Speed test", "속도 측정"], demo: ["Demo", "데모"], simulated: ["Simulated experiment", "가상 실험"], run: ["Measurement", "측정"], "bt-track": ["Bluetooth device signal", "블루투스 기기 신호"],
 };
 const KIND_HELP = {
   diagnose: ["Measures your router, the internet and Wi-Fi together and says where the problem is.",
@@ -583,14 +589,19 @@ function renderBluetooth() {
   if (!btResult.devices.length) { message(t("btNone")); return; }
   box.replaceChildren(
     el("div", { className: "net head" }, el("div", { textContent: t("colSignal") }), el("div", { textContent: t("colName") }),
-      el("div", { textContent: t("colMaker") }), el("div", { textContent: t("colConnect") })),
+      el("div", { textContent: t("colMaker") }), el("div", { textContent: t("colConnect") }), el("div", {})),
     ...btResult.devices.map((d) => {
       const [tone, , level] = grade(d.rssi_dbm);
       return el("div", { className: "net" },
         el("div", { className: "sig" }, bars(level, tone), el("span", { textContent: `${d.rssi_dbm.toFixed(0)} dBm` })),
         el("div", { className: `name ${d.name ? "" : "hidden-name"}`, textContent: d.name || t("noName") }),
         el("div", { className: "dim", textContent: d.maker || "–" }),
-        el("div", { className: "dim", textContent: d.connectable === null ? "–" : t(d.connectable ? "yes" : "no") }));
+        el("div", { className: "dim", textContent: d.connectable === null ? "–" : t(d.connectable ? "yes" : "no") }),
+        (() => {
+          const button = el("button", { className: "track", type: "button", textContent: t("track"), title: t("trackHelp") });
+          button.onclick = () => startMeasurement({ kind: "bt-track", target: d.id, name: d.name || t("navBluetooth") }, button);
+          return button;
+        })());
     }));
 }
 
@@ -822,6 +833,7 @@ function renderRun(run, live, notices = [], progress = null) {
     const who = probeName(s.probe);
     if (s.metric === "lost") { chip(`${who} · ${t("loss")}`, `${(100 * avg).toFixed(1)}%`); continue; }
     if (s.metric === "associated") { chip(`${who} · ${t("connected")}`, `${(100 * avg).toFixed(0)}%`); continue; }
+    if (s.metric === "heard") { chip(t("heardPct"), `${(100 * avg).toFixed(0)}%`); continue; }
     const [names, unit] = METRIC[s.metric] || [[s.metric, s.metric], ""];
     const label = pick(names);
     if (min === max) { chip(`${who} · ${label}`, `${fmt(min)} ${unit}`.trim()); continue; }
@@ -837,6 +849,7 @@ function renderRun(run, live, notices = [], progress = null) {
   if (live) {
     nodes.push(el("p", { className: "eyebrow", textContent: kindName(run.kind) }),
       el("h1", { className: "title", textContent: t(isCheck ? "checking" : "measuringTitle") }));
+    if (!isCheck && run.title) nodes.push(el("p", { className: "lead", textContent: run.title }));
     if (progress) nodes.push(
       el("div", { className: "progress" }, el("i", { style: `width:${Math.min(100, 100 * progress[0] / progress[1])}%` })),
       el("div", { className: "note", textContent: t("remaining", Math.max(0, Math.ceil(progress[1] - progress[0]))) }));
@@ -944,7 +957,7 @@ function follow() {
   viewing = "live";
   markNav(null);
   document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
-  const live = { kind: "", duration: 0, events: [], notices: [], errors: [], series: new Map() };
+  const live = { kind: "", title: "", duration: 0, events: [], notices: [], errors: [], series: new Map() };
   const snapshot = () => ({ ...live, series: [...live.series.values()] });
   let dirty = true;
   const timer = setInterval(() => {
@@ -959,6 +972,7 @@ function follow() {
     dirty = true;
     if (message.type === "started") {
       live.kind = message.kind;
+      live.title = message.title;
       live.notices = message.notes.map((n) => `${t("note")}: ${n}`);
       setRunning(true, kindName(message.kind));
     } else if (message.type === "sample") {

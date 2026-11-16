@@ -40,6 +40,7 @@ class MeasureRequest(BaseModel):
     kind: str = Field(max_length=32)
     target: str | None = Field(default=None, max_length=253)
     duration: float | None = Field(default=None, gt=0, le=3600)
+    name: str | None = Field(default=None, max_length=120)
 
 
 def _hostname(value: str) -> str:
@@ -273,7 +274,7 @@ def create_app(
     @app.post("/api/measure")
     async def measure_start(body: MeasureRequest) -> dict:
         try:
-            await live.start(body.kind, body.target, body.duration)
+            await live.start(body.kind, body.target, body.duration, body.name)
         except Busy as exc:
             raise HTTPException(409, str(exc)) from None
         except PlanError as exc:

@@ -71,6 +71,10 @@ does not show which 802.11 procedure was used or how long it took.
 The lists of nearby Wi-Fi networks and Bluetooth devices keep updating while
 their section is open; a checkbox turns that off.
 
+Each device in the Bluetooth list has a *Track* button that records one
+device's signal strength over time as a normal run, with a live chart, until
+you stop it. It only listens to what the device broadcasts; it never connects.
+
 ### Bluetooth
 
 The Bluetooth section of `wls web` lists Bluetooth Low Energy devices around

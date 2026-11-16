@@ -13,7 +13,7 @@ from wls.core.storage import read_meta, read_run, verify_run
 
 # Run files are named by the program; anything else is never opened.
 RUN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.sqlite$")
-_KIND = re.compile(r"^\d{8}T\d{6}Z-(?P<kind>[a-z0-9_]+)\.sqlite$")
+_KIND = re.compile(r"^\d{8}T\d{6}Z-(?P<kind>[a-z0-9_-]+)\.sqlite$")
 _TIMELINE_KINDS = {"state", "mark", "test_start_requested", "test_reverted", "test_error",
                    "probe_error", "probe_stalled", "stop_timeout"}  # fmt: skip
 
