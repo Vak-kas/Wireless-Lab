@@ -83,6 +83,35 @@
   .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px;
             background: var(--band); border: 1px solid var(--warn); vertical-align: -1px;
             margin-right: 6px; }
+  .panel { display: grid; gap: 8px; padding: 4px 12px 8px; }
+  .panel[hidden] { display: none; }
+  select, input { width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+                  border: 1px solid var(--hairline); border-radius: 4px; padding: 6px; }
+  select:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 0; }
+  .inline { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); font-size: 14px; }
+  .inline input { width: 88px; }
+  button.primary, button.utility { font: 500 16px/1.5 inherit; font-family: inherit; cursor: pointer;
+                                   justify-self: start; transition: transform .08s; }
+  button.primary { background: var(--primary); color: #fff; border: 0; border-radius: 9999px;
+                   padding: 6px 20px; }
+  button.primary:active { background: #005bab; transform: scale(0.96); }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  button.utility { background: var(--surface); color: var(--ink); border: 1px solid var(--hairline);
+                   border-radius: 8px; padding: 4px 14px; }
+  button.utility:active { transform: scale(0.96); }
+  button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .note { font-size: 13px; color: var(--ink-muted); }
+  .note:empty { display: none; }
+  .note.bad { color: var(--bad); }
+  .live { color: var(--primary); }
+  .alert { border: 1px solid var(--hairline); border-left: 3px solid var(--bad); border-radius: 8px;
+           background: var(--surface); padding: 12px 16px; margin: 16px 0; font-size: 14px; }
+  .result { background: var(--surface); border: 1px solid var(--hairline); border-left: 3px solid var(--warn);
+            border-radius: 8px; padding: 16px 20px; margin: 20px 0 0; }
+  .result.fine { border-left-color: var(--ok); }
+  .result b { font-size: 20px; font-weight: 600; letter-spacing: -0.125px; line-height: 1.4; }
+  .result ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-muted); font-size: 14px; }
+  .result ul:empty { display: none; }
   @media (max-width: 840px) {
     .layout { grid-template-columns: 1fr; }
     aside { padding: 8px 12px 0; }
@@ -95,6 +124,21 @@
 <header><h1>Wireless Lab</h1><span id="version"></span></header>
 <div class="layout">
   <aside>
+    <h2>New measurement</h2>
+    <form class="panel" id="starter">
+      <select id="kind" aria-label="Measurement"></select>
+      <input id="target" type="text" placeholder="Address, e.g. 1.1.1.1" aria-label="Address"
+             autocomplete="off" spellcheck="false">
+      <label class="inline" id="duration-row"><input id="duration" type="number" min="1" max="3600"
+             aria-label="Duration in seconds"><span>seconds</span></label>
+      <button class="primary" id="start" type="submit">Start</button>
+      <div class="note bad" id="starter-error" role="alert"></div>
+    </form>
+    <div class="panel" id="running" hidden>
+      <b id="running-title"></b>
+      <div class="note" id="running-state">measuring…</div>
+      <button class="utility" id="stop" type="button">Stop</button>
+    </div>
     <h2>Runs</h2>
     <div id="runs"><div class="empty">Loading…</div></div>
     <h2>Devices</h2>
@@ -133,21 +177,26 @@ function badge(run) {
 }
 const when = (iso) => iso ? new Date(iso).toLocaleString() : "";
 
-async function loadRuns() {
+async function loadRuns(select = null, notices = [], open = true) {
   const box = document.getElementById("runs");
   const { runs } = await getJSON("/api/runs");
   box.replaceChildren();
   if (!runs.length) {
-    box.append(el("div", { className: "empty", textContent: "No runs yet. Try: wls diagnose" }));
+    box.append(el("div", { className: "empty", textContent: "No runs yet." }));
     return;
   }
+  let chosen = null;
   for (const run of runs) {
-    const button = el("button", { className: "run" },
+    const button = el("button", { className: "run", type: "button" },
       el("b", {}, run.kind, badge(run)), el("small", { textContent: when(run.started_utc) }));
     button.onclick = () => showRun(run.name, button);
+    if (run.name === select || run.name === viewing) chosen = [run.name, button];
     box.append(button);
   }
-  box.firstElementChild.click();
+  if (!open) return;
+  if (chosen && chosen[0] === select) showRun(chosen[0], chosen[1], notices);
+  else if (chosen) chosen[1].setAttribute("aria-current", "true");
+  else box.firstElementChild.click();
 }
 
 async function loadDevices() {
@@ -218,18 +267,14 @@ const stats = (values) => ({
   avg: values.reduce((a, b) => a + b, 0) / values.length,
 });
 
-async function showRun(name, button) {
-  document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
-  button.setAttribute("aria-current", "true");
-  const main = document.getElementById("main");
-  let run;
-  try { run = await getJSON(`/api/runs/${encodeURIComponent(name)}`); }
-  catch (error) { main.replaceChildren(el("div", { className: "empty", textContent: String(error) })); return; }
+let viewing = null;  // "live" or the name of the run on screen
 
+function renderRun(run, live, notices = []) {
+  const main = document.getElementById("main");
   const chips = el("div", { className: "chips" });
   const chip = (label, value) => chips.append(el("div", { className: "chip" }, el("small", { textContent: label }), value));
-  chip("Started", when(run.started_utc));
-  chip("Duration", `${run.duration.toFixed(1)} s`);
+  if (!live) chip("Started", when(run.started_utc));
+  chip(live ? "Elapsed" : "Duration", `${run.duration.toFixed(1)} s`);
   chip("Samples", String(run.sample_count));
 
   const bands = testBands(run.events, run.duration);
@@ -243,27 +288,153 @@ async function showRun(name, button) {
     const [label, unit] = LABELS[s.metric] || [s.metric, ""];
     if (min === max) { chip(`${s.probe} · ${label}`, `${fmt(min)} ${unit}`.trim()); continue; }
     const canvas = el("canvas");
+    const last = values[values.length - 1];
+    const summary = live ? `now ${fmt(last)} · avg ${fmt(avg)} ${unit}`
+                         : `min ${fmt(min)} · avg ${fmt(avg)} · max ${fmt(max)} ${unit}`;
     const card = el("div", { className: "card" },
-      el("h3", {}, `${s.probe} · ${label}`,
-        el("small", { textContent: `min ${fmt(min)} · avg ${fmt(avg)} · max ${fmt(max)} ${unit}` })),
-      canvas);
+      el("h3", {}, `${s.probe} · ${label}`, el("small", { textContent: summary })), canvas);
     cards.push([canvas, s.points, card]);
   }
-  const title = el("h1", { className: "title" }, run.kind, badge(run));
-  const nodes = [title, chips];
+  const status = live ? el("span", { className: "badge live", textContent: "measuring" }) : badge(run);
+  const nodes = [el("h1", { className: "title" }, run.kind, status)];
+  for (const text of notices) nodes.push(el("div", { className: "alert", textContent: text }));
+  if (run.diagnosis) nodes.push(el("div", { className: `result ${run.diagnosis.verdict === "ok" ? "fine" : ""}` },
+    el("b", { textContent: run.diagnosis.headline }),
+    el("ul", {}, ...run.diagnosis.details.map((d) => el("li", { textContent: d })))));
+  nodes.push(chips);
   if (bands.length || marks.length) nodes.push(el("div", { className: "legend" },
     el("span", { className: "swatch" }), "test active", marks.length ? "  ·  dashed line: mark" : ""));
   nodes.push(...cards.map((c) => c[2]));
-  if (!cards.length) nodes.push(el("div", { className: "empty", textContent: "Nothing varied during this run." }));
+  if (!cards.length) nodes.push(el("div", { className: "empty",
+    textContent: live ? "Waiting for the first samples…" : "Nothing varied during this run." }));
   main.replaceChildren(...nodes);
   const redraw = () => cards.forEach(([canvas, points]) => draw(canvas, points, run.duration, bands, marks));
   redraw();
   window.onresize = redraw;
 }
 
-getJSON("/api/info").then((i) => { document.getElementById("version").textContent = `v${i.version} · ${i.runs_dir}`; });
-loadRuns().catch((e) => { document.getElementById("runs").textContent = String(e); });
+async function showRun(name, button, notices = []) {
+  document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
+  button.setAttribute("aria-current", "true");
+  viewing = name;
+  let run;
+  try { run = await getJSON(`/api/runs/${encodeURIComponent(name)}`); }
+  catch (error) {
+    document.getElementById("main").replaceChildren(el("div", { className: "empty", textContent: String(error) }));
+    return;
+  }
+  if (viewing === name) renderRun(run, false, notices);
+}
+
+// --- starting a measurement and following it live ---------------------------------
+
+const $ = (id) => document.getElementById(id);
+let kinds = {};
+
+function syncForm() {
+  const kind = kinds[$("kind").value];
+  if (!kind) return;
+  $("target").hidden = kind.target === null;
+  $("target").value = kind.target || "";
+  $("duration-row").hidden = kind.duration === null;
+  $("duration").value = kind.duration || "";
+  $("start").disabled = !kind.available;
+  $("starter-error").textContent = kind.available ? "" : kind.reason;
+}
+
+async function loadKinds() {
+  const data = await getJSON("/api/kinds");
+  kinds = Object.fromEntries(data.kinds.map((k) => [k.kind, k]));
+  $("kind").replaceChildren(...data.kinds.map((k) => el("option", { value: k.kind, textContent: k.label })));
+  $("kind").onchange = syncForm;
+  syncForm();
+}
+
+function setRunning(on, title = "") {
+  $("starter").hidden = on;
+  $("running").hidden = !on;
+  $("running-title").textContent = title;
+  $("stop").disabled = false;
+}
+
+function follow() {
+  viewing = "live";
+  document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
+  const live = { kind: "", duration: 0, sample_count: 0, events: [], notices: [], errors: [], series: new Map() };
+  const snapshot = () => ({ ...live, series: [...live.series.values()] });
+  let dirty = true;
+  const timer = setInterval(() => {
+    if (dirty && viewing === "live") { dirty = false; renderRun(snapshot(), true, [...live.notices, ...live.errors]); }
+  }, 400);
+  const source = new EventSource("/api/measure/stream");
+  const end = () => { source.close(); clearInterval(timer); setRunning(false); };
+  source.onmessage = async (event) => {
+    const message = JSON.parse(event.data);
+    dirty = true;
+    if (message.type === "started") {
+      live.kind = message.kind;
+      live.notices = message.notes.map((n) => `Note: ${n}`);
+      setRunning(true, message.title);
+    } else if (message.type === "sample") {
+      live.sample_count += Object.keys(message.values).length;
+      live.duration = Math.max(live.duration, message.t);
+      for (const [metric, value] of Object.entries(message.values)) {
+        const key = `${message.probe}\u0000${metric}`;
+        if (!live.series.has(key)) live.series.set(key, { probe: message.probe, metric, points: [] });
+        live.series.get(key).points.push([message.t, value]);
+      }
+    } else if (message.type === "state") {
+      live.duration = Math.max(live.duration, message.t);
+      live.events.push({ t: message.t, kind: "state", label: message.state });
+      $("running-state").textContent = message.state.replaceAll("_", " ") + "…";
+    } else if (message.type === "error") {
+      live.errors.push(`Error: ${message.message}`);
+    } else if (message.type === "finished") {
+      end();
+      const stay = viewing === "live";
+      await loadRuns(stay ? message.name : null, live.errors, stay);
+    }
+  };
+  source.onerror = end;  // do not auto-reconnect: a reconnect would replay the whole run
+}
+
+$("starter").onsubmit = async (event) => {
+  event.preventDefault();
+  const kind = kinds[$("kind").value];
+  const body = { kind: kind.kind };
+  if (kind.target !== null) body.target = $("target").value.trim();
+  if (kind.duration !== null && $("duration").value) body.duration = Number($("duration").value);
+  $("start").disabled = true;
+  $("starter-error").textContent = "";
+  try {
+    const response = await fetch("/api/measure", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const problem = await response.json().catch(() => ({}));
+      const detail = Array.isArray(problem.detail) ? problem.detail.map((d) => d.msg).join("; ") : problem.detail;
+      throw new Error(detail || `HTTP ${response.status}`);
+    }
+    follow();
+  } catch (error) {
+    $("starter-error").textContent = error.message;
+  } finally {
+    $("start").disabled = false;
+  }
+};
+$("stop").onclick = async () => {
+  $("stop").disabled = true;
+  await fetch("/api/measure/stop", { method: "POST" });
+};
+
+getJSON("/api/info").then((i) => { $("version").textContent = `v${i.version} · ${i.runs_dir}`; });
 loadDevices().catch(() => {});
+(async () => {
+  await loadKinds();
+  const status = await getJSON("/api/measure");
+  await loadRuns(null, [], !status.running);
+  if (status.running) follow();
+})().catch((e) => { $("runs").textContent = String(e); });
 </script>
 </body>
 </html>

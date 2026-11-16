@@ -121,3 +121,19 @@ def test_api_lists_devices_with_reasons(client):
     assert set(devices) == {"sim-host", "sim-wlan0"}
     inject = next(c for c in devices["sim-wlan0"]["capabilities"] if c["name"] == "wifi_inject")
     assert inject["supported"] is False and "injection" in inject["reason"]
+
+
+def test_diagnose_runs_carry_their_result(tmp_path):
+    recorder = SqliteRecorder(tmp_path / "20261116T030000Z-diagnose.sqlite")
+    for i in range(5):
+        recorder.sample(Sample("router", i * S, {"rtt_ms": 2.0, "lost": 0.0}))
+        recorder.sample(Sample("internet", i * S, {"rtt_ms": 300.0, "lost": 0.0}))
+    recorder.close()
+    client = TestClient(create_app(tmp_path, lambda: []))
+    run = client.get("/api/runs/20261116T030000Z-diagnose.sqlite").json()
+    assert run["diagnosis"]["verdict"] == "internet_problem"
+    assert "beyond your router" in run["diagnosis"]["headline"]
+
+
+def test_other_runs_have_no_diagnosis(client):
+    assert client.get("/api/runs/20261116T010000Z-ping.sqlite").json()["diagnosis"] is None

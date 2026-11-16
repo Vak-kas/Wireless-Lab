@@ -41,9 +41,10 @@ together for 10 seconds and says where the problem is: Wi-Fi, the local
 network, or beyond the router. Its thresholds are rules of thumb and the
 result describes only the measured period.
 
-`wls web` shows recorded runs as charts in the browser, with the seal status
-of each run and the capabilities of connected devices. It listens on this
-computer only and has no login.
+`wls web` opens the same measurements in the browser: start one, watch it
+live, stop it, and browse recorded runs as charts with their seal status. It
+listens on this computer only, has no login, and refuses requests coming from
+other web pages.
 
 `wls ping` runs until `--duration` elapses or you press Ctrl+C, prints each
 reply, and saves the run to `runs/`. A run that ended normally is sealed with

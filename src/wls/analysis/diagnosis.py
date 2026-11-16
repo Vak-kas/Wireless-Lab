@@ -10,10 +10,17 @@ measured period.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 
-from wls.analysis.summary import LatencySummary, MetricSummary
+from wls.analysis.summary import (
+    LatencySummary,
+    MetricSummary,
+    SampleRow,
+    summarize_latency,
+    summarize_metric,
+)
 
 # Rules of thumb.
 WEAK_RSSI_DBM = -70.0
@@ -21,7 +28,7 @@ FAIR_RSSI_DBM = -60.0
 LOW_SNR_DB = 20.0
 MAX_LOSS_PERCENT = 2.0
 LOCAL_MAX_AVG_MS = 20.0
-LOCAL_MAX_JITTER_MS = 10.0
+LOCAL_MAX_JITTER_MS = 30.0  # routers answer ping with low priority, so their delay varies
 INTERNET_MAX_AVG_MS = 100.0
 INTERNET_MAX_JITTER_MS = 30.0
 
@@ -147,3 +154,15 @@ def diagnose(
             (*(f"Internet: {i}" for i in internet_issues), *wifi_notes),
         )
     return Diagnosis(Verdict.OK, "No problem found.", tuple(wifi_notes))
+
+
+def diagnose_samples(rows: Sequence[SampleRow]) -> Diagnosis:
+    """Diagnose a recorded ``diagnose`` run (probes: internet, router, wifi)."""
+    router = summarize_latency(rows, "router")
+    return diagnose(
+        summarize_latency(rows, "internet"),
+        router if router.sent else None,
+        summarize_metric(rows, "wifi", "associated"),
+        summarize_metric(rows, "wifi", "rssi_dbm"),
+        summarize_metric(rows, "wifi", "snr_db"),
+    )

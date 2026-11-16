@@ -21,45 +21,30 @@ import sys
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from wls import __version__
-from wls.analysis.diagnosis import diagnose
+from wls.analysis.diagnosis import diagnose_samples
 from wls.analysis.summary import SampleRow, summarize_latency, summarize_metric
-from wls.core.controller import Controller, ExperimentConfig
-from wls.core.devices import Capability, Device, DeviceManager, DeviceProvider
+from wls.core.devices import DeviceManager
 from wls.core.export import export_csv, export_json
-from wls.core.interfaces import Event, Probe, Sample
-from wls.core.state_machine import Command, State
+from wls.core.interfaces import Event, Sample
+from wls.core.state_machine import State
 from wls.core.storage import SqliteRecorder, read_run, verify_run
-from wls.probes.ping import PingProbe, ping_command
-from wls.probes.speed import DEFAULT_DOWN_URL, DEFAULT_UP_URL, SpeedProbe, check_url
-from wls.probes.wifi_link import Reader, WifiLinkProbe
-from wls.providers.host import LocalHostProvider
-from wls.providers.netinfo import default_gateway
+from wls.measurements import (
+    Plan,
+    PlanError,
+    plan_diagnose,
+    plan_ping,
+    plan_speed,
+    plan_wifi,
+    providers,
+    run_plan,
+)
+from wls.probes.speed import DEFAULT_DOWN_URL, DEFAULT_UP_URL
 
 EXIT_OK, EXIT_FAILED, EXIT_USAGE = 0, 1, 2
 
 Show = Callable[[Sample], str]
-
-
-def _wifi_backend() -> tuple[DeviceProvider, Callable[[str], Reader], str] | None:
-    """Wi-Fi provider, reader factory and device id prefix for this OS, if any."""
-    if sys.platform == "darwin":
-        try:
-            from wls.providers import wifi_macos
-        except ImportError:
-            return None
-        return wifi_macos.MacWifiProvider(), wifi_macos.link_reader, wifi_macos.ID_PREFIX
-    return None
-
-
-def _providers() -> list[DeviceProvider]:
-    providers: list[DeviceProvider] = [LocalHostProvider()]
-    backend = _wifi_backend()
-    if backend is not None:
-        providers.append(backend[0])
-    return providers
 
 
 class _LiveRecorder:
@@ -86,44 +71,22 @@ def _on_interrupt(loop: asyncio.AbstractEventLoop, stop: asyncio.Event) -> None:
 
 
 async def _measure(
-    args: argparse.Namespace,
-    probes: tuple[Probe, ...],
-    kind: str,
-    title: str,
-    show: Show,
-    stall_timeout: float,
-    stop: asyncio.Event | None = None,
+    args: argparse.Namespace, plan: Plan, show: Show
 ) -> tuple[State, list[SampleRow], Path]:
-    """Run the probes until the duration ends, Ctrl+C, or a failure. Saves the run."""
+    """Run a plan until the duration ends, Ctrl+C, or a failure. Saves the run."""
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    path = Path(args.out) / f"{stamp}-{kind}.sqlite"
+    path = Path(args.out) / f"{stamp}-{plan.kind}.sqlite"
     store = SqliteRecorder(path)
     recorder = _LiveRecorder(store, None if args.quiet else show)
-    controller = Controller(DeviceManager(_providers()), recorder)
-    config = ExperimentConfig(probes, stall_timeout=stall_timeout)
-
-    stop = stop or asyncio.Event()
+    stop = asyncio.Event()
     _on_interrupt(asyncio.get_running_loop(), stop)
-    terminal = (State.COMPLETED, State.FAILED)
+    for note in plan.notes:
+        print(f"note: {note}")
+    print(f"measuring {plan.title} (Ctrl+C to stop)", flush=True)
     try:
-        controller.submit(Command.PREPARE, config=config)
-        state = (await controller.wait_state(State.READY, *terminal, timeout=30)).state
-        if state is State.READY:
-            print(f"measuring {title} (Ctrl+C to stop)", flush=True)
-            controller.submit(Command.START_MEASUREMENT)
-            state = (await controller.wait_state(State.MEASURING, *terminal, timeout=30)).state
-        if state is State.MEASURING:
-            waiters = [
-                asyncio.ensure_future(stop.wait()),
-                asyncio.ensure_future(controller.wait_state(*terminal, timeout=None)),
-            ]
-            await asyncio.wait(
-                waiters, timeout=args.duration, return_when=asyncio.FIRST_COMPLETED
-            )
-            for waiter in waiters:
-                waiter.cancel()
-            controller.submit(Command.STOP)
-        state = (await controller.wait_state(*terminal, timeout=60)).state
+        state = await run_plan(
+            plan, recorder, duration=getattr(args, "duration", None), stop=stop
+        )
     finally:
         store.close()
 
@@ -137,6 +100,12 @@ async def _measure(
     return state, samples, path
 
 
+def _plan_error(exc: PlanError) -> int:
+    print(f"error: {exc}", file=sys.stderr)
+    usage = "invalid host" in str(exc) or "not an http" in str(exc)
+    return EXIT_USAGE if usage else EXIT_FAILED
+
+
 def _finish(state: State, path: Path) -> int:
     print(f"saved {path}")
     return EXIT_OK if state is State.COMPLETED else EXIT_FAILED
@@ -146,7 +115,7 @@ def _finish(state: State, path: Path) -> int:
 
 
 async def _devices() -> int:
-    manager = DeviceManager(_providers())
+    manager = DeviceManager(providers())
     for device in await manager.refresh():
         print(f"{device.id}: {device.name}")
         for capability, support in device.capabilities.items():
@@ -164,13 +133,10 @@ def _show_ping(sample: Sample) -> str:
 
 async def _ping(args: argparse.Namespace) -> int:
     try:
-        ping_command(args.host, args.timeout)
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return EXIT_USAGE
-    probe = PingProbe(args.host, interval=args.interval, timeout=args.timeout)
-    stall = args.interval + args.timeout + 5.0
-    state, samples, path = await _measure(args, (probe,), "ping", args.host, _show_ping, stall)
+        plan = plan_ping(args.host, args.interval, args.timeout)
+    except PlanError as exc:
+        return _plan_error(exc)
+    state, samples, path = await _measure(args, plan, _show_ping)
 
     s = summarize_latency(samples)
     print(f"sent {s.sent}, lost {s.lost} ({s.loss_percent:.1f}%)")
@@ -206,38 +172,12 @@ def format_wifi(values: Mapping[str, float]) -> str:
     return "  ".join(parts)
 
 
-async def _pick_wifi(prefix: str, iface: str | None) -> Device | str:
-    """The Wi-Fi device to use, or an error message."""
-    manager = DeviceManager(_providers())
-    devices = [d for d in await manager.refresh() if d.id.startswith(prefix)]
-    if iface is not None:
-        devices = [d for d in devices if d.id == prefix + iface]
-        if not devices:
-            return f"no Wi-Fi interface named {iface}"
-    if not devices:
-        return "no Wi-Fi interface found"
-    return devices[0]
-
-
 async def _wifi(args: argparse.Namespace) -> int:
-    backend = _wifi_backend()
-    if backend is None:
-        print(f"error: Wi-Fi measurement is not supported on {sys.platform} yet", file=sys.stderr)
-        return EXIT_FAILED
-    _, make_reader, prefix = backend
-    device = await _pick_wifi(prefix, args.iface)
-    if isinstance(device, str):
-        print(f"error: {device}", file=sys.stderr)
-        return EXIT_FAILED
-    identity = device.support(Capability.WIFI_IDENTITY)
-    if not identity.supported:
-        print(f"note: network name is not shown: {identity.reason}")
-
-    interface = device.id.removeprefix(prefix)
-    probe = WifiLinkProbe(device.id, make_reader(interface), interval=args.interval)
-    state, samples, path = await _measure(
-        args, (probe,), "wifi", device.name, _show_wifi, args.interval + 5.0
-    )
+    try:
+        plan = await plan_wifi(args.iface, args.interval)
+    except PlanError as exc:
+        return _plan_error(exc)
+    state, samples, path = await _measure(args, plan, _show_wifi)
 
     connected = summarize_metric(samples, "wifi", "associated")
     rssi = summarize_metric(samples, "wifi", "rssi_dbm")
@@ -264,22 +204,10 @@ def _steady_average(samples: list[SampleRow], metric: str) -> float | None:
 
 async def _speed(args: argparse.Namespace) -> int:
     try:
-        check_url(args.down_url)
-        check_url(args.up_url)
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return EXIT_USAGE
-
-    done = asyncio.Event()
-    probe = SpeedProbe(
-        args.down_url, args.up_url, phase_seconds=args.seconds, on_cycle=done.set
-    )
-    args.duration = 2 * args.seconds + 30.0  # safety limit; normally the probe ends the run
-    print("note: this transfers real data for the whole duration")
-    title = f"speed against {urlsplit(args.down_url).hostname}"
-    state, samples, path = await _measure(
-        args, (probe,), "speed", title, _show_speed, 15.0, stop=done
-    )
+        plan = plan_speed(args.down_url, args.up_url, args.seconds)
+    except PlanError as exc:
+        return _plan_error(exc)
+    state, samples, path = await _measure(args, plan, _show_speed)
 
     print()
     for label, metric in (("download", "down_mbps"), ("upload", "up_mbps")):
@@ -296,42 +224,17 @@ def _show_diagnose(sample: Sample) -> str:
 
 async def _diagnose(args: argparse.Namespace) -> int:
     try:
-        ping_command(args.target, 1.0)
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return EXIT_USAGE
-
-    probes: list[Probe] = [PingProbe(args.target, name="internet", interval=args.interval)]
-    gateway = await asyncio.to_thread(default_gateway)
-    if gateway is not None:
-        probes.append(PingProbe(gateway, name="router", interval=args.interval))
-    else:
-        print("note: the router address could not be determined")
-    backend = _wifi_backend()
-    if backend is not None:
-        _, make_reader, prefix = backend
-        device = await _pick_wifi(prefix, None)
-        if isinstance(device, Device):
-            reader = make_reader(device.id.removeprefix(prefix))
-            probes.append(WifiLinkProbe(device.id, reader, interval=args.interval))
-
-    title = "router, internet and Wi-Fi" if len(probes) == 3 else "the connection"
-    state, samples, path = await _measure(
-        args, tuple(probes), "diagnose", title, _show_diagnose, args.interval + 7.0
-    )
+        plan = await plan_diagnose(args.target, args.interval)
+    except PlanError as exc:
+        return _plan_error(exc)
+    state, samples, path = await _measure(args, plan, _show_diagnose)
 
     internet = summarize_latency(samples, "internet")
-    router = summarize_latency(samples, "router") if gateway is not None else None
-    result = diagnose(
-        internet,
-        router,
-        summarize_metric(samples, "wifi", "associated"),
-        summarize_metric(samples, "wifi", "rssi_dbm"),
-        summarize_metric(samples, "wifi", "snr_db"),
-    )
+    router = summarize_latency(samples, "router")
+    result = diagnose_samples(samples)
     print()
     for label, s in (("router", router), ("internet", internet)):
-        if s is not None and s.sent:
+        if s.sent:
             avg = "no reply" if s.avg_ms is None else f"{s.avg_ms:.1f} ms average"
             print(f"{label:<9} {avg}, {s.loss_percent:.0f}% lost")
     print(f"result: {result.headline}")
@@ -345,7 +248,7 @@ def _web(args: argparse.Namespace) -> int:
 
     from wls.web.app import create_app
 
-    app = create_app(args.runs, _providers)
+    app = create_app(args.runs, providers)
     print(f"Wireless Lab is running at http://127.0.0.1:{args.port}  (Ctrl+C to stop)", flush=True)
     # Bound to this computer only: the UI has no login.
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")

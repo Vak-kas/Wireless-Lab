@@ -165,3 +165,8 @@ def test_diagnose_command_measures_together_and_prints_a_result(tmp_path, capsys
     assert verify_run(run).intact
     _, samples = read_run(run)
     assert "internet" in {probe for _, probe, _, _ in samples}
+
+
+def test_router_whose_ping_replies_vary_a_little_is_not_blamed():
+    # Seen on a healthy network: 3 ms average to the router with 12 ms of variation.
+    assert diagnose(lat(11, jitter=3), lat(3, jitter=12), **GOOD_WIFI).verdict is Verdict.OK
