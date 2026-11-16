@@ -1,0 +1,36 @@
+# 별도 저장소(각자 원격이 있음). 이 저장소에는 넣지 않는다.
+Wireless-Lab-Basic/
+Wireless-Lab-Pro/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Web
+node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+web/.vite/
+
+# 실행 데이터: 용량이 크고 실제 기지국 정보가 담길 수 있다.
+sessions/
+*.sigmf-data
+!pipeline/golden/**/*.sigmf-data
+
+# 표준 원문은 내려받아 쓰되 저장소에는 넣지 않는다 (3GPP 저작권).
+specs/*
+!specs/README.md
+
+# OS / 도구
+.DS_Store
+.claude/
+*.asv

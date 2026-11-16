@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts.schema.json",
+  "title": "Contracts",
+  "description": "서버와 화면이 주고받는 데이터 계약의 유일한 원본. Python(pydantic)과 TypeScript 타입은 tools/gen_types.py로 여기서 생성한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "stage_result": { "$ref": "#/$defs/StageResult" },
+    "job_event": { "$ref": "#/$defs/JobEvent" },
+    "session": { "$ref": "#/$defs/Session" }
+  },
+  "$defs": {
+    "Scalar": {
+      "anyOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }, { "type": "null" }]
+    },
+    "StageResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "status", "summary_easy", "summary_expert", "values", "derivations", "plots", "diagnostics", "next_inputs", "spec_refs"],
+      "properties": {
+        "stage": { "type": "string" },
+        "status": { "enum": ["ok", "partial", "fail"] },
+        "summary_easy": { "type": "string" },
+        "summary_expert": { "type": "string" },
+        "values": { "type": "array", "items": { "$ref": "#/$defs/Value" } },
+        "derivations": { "type": "array", "items": { "$ref": "#/$defs/Derivation" } },
+        "plots": { "type": "array", "items": { "$ref": "#/$defs/Plot" } },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/Diagnostic" } },
+        "next_inputs": { "type": "object", "additionalProperties": true },
+        "spec_refs": { "type": "array", "items": { "type": "string" } },
+        "trees": { "type": "array", "items": { "$ref": "#/$defs/Tree" } },
+        "meta": { "$ref": "#/$defs/ResultMeta" }
+      }
+    },
+    "ResultMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine": { "type": "string" },
+        "run_index": { "type": "integer" },
+        "created_at": { "type": "string" },
+        "duration_ms": { "type": "number" },
+        "capture": { "type": "string" }
+      }
+    },
+    "Value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "value", "unit", "kind"],
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "value": {
+          "anyOf": [
+            { "$ref": "#/$defs/Scalar" },
+            { "type": "array", "items": { "$ref": "#/$defs/Scalar" } }
+          ]
+        },
+        "unit": { "type": "string" },
+        "kind": {
+          "description": "decoded = 비트에서 바로 읽은 값(source 필수), measured = 신호에서 잰 값, derived = 다른 값으로 계산한 값(derivation_id 필수)",
+          "enum": ["decoded", "measured", "derived"]
+        },
+        "derivation_id": { "type": "string" },
+        "source": { "type": "string" },
+        "raw": { "$ref": "#/$defs/Scalar" },
+        "group": { "type": "string" },
+        "term": { "type": "string" },
+        "primary": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    },
+    "Derivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "formula_tex", "inputs", "steps", "result", "spec_ref"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "formula_tex": { "type": "string" },
+        "inputs": { "type": "array", "items": { "$ref": "#/$defs/DerivationInput" } },
+        "steps": { "type": "array", "items": { "type": "string" } },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "unit"],
+          "properties": {
+            "value": { "$ref": "#/$defs/Scalar" },
+            "unit": { "type": "string" }
+          }
+        },
+        "spec_ref": { "type": "string" }
+      }
+    },
+    "DerivationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symbol", "value", "source"],
+      "properties": {
+        "symbol": { "type": "string" },
+        "value": { "$ref": "#/$defs/Scalar" },
+        "unit": { "type": "string" },
+        "source": { "type": "string" }
+      }
+    },
+    "Plot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "title", "annotations"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "enum": ["spectrum", "waterfall", "correlation", "resource_grid", "constellation", "timeseries", "table", "sky_geometry"] },
+        "title": { "type": "string" },
+        "caption": { "type": "string" },
+        "x": { "$ref": "#/$defs/PlotAxis" },
+        "y": { "$ref": "#/$defs/PlotAxis" },
+        "series": { "type": "array", "items": { "$ref": "#/$defs/PlotSeries" } },
+        "grid": { "$ref": "#/$defs/PlotGrid" },
+        "table": { "$ref": "#/$defs/PlotTable" },
+        "sky": { "$ref": "#/$defs/PlotSky" },
+        "annotations": { "type": "array", "items": { "$ref": "#/$defs/PlotAnnotation" } }
+      }
+    },
+    "PlotAxis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string" },
+        "unit": { "type": "string" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "PlotSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "x": { "type": "array", "items": { "type": "number" } },
+        "y": { "type": "array", "items": { "type": "number" } },
+        "data_ref": { "description": "큰 배열은 여기 적힌 바이너리 엔드포인트(float32 LE, x와 y가 번갈아 나옴)에서 받는다.", "type": "string" },
+        "role": { "enum": ["primary", "accent", "muted"] },
+        "mode": { "enum": ["line", "points", "bars", "step"] }
+      }
+    },
+    "PlotGrid": {
+      "description": "행 = 주파수(부반송파 또는 RB), 열 = 시간(OFDM 심볼). values는 0~1로 정규화한 세기, categories는 칸마다 category_names의 번호(-1 = 없음).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "cols", "values"],
+      "properties": {
+        "rows": { "type": "integer" },
+        "cols": { "type": "integer" },
+        "values": { "type": "array", "items": { "type": "array", "items": { "type": "number" } } },
+        "categories": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
+        "category_names": { "type": "array", "items": { "type": "string" } },
+        "category_terms": { "type": "array", "items": { "type": "string" } },
+        "row_label": { "type": "string" },
+        "col_label": { "type": "string" },
+        "row_start": { "type": "number" },
+        "col_start": { "type": "number" }
+      }
+    },
+    "PlotTable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns", "rows"],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "label"],
+            "properties": {
+              "key": { "type": "string" },
+              "label": { "type": "string" },
+              "unit": { "type": "string" },
+              "term": { "type": "string" },
+              "align": { "enum": ["left", "right"] }
+            }
+          }
+        },
+        "rows": { "type": "array", "items": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Scalar" } } },
+        "select_key": { "description": "행을 고를 수 있는 표이면, 선택값으로 쓸 열의 key", "type": "string" }
+      }
+    },
+    "PlotSky": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tracks", "markers"],
+      "properties": {
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "az_deg", "el_deg"],
+            "properties": {
+              "name": { "type": "string" },
+              "az_deg": { "type": "array", "items": { "type": "number" } },
+              "el_deg": { "type": "array", "items": { "type": "number" } },
+              "t_s": { "type": "array", "items": { "type": "number" } }
+            }
+          }
+        },
+        "markers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "az_deg", "el_deg"],
+            "properties": {
+              "name": { "type": "string" },
+              "az_deg": { "type": "number" },
+              "el_deg": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "PlotAnnotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "label"],
+      "properties": {
+        "kind": { "enum": ["vline", "hline", "point", "region", "box"] },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "term": { "type": "string" },
+        "category": { "type": "integer" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "x0": { "type": "number" },
+        "x1": { "type": "number" },
+        "y0": { "type": "number" },
+        "y1": { "type": "number" }
+      }
+    },
+    "Diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "code", "message_easy", "fix"],
+      "properties": {
+        "level": { "enum": ["info", "warn", "error"] },
+        "code": { "type": "string" },
+        "message_easy": { "type": "string" },
+        "fix": { "type": "string" },
+        "action": { "$ref": "#/$defs/DiagnosticAction" },
+        "detail": { "type": "string" }
+      }
+    },
+    "DiagnosticAction": {
+      "description": "실패 화면의 버튼 하나. kind=rerun이면 params를 덮어써서 같은 단계를 다시 실행하고, kind=goto이면 target 단계/화면으로 이동한다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "kind"],
+      "properties": {
+        "label": { "type": "string" },
+        "kind": { "enum": ["rerun", "goto"] },
+        "target": { "type": "string" },
+        "params": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "Tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "data"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "data": {}
+      }
+    },
+    "JobEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "job_id", "session_id", "stage", "ts"],
+      "properties": {
+        "type": { "enum": ["job.started", "job.progress", "job.plot_partial", "job.finished", "job.failed"] },
+        "job_id": { "type": "string" },
+        "session_id": { "type": "string" },
+        "stage": { "type": "string" },
+        "ts": { "type": "number" },
+        "progress": { "type": "number", "minimum": 0, "maximum": 1 },
+        "message": { "type": "string" },
+        "plot": { "$ref": "#/$defs/Plot" },
+        "result": { "$ref": "#/$defs/StageResult" },
+        "error": { "type": "string" }
+      }
+    },
+    "Source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["synthetic", "file", "device"] },
+        "scenario": { "description": "synthetic: 연습용 시나리오 id", "type": "string" },
+        "path": { "description": "file: .sigmf-meta 경로", "type": "string" },
+        "testbed": { "description": "file: 사용자가 테스트베드 녹화라고 표시했는지 (RA 관측 허용 조건)", "type": "boolean" },
+        "device": { "description": "device: 장비 식별자 (driver=...,serial=...)", "type": "string" },
+        "device_label": { "type": "string" },
+        "center_freq_hz": { "type": "number" },
+        "sample_rate_hz": { "type": "number" },
+        "gain_db": { "type": "number" },
+        "antenna": { "type": "string" },
+        "external_clock": { "type": "boolean" },
+        "band": { "type": "string" }
+      }
+    },
+    "StageState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "state"],
+      "properties": {
+        "stage": { "type": "string" },
+        "state": { "enum": ["done", "running", "next", "locked"] },
+        "last_status": { "enum": ["ok", "partial", "fail"] },
+        "runs": { "type": "integer" },
+        "locked_reason": { "type": "string" },
+        "job_id": { "type": "string" }
+      }
+    },
+    "Session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "created_at", "source", "engine", "stages"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "created_at": { "type": "string" },
+        "source": { "$ref": "#/$defs/Source" },
+        "engine": { "type": "string" },
+        "stages": { "type": "array", "items": { "$ref": "#/$defs/StageState" } },
+        "practice": { "type": "boolean" },
+        "recording": { "type": "boolean" },
+        "tracking": { "type": "boolean" },
+        "selected_cell": { "type": "object", "additionalProperties": true }
+      }
+    }
+  }
+}
