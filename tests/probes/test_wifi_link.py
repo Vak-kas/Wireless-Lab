@@ -5,7 +5,7 @@ import sys
 import pytest
 
 from wls.analysis.summary import summarize_metric
-from wls.cli import _show_wifi, main
+from wls.cli import format_wifi, main
 from wls.core.devices import Capability
 from wls.core.storage import read_run, verify_run
 from wls.probes.wifi_link import LinkReading, WifiLinkProbe
@@ -48,10 +48,10 @@ async def test_probe_reports_connection_loss_as_a_sample_not_an_error():
 
 
 def test_live_line_formatting():
-    assert _show_wifi({"associated": 0.0}) == "not connected"
-    line = _show_wifi(LinkReading(-50, -90, 866.0, 36, 5.0, 80).values())
+    assert format_wifi({"associated": 0.0}) == "not connected"
+    line = format_wifi(LinkReading(-50, -90, 866.0, 36, 5.0, 80).values())
     assert line == "rssi  -50 dBm  snr  40 dB  ch 36 (5 GHz, 80 MHz)  866 Mbps"
-    assert _show_wifi(LinkReading(-70).values()) == "rssi  -70 dBm"
+    assert format_wifi(LinkReading(-70).values()) == "rssi  -70 dBm"
 
 
 def test_metric_summary():

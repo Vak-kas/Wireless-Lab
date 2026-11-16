@@ -17,6 +17,17 @@ uv run --no-editable wls verify runs/<file>.sqlite
 uv run --no-editable wls export runs/<file>.sqlite --format csv -o out.csv
 ```
 
+The quickest way to check a connection:
+
+```bash
+uv run --no-editable wls diagnose
+```
+
+`wls diagnose` measures the router, an internet address and the Wi-Fi signal
+together for 10 seconds and says where the problem is: Wi-Fi, the local
+network, or beyond the router. Its thresholds are rules of thumb and the
+result describes only the measured period.
+
 `wls ping` runs until `--duration` elapses or you press Ctrl+C, prints each
 reply, and saves the run to `runs/`. A run that ended normally is sealed with
 a hash; `wls verify` tells whether a file is complete and unmodified.

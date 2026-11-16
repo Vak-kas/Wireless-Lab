@@ -5,6 +5,7 @@
     wls devices
     wls ping HOST [--duration S] [--interval S] [--out DIR]
     wls wifi [--iface NAME] [--duration S] [--interval S] [--out DIR]
+    wls diagnose [--target HOST] [--duration S] [--out DIR]
     wls verify RUN.sqlite
     wls export RUN.sqlite --format csv|json [-o FILE]
 """
@@ -20,6 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from wls import __version__
+from wls.analysis.diagnosis import diagnose
 from wls.analysis.summary import SampleRow, summarize_latency, summarize_metric
 from wls.core.controller import Controller, ExperimentConfig
 from wls.core.devices import Capability, Device, DeviceManager, DeviceProvider
@@ -30,10 +32,11 @@ from wls.core.storage import SqliteRecorder, read_run, verify_run
 from wls.probes.ping import PingProbe, ping_command
 from wls.probes.wifi_link import Reader, WifiLinkProbe
 from wls.providers.host import LocalHostProvider
+from wls.providers.netinfo import default_gateway
 
 EXIT_OK, EXIT_FAILED, EXIT_USAGE = 0, 1, 2
 
-Show = Callable[[Mapping[str, float]], str]
+Show = Callable[[Sample], str]
 
 
 def _wifi_backend() -> tuple[DeviceProvider, Callable[[str], Reader], str] | None:
@@ -65,7 +68,7 @@ class _LiveRecorder:
     def sample(self, sample: Sample) -> None:
         self._store.sample(sample)
         if self._show is not None:
-            print("  " + self._show(sample.values), flush=True)
+            print("  " + self._show(sample), flush=True)
 
     def event(self, event: Event) -> None:
         self._store.event(event)
@@ -80,19 +83,19 @@ def _on_interrupt(loop: asyncio.AbstractEventLoop, stop: asyncio.Event) -> None:
 
 async def _measure(
     args: argparse.Namespace,
-    probe: Probe,
+    probes: tuple[Probe, ...],
     kind: str,
     title: str,
     show: Show,
     stall_timeout: float,
 ) -> tuple[State, list[SampleRow], Path]:
-    """Run one probe until the duration ends, Ctrl+C, or a failure. Saves the run."""
+    """Run the probes until the duration ends, Ctrl+C, or a failure. Saves the run."""
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     path = Path(args.out) / f"{stamp}-{kind}.sqlite"
     store = SqliteRecorder(path)
     recorder = _LiveRecorder(store, None if args.quiet else show)
     controller = Controller(DeviceManager(_providers()), recorder)
-    config = ExperimentConfig((probe,), stall_timeout=stall_timeout)
+    config = ExperimentConfig(probes, stall_timeout=stall_timeout)
 
     stop = asyncio.Event()
     _on_interrupt(asyncio.get_running_loop(), stop)
@@ -149,8 +152,8 @@ async def _devices() -> int:
     return EXIT_OK
 
 
-def _show_ping(values: Mapping[str, float]) -> str:
-    rtt = values.get("rtt_ms")
+def _show_ping(sample: Sample) -> str:
+    rtt = sample.values.get("rtt_ms")
     return "lost" if rtt is None else f"{rtt:8.2f} ms"
 
 
@@ -162,7 +165,7 @@ async def _ping(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     probe = PingProbe(args.host, interval=args.interval, timeout=args.timeout)
     stall = args.interval + args.timeout + 5.0
-    state, samples, path = await _measure(args, probe, "ping", args.host, _show_ping, stall)
+    state, samples, path = await _measure(args, (probe,), "ping", args.host, _show_ping, stall)
 
     s = summarize_latency(samples)
     print(f"sent {s.sent}, lost {s.lost} ({s.loss_percent:.1f}%)")
@@ -175,7 +178,11 @@ async def _ping(args: argparse.Namespace) -> int:
     return _finish(state, path)
 
 
-def _show_wifi(values: Mapping[str, float]) -> str:
+def _show_wifi(sample: Sample) -> str:
+    return format_wifi(sample.values)
+
+
+def format_wifi(values: Mapping[str, float]) -> str:
     if not values.get("associated"):
         return "not connected"
     parts = [f"rssi {values['rssi_dbm']:4.0f} dBm"]
@@ -224,7 +231,7 @@ async def _wifi(args: argparse.Namespace) -> int:
     interface = device.id.removeprefix(prefix)
     probe = WifiLinkProbe(device.id, make_reader(interface), interval=args.interval)
     state, samples, path = await _measure(
-        args, probe, "wifi", device.name, _show_wifi, args.interval + 5.0
+        args, (probe,), "wifi", device.name, _show_wifi, args.interval + 5.0
     )
 
     connected = summarize_metric(samples, "wifi", "associated")
@@ -234,6 +241,57 @@ async def _wifi(args: argparse.Namespace) -> int:
         print(f"samples {connected.count}, connected {share:.0f}% of the time")
     if rssi.count:
         print(f"rssi min/avg/max {rssi.min:.0f}/{rssi.avg:.1f}/{rssi.max:.0f} dBm")
+    return _finish(state, path)
+
+
+def _show_diagnose(sample: Sample) -> str:
+    text = format_wifi(sample.values) if sample.probe == "wifi" else _show_ping(sample).strip()
+    return f"{sample.probe:<9} {text}"
+
+
+async def _diagnose(args: argparse.Namespace) -> int:
+    try:
+        ping_command(args.target, 1.0)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+
+    probes: list[Probe] = [PingProbe(args.target, name="internet", interval=args.interval)]
+    gateway = await asyncio.to_thread(default_gateway)
+    if gateway is not None:
+        probes.append(PingProbe(gateway, name="router", interval=args.interval))
+    else:
+        print("note: the router address could not be determined")
+    backend = _wifi_backend()
+    if backend is not None:
+        _, make_reader, prefix = backend
+        device = await _pick_wifi(prefix, None)
+        if isinstance(device, Device):
+            reader = make_reader(device.id.removeprefix(prefix))
+            probes.append(WifiLinkProbe(device.id, reader, interval=args.interval))
+
+    title = "router, internet and Wi-Fi" if len(probes) == 3 else "the connection"
+    state, samples, path = await _measure(
+        args, tuple(probes), "diagnose", title, _show_diagnose, args.interval + 7.0
+    )
+
+    internet = summarize_latency(samples, "internet")
+    router = summarize_latency(samples, "router") if gateway is not None else None
+    result = diagnose(
+        internet,
+        router,
+        summarize_metric(samples, "wifi", "associated"),
+        summarize_metric(samples, "wifi", "rssi_dbm"),
+        summarize_metric(samples, "wifi", "snr_db"),
+    )
+    print()
+    for label, s in (("router", router), ("internet", internet)):
+        if s is not None and s.sent:
+            avg = "no reply" if s.avg_ms is None else f"{s.avg_ms:.1f} ms average"
+            print(f"{label:<9} {avg}, {s.loss_percent:.0f}% lost")
+    print(f"result: {result.headline}")
+    for detail in result.details:
+        print(f"  - {detail}")
     return _finish(state, path)
 
 
@@ -295,6 +353,11 @@ def build_parser() -> argparse.ArgumentParser:
     wifi.add_argument("--iface", help="interface name (default: the first Wi-Fi interface)")
     _add_run_options(wifi)
 
+    diag = sub.add_parser("diagnose", help="find out whether Wi-Fi or the internet is the problem")
+    diag.add_argument("--target", default="1.1.1.1", help="internet address to test against")
+    _add_run_options(diag)
+    diag.set_defaults(duration=10.0)
+
     verify = sub.add_parser("verify", help="check that a run file is complete and unmodified")
     verify.add_argument("run")
 
@@ -317,6 +380,8 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_ping(args))
         case "wifi":
             return asyncio.run(_wifi(args))
+        case "diagnose":
+            return asyncio.run(_diagnose(args))
         case "verify":
             return _verify(args)
         case "export":
