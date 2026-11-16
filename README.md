@@ -9,18 +9,30 @@ command line; everything else is still planned.
 
 ## Usage
 
+Install once (Python 3.12 or newer, pip 25.1 or newer):
+
 ```bash
-uv sync --no-editable
-uv run --no-editable wls devices
-uv run --no-editable wls ping 1.1.1.1 --duration 10
-uv run --no-editable wls verify runs/<file>.sqlite
-uv run --no-editable wls export runs/<file>.sqlite --format csv -o out.csv
+python3 -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -e . --group dev
+```
+
+Then:
+
+```bash
+wls devices
+wls diagnose
+wls ping 1.1.1.1 --duration 10
+wls wifi --duration 10
+wls speed
+wls verify runs/<file>.sqlite
+wls export runs/<file>.sqlite --format csv -o out.csv
 ```
 
 The quickest way to check a connection:
 
 ```bash
-uv run --no-editable wls diagnose
+wls diagnose
 ```
 
 `wls diagnose` measures the router, an internet address and the Wi-Fi signal
@@ -35,15 +47,16 @@ a hash; `wls verify` tells whether a file is complete and unmodified.
 No administrator rights are needed. `wls ping` uses the system `ping` command
 and works on macOS, Windows and Linux.
 
-```bash
-uv run --no-editable wls wifi --duration 10
-```
-
 `wls wifi` records signal strength, noise, channel and link rate of the
 current Wi-Fi connection. It is implemented for macOS so far. macOS gives the
 network name (SSID) and BSSID only to a signed application with Location
 permission, so they are not recorded from the command line; `wls devices`
 shows this and every other unavailable capability with its reason.
+
+`wls speed` measures download and upload throughput against an HTTP server
+(`--down-url`, `--up-url`; the default is Cloudflare's public speed test
+endpoint). It transfers real data for the whole duration. Upload figures from
+short runs are rough.
 
 ## Planned scope of this repository
 
@@ -59,14 +72,15 @@ they are supported and why not.
 ## Development
 
 ```bash
-uv sync
-uv run pytest
+pytest
 ```
 
-`--no-editable` in the usage commands avoids a macOS problem: in synced
-folders (for example Desktop with iCloud) files inside `.venv` can be marked
-hidden, and Python 3.13 then ignores the path file an editable install relies
-on. Tests are not affected because they import from `src/` directly.
+[uv](https://docs.astral.sh/uv/) works too and uses the committed lock file:
+`uv sync --no-editable`, then `uv run --no-editable wls ...` and
+`uv run pytest`. `--no-editable` avoids a macOS problem seen with uv's `.venv`
+in synced folders (for example Desktop with iCloud): files inside it can be
+marked hidden, and Python 3.13 then ignores the path file an editable install
+relies on.
 
 ## License
 

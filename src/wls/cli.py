@@ -6,6 +6,7 @@
     wls ping HOST [--duration S] [--interval S] [--out DIR]
     wls wifi [--iface NAME] [--duration S] [--interval S] [--out DIR]
     wls diagnose [--target HOST] [--duration S] [--out DIR]
+    wls speed [--seconds S] [--down-url URL] [--up-url URL] [--out DIR]
     wls verify RUN.sqlite
     wls export RUN.sqlite --format csv|json [-o FILE]
 """
@@ -19,6 +20,7 @@ import sys
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from wls import __version__
 from wls.analysis.diagnosis import diagnose
@@ -30,6 +32,7 @@ from wls.core.interfaces import Event, Probe, Sample
 from wls.core.state_machine import Command, State
 from wls.core.storage import SqliteRecorder, read_run, verify_run
 from wls.probes.ping import PingProbe, ping_command
+from wls.probes.speed import DEFAULT_DOWN_URL, DEFAULT_UP_URL, SpeedProbe, check_url
 from wls.probes.wifi_link import Reader, WifiLinkProbe
 from wls.providers.host import LocalHostProvider
 from wls.providers.netinfo import default_gateway
@@ -88,6 +91,7 @@ async def _measure(
     title: str,
     show: Show,
     stall_timeout: float,
+    stop: asyncio.Event | None = None,
 ) -> tuple[State, list[SampleRow], Path]:
     """Run the probes until the duration ends, Ctrl+C, or a failure. Saves the run."""
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -97,7 +101,7 @@ async def _measure(
     controller = Controller(DeviceManager(_providers()), recorder)
     config = ExperimentConfig(probes, stall_timeout=stall_timeout)
 
-    stop = asyncio.Event()
+    stop = stop or asyncio.Event()
     _on_interrupt(asyncio.get_running_loop(), stop)
     terminal = (State.COMPLETED, State.FAILED)
     try:
@@ -244,6 +248,46 @@ async def _wifi(args: argparse.Namespace) -> int:
     return _finish(state, path)
 
 
+def _show_speed(sample: Sample) -> str:
+    ((key, value),) = sample.values.items()
+    return f"{'download' if key == 'down_mbps' else 'upload':<8} {value:8.1f} Mbps"
+
+
+def _steady_average(samples: list[SampleRow], metric: str) -> float | None:
+    """Average rate, leaving out the first sample (connection setup and ramp-up)."""
+    values = [v for _, probe, m, v in samples if probe == "speed" and m == metric]
+    if len(values) > 2:
+        values = values[1:]
+    return sum(values) / len(values) if values else None
+
+
+async def _speed(args: argparse.Namespace) -> int:
+    try:
+        check_url(args.down_url)
+        check_url(args.up_url)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+
+    done = asyncio.Event()
+    probe = SpeedProbe(
+        args.down_url, args.up_url, phase_seconds=args.seconds, on_cycle=done.set
+    )
+    args.duration = 2 * args.seconds + 30.0  # safety limit; normally the probe ends the run
+    print("note: this transfers real data for the whole duration")
+    title = f"speed against {urlsplit(args.down_url).hostname}"
+    state, samples, path = await _measure(
+        args, (probe,), "speed", title, _show_speed, 15.0, stop=done
+    )
+
+    print()
+    for label, metric in (("download", "down_mbps"), ("upload", "up_mbps")):
+        average = _steady_average(samples, metric)
+        if average is not None:
+            print(f"{label:<8} {average:8.1f} Mbps")
+    return _finish(state, path)
+
+
 def _show_diagnose(sample: Sample) -> str:
     text = format_wifi(sample.values) if sample.probe == "wifi" else _show_ping(sample).strip()
     return f"{sample.probe:<9} {text}"
@@ -358,6 +402,13 @@ def build_parser() -> argparse.ArgumentParser:
     _add_run_options(diag)
     diag.set_defaults(duration=10.0)
 
+    speed = sub.add_parser("speed", help="measure download and upload speed")
+    speed.add_argument("--seconds", type=_positive, default=5.0, help="seconds per direction")
+    speed.add_argument("--down-url", default=DEFAULT_DOWN_URL, help="URL of a large download")
+    speed.add_argument("--up-url", default=DEFAULT_UP_URL, help="URL that accepts an upload")
+    speed.add_argument("--out", default="runs", help="directory for run files (default: runs)")
+    speed.add_argument("--quiet", action="store_true", help="do not print each sample")
+
     verify = sub.add_parser("verify", help="check that a run file is complete and unmodified")
     verify.add_argument("run")
 
@@ -382,6 +433,8 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_wifi(args))
         case "diagnose":
             return asyncio.run(_diagnose(args))
+        case "speed":
+            return asyncio.run(_speed(args))
         case "verify":
             return _verify(args)
         case "export":
