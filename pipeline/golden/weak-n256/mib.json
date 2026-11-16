@@ -1,0 +1,1 @@
+{"stage":"mib","ok":false,"error_code":"PBCH_CRC_FAIL","error_detail":"","measurements":{"crc_ok":false,"lmax":4,"sfn_4lsb":null,"half_frame":null,"msb_idx_offset":null},"bits":{"bch_trblk_hex":"","bch_trblk_bits":24},"soft":{},"plots":{},"warnings":[]}
