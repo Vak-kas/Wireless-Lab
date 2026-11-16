@@ -65,7 +65,8 @@ class WifiBackend:
     scanner: Callable[[str], Scanner]
     id_prefix: str
     # (ssid, bssid) of the connected network; None values when the OS hides them
-    identity: Callable[[str], tuple[str | None, str | None]] | None = None
+    # the second argument asks for a fresh reading instead of a recently cached one
+    identity: Callable[..., tuple[str | None, str | None]] | None = None
     # one-time setup that makes network names available; returns a status word
     names_setup: Callable[[], str] | None = None
 

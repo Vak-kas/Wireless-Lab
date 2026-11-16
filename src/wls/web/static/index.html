@@ -150,6 +150,15 @@
   .net { display: grid; grid-template-columns: 96px minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1fr);
          gap: 12px; align-items: center; padding: 12px 24px; border-top: 1px solid var(--hairline); }
   .net:first-child { border-top: 0; }
+  .event { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding: 12px 24px;
+           border-top: 1px solid var(--hairline); }
+  .event:first-child { border-top: 0; }
+  .event time { color: var(--ink-muted); font-size: 14px; }
+  .event b { font-weight: 600; }
+  .event small { display: block; color: var(--ink-muted); font-size: 13px; overflow-wrap: anywhere; }
+  .tools { display: flex; align-items: center; gap: 12px; }
+  .tools label { display: flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 14px; cursor: pointer; }
+  .tools input { width: auto; }
   .net.head { font-size: 12px; font-weight: 600; letter-spacing: 0.125px; color: var(--ink-muted);
               padding-top: 10px; padding-bottom: 10px; }
   .net .sig { white-space: nowrap; }
@@ -244,8 +253,16 @@ const TEXT = {
   navHome: ["Home", "홈"], navWifi: ["Wi-Fi", "Wi-Fi"], navBluetooth: ["Bluetooth", "블루투스"], navCellular: ["Mobile network", "기지국"],
   open: ["Open", "열기"], openWifi: ["See Wi-Fi around you", "주변 Wi-Fi 보기"], soon: ["coming", "준비 중"],
   btLead: ["Find Bluetooth devices around you and see how strong each signal is.", "주변의 블루투스 기기를 찾아 각각의 신호 세기를 보여 줍니다."],
+  auto: ["Keep updating", "계속 갱신"], updated: [(time) => `updated ${time}`, (time) => `${time} 갱신`],
+  linkLog: ["Connection log", "연결 기록"],
+  linkLogEmpty: ["Nothing yet. While this page's server is running, moving to another access point, losing the connection and reconnecting are recorded here.",
+                 "아직 없습니다. 이 프로그램이 켜져 있는 동안 다른 공유기로 옮겨 가거나, 연결이 끊기거나, 다시 연결되면 여기에 기록됩니다."],
+  linkLogNoIdentity: ["Access points cannot be told apart yet because macOS hides their addresses. Turn on network names in the list below first.",
+                      "macOS가 공유기 주소를 숨기고 있어 공유기를 구분할 수 없습니다. 아래 목록에서 먼저 이름 표시를 켜 주세요."],
+  evRoamed: ["Moved to another access point", "다른 공유기로 옮겨 감"], evConnected: ["Connected", "연결됨"],
+  evDisconnected: ["Connection lost", "연결 끊김"], evNetwork: ["Switched to another network", "다른 네트워크로 바뀜"],
   btNearby: ["Bluetooth devices around you", "주변 블루투스 기기"], btSearch: ["Search again", "다시 검색"],
-  btScanning: ["Listening for 5 seconds…", "5초 동안 찾는 중입니다…"],
+  btScanning: ["Searching…", "찾는 중입니다…"],
   btTurnOn: ["Turn on Bluetooth search", "블루투스 검색 켜기"],
   btSetupBody: ["A one-time setup is needed. macOS will ask for permission (it may ask twice: Location, then Bluetooth). Choose Allow.",
                 "처음 한 번 설정이 필요합니다. macOS가 권한을 물으면 '허용'을 눌러 주세요. 위치와 블루투스, 두 번 물을 수 있습니다."],
@@ -395,6 +412,46 @@ function badge(run) {
 // --- home: signal right now, the check button, nearby Wi-Fi ----------------------------
 let viewing = "section:home";  // "section:<name>", "live", or the name of the run on screen
 let scanResult = null, scanBusy = false, currentBssid = null, canSetupNames = false;
+let autoWifi = true, autoBt = true, scanTimer = null, btTimer = null;
+const clock = () => new Date().toLocaleTimeString(KO ? "ko-KR" : undefined);
+
+function autoToggle(checked, onChange) {
+  const box = el("input", { type: "checkbox", checked });
+  box.onchange = () => onChange(box.checked);
+  return el("label", {}, box, t("auto"));
+}
+
+// --- Wi-Fi connection log -------------------------------------------------------------
+function describeEvent(e) {
+  const at = (bssid, channel, rssi) => [bssid, channel !== null ? `${t("channel")} ${channel}` : null,
+    rssi !== null ? `${rssi.toFixed(0)} dBm` : null].filter(Boolean).join(", ");
+  const before = at(e.from_bssid, e.from_channel, e.from_rssi_dbm), after = at(e.bssid, e.channel, e.rssi_dbm);
+  if (e.kind === "roamed") return [t("evRoamed"), `${e.ssid || ""}  ${before} → ${after}`.trim()];
+  if (e.kind === "network_changed") return [t("evNetwork"), `${e.from_ssid || "?"} → ${e.ssid || "?"}  (${after})`];
+  if (e.kind === "connected") return [t("evConnected"), `${e.ssid || ""}  ${after}`.trim()];
+  return [t("evDisconnected"), `${e.from_ssid || ""}  ${before}`.trim()];
+}
+
+async function refreshEvents() {
+  const box = $("wifi-events");
+  if (!box) return;
+  let data;
+  try { data = await getJSON("/api/wifi/events"); } catch { return; }
+  if (!$("wifi-events")) return;
+  if (!data.events.length) {
+    box.replaceChildren(el("div", { className: "empty", style: "text-align:left",
+      textContent: t(data.watching && !data.identity_known ? "linkLogNoIdentity" : "linkLogEmpty") }));
+    return;
+  }
+  box.replaceChildren(...data.events.slice(0, 30).map((e) => {
+    const [title, detail] = describeEvent(e);
+    const stamp = new Date(e.t * 1000).toLocaleString(KO ? "ko-KR" : undefined,
+      { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" });
+    return el("div", { className: "event" }, el("time", { textContent: stamp }),
+      el("div", {}, el("b", { textContent: title }), el("small", { textContent: detail })));
+  }));
+}
+setInterval(refreshEvents, 5000);
 
 function renderNow(box, status) {
   if (!status.supported || !status.link || !status.link.associated) {
@@ -433,7 +490,7 @@ function renderNearby() {
   if (!scanResult) { box.replaceChildren(); return; }
   if (scanResult.error) { head.textContent = ""; box.replaceChildren(el("div", { className: "empty", textContent: `${t("scanFailed")} ${scanResult.error}` })); return; }
   const networks = scanResult.networks;
-  head.textContent = scanBusy ? t("scanning") : t("count", networks.length);
+  head.textContent = t("count", networks.length) + (scanResult.at ? ` · ${t("updated", scanResult.at)}` : "");
   if (!networks.length) { box.replaceChildren(el("div", { className: "empty", textContent: t("noNetworks") })); return; }
   const rows = networks.map((n) => {
     const [tone, , level] = grade(n.rssi_dbm);
@@ -475,13 +532,17 @@ function renderNearby() {
 async function scan() {
   if (scanBusy) return;
   scanBusy = true; renderNearby();
-  try { scanResult = await getJSON("/api/wifi/scan"); }
-  catch (error) { scanResult = { error: String(error.message || error), networks: [] }; }
+  try { scanResult = await getJSON("/api/wifi/scan"); scanResult.at = clock(); }
+  catch (error) { if (!scanResult || scanResult.error) scanResult = { error: String(error.message || error), networks: [] }; }
   scanBusy = false; renderNearby();
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(() => { if (autoWifi && $("nearby") && !document.hidden) scan(); }, 8000);
 }
 
 // --- Bluetooth section ------------------------------------------------------------------
 let btStatus = null, btResult = null, btBusy = false;
+const btSeen = new Map();
+let btEmpty = 0;
 
 function renderBluetooth() {
   const box = $("bt-box");
@@ -517,7 +578,7 @@ function renderBluetooth() {
     message(t(btResult.state === "off" ? "btOff" : btResult.state === "unauthorized" ? "btDenied" : "btUnavailable"));
     return;
   }
-  head.textContent = btBusy ? t("btScanning") : t("count", btResult.devices.length);
+  head.textContent = t("count", btResult.devices.length) + (btResult.at ? ` · ${t("updated", btResult.at)}` : "");
   note.textContent = t("btNote");
   if (!btResult.devices.length) { message(t("btNone")); return; }
   box.replaceChildren(
@@ -536,16 +597,30 @@ function renderBluetooth() {
 async function btScan() {
   if (btBusy) return;
   btBusy = true; renderBluetooth();
-  try { btResult = await getJSON("/api/bluetooth/scan?seconds=5"); }
-  catch (error) { btResult = { error: String(error.message || error) }; }
+  try {
+    const fresh = await getJSON("/api/bluetooth/scan?seconds=3");
+    const now = Date.now();
+    // Keep devices heard in the last 20 seconds so the list does not flicker between scans.
+    for (const d of fresh.devices) btSeen.set(d.id, { ...d, heard: now });
+    for (const [id, d] of btSeen) if (now - d.heard > 20000) btSeen.delete(id);
+    const devices = fresh.state === "on" ? [...btSeen.values()].sort((a, b) => b.rssi_dbm - a.rssi_dbm) : [];
+    // A single short listen sometimes hears nothing; only say "none" after two in a row.
+    btEmpty = fresh.state === "on" && !devices.length ? btEmpty + 1 : 0;
+    if (btEmpty !== 1 || btResult) btResult = { state: fresh.state, devices, at: clock() };
+  } catch (error) { if (!btResult || btResult.error) btResult = { error: String(error.message || error) }; }
   btBusy = false; renderBluetooth();
+  clearTimeout(btTimer);
+  btTimer = setTimeout(() => {
+    const keepGoing = !btResult || btResult.state === "on";
+    if ((autoBt || btEmpty === 1) && $("bt-box") && !document.hidden && keepGoing) btScan();
+  }, 500);
 }
 
 async function loadBluetooth() {
   try { btStatus = await getJSON("/api/bluetooth"); }
   catch (error) { btStatus = { supported: false, ready: false, reason: String(error.message || error) }; }
   renderBluetooth();
-  if (btStatus.ready && !btResult) btScan();
+  if (btStatus.ready && (!btResult || autoBt)) btScan();
 }
 
 const SECTIONS = ["home", "wifi", "bluetooth", "cellular"];
@@ -605,21 +680,27 @@ function showSection(section, remember = true) {
   } else if (section === "wifi") {
     const rescan = el("button", { className: "utility", id: "rescan", type: "button", textContent: t("rescan") });
     rescan.onclick = scan;
+    const wifiTools = el("div", { className: "tools" },
+      autoToggle(autoWifi, (on) => { autoWifi = on; if (on) scan(); else clearTimeout(scanTimer); }), rescan);
     main.replaceChildren(
       el("div", { className: "card now", id: "now" }),
-      el("div", { className: "section-head" }, el("h3", {}, t("nearby"), el("small", { id: "nearby-count" })), rescan),
+      el("div", { className: "section-head" }, el("h3", { textContent: t("linkLog") })),
+      el("div", { className: "card nets", id: "wifi-events", style: "padding:0" }),
+      el("div", { className: "section-head" }, el("h3", {}, t("nearby"), el("small", { id: "nearby-count" })), wifiTools),
       el("div", { className: "note", id: "nearby-note", style: "margin:-4px 0 12px" }),
       el("div", { className: "card nets", id: "nearby", style: "padding:0" }));
     refreshNow();
+    refreshEvents();
     renderNearby();
-    if (!scanResult) scan();
+    if (!scanResult || autoWifi) scan();
   } else if (section === "bluetooth") {
     const again = el("button", { className: "utility", id: "bt-scan", type: "button", textContent: t("btSearch"), hidden: true });
     again.onclick = btScan;
     main.replaceChildren(
       el("h1", { className: "title", textContent: t("navBluetooth") }),
       el("p", { className: "lead", textContent: t("btLead") }),
-      el("div", { className: "section-head" }, el("h3", {}, t("btNearby"), el("small", { id: "bt-count" })), again),
+      el("div", { className: "section-head" }, el("h3", {}, t("btNearby"), el("small", { id: "bt-count" })),
+        el("div", { className: "tools" }, autoToggle(autoBt, (on) => { autoBt = on; if (on) btScan(); else clearTimeout(btTimer); }), again)),
       el("div", { className: "card nets", id: "bt-box", style: "padding:0" }),
       el("div", { className: "note", id: "bt-note" }));
     renderBluetooth();

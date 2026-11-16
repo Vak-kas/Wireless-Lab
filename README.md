@@ -59,6 +59,18 @@ and works on macOS, Windows and Linux.
 `wls wifi` records signal strength, noise, channel and link rate of the
 current Wi-Fi connection. It is implemented for macOS so far.
 
+### Connection log and live lists
+
+While `wls web` is running it watches the Wi-Fi connection and records when
+the computer moves to another access point of the same network (a roam),
+loses the connection, reconnects, or switches networks. The log is shown in
+the Wi-Fi section and kept in `runs/wifi-events.jsonl`. A recorded roam means
+the access point changed between two observations a second or more apart; it
+does not show which 802.11 procedure was used or how long it took.
+
+The lists of nearby Wi-Fi networks and Bluetooth devices keep updating while
+their section is open; a checkbox turns that off.
+
 ### Bluetooth
 
 The Bluetooth section of `wls web` lists Bluetooth Low Energy devices around

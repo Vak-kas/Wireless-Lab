@@ -100,12 +100,13 @@ def entries_from_helper(answer: dict) -> list[ScanEntry]:
     return sorted(entries, key=lambda e: e.rssi_dbm, reverse=True)
 
 
-def identity(interface_name: str) -> tuple[str | None, str | None]:
+def identity(interface_name: str, fresh: bool = False) -> tuple[str | None, str | None]:
     """SSID and BSSID of the connected network, when the helper may read them."""
     if not macos_helper.installed():
         return None, None
     try:
-        answer = macos_helper.cached("link", interface_name)
+        ask = macos_helper.run if fresh else macos_helper.cached
+        answer = ask("link", interface_name)
     except macos_helper.HelperError:
         return None, None
     return answer.get("ssid"), answer.get("bssid")

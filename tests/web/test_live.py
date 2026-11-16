@@ -12,7 +12,7 @@ from wls.web.app import create_app
 
 @pytest.fixture
 def client(tmp_path):
-    with TestClient(create_app(tmp_path, providers)) as client:
+    with TestClient(create_app(tmp_path, providers, wifi=None, bluetooth=None)) as client:
         client.runs_dir = tmp_path
         yield client
 

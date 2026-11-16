@@ -30,6 +30,7 @@ from wls.core.bluetooth import BluetoothBackend
 from wls.measurements import PlanError, bluetooth_backend, pick_wifi, wifi_backend
 from wls.probes.wifi_link import WifiBackend
 from wls.web.live import Busy, LiveManager, kinds
+from wls.web.watch import WifiWatch
 
 _STATIC = Path(__file__).parent / "static"
 _LOCAL_HOSTS = {"127.0.0.1", "localhost", "[::1]", "testserver"}
@@ -75,9 +76,22 @@ def create_app(
                 return name, device.name, identity.supported, identity.reason
         return None
 
+    watch: dict[str, WifiWatch] = {}
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        found = await wifi_interface() if backend is not None and backend.identity else None
+        if found is not None:
+            interface = found[0]
+            watch["wifi"] = WifiWatch(
+                backend.link_reader(interface),  # type: ignore[union-attr]
+                lambda: backend.identity(interface, True),  # type: ignore[union-attr,misc]
+                Path(runs_dir) / "wifi-events.jsonl",
+            )
+            watch["wifi"].start()
         yield
+        if "wifi" in watch:
+            await watch["wifi"].stop()
         await live.shutdown()
 
     app = FastAPI(
@@ -187,6 +201,13 @@ def create_app(
         except RuntimeError as exc:
             raise HTTPException(503, str(exc)) from None
         return {"status": status}
+
+    @app.get("/api/wifi/events")
+    def wifi_events() -> dict:
+        """Roams, connects and disconnects seen while this server was running."""
+        if "wifi" not in watch:
+            return {"watching": False, "watching_since": None, "identity_known": False, "events": []}
+        return watch["wifi"].snapshot()
 
     @app.get("/api/wifi/scan")
     async def wifi_scan() -> dict:
