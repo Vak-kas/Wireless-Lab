@@ -147,6 +147,14 @@ def verify_run(path: str | Path) -> RunCheck:
     return RunCheck(sealed, intact, events, samples)
 
 
+def read_meta(path: str | Path) -> dict[str, str]:
+    db = sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
+    try:
+        return dict(db.execute("SELECT key, value FROM meta"))
+    finally:
+        db.close()
+
+
 def read_run(path: str | Path) -> tuple[list[Event], list[tuple[int, str, str, float]]]:
     """Events and sample rows (t_ns, probe, metric, value) in recorded order."""
     db = sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)

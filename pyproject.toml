@@ -12,6 +12,9 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = []
 
+[project.scripts]
+wls = "wls.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8",
