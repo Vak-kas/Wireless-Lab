@@ -37,6 +37,12 @@
            position: sticky; top: 0; z-index: 1; }
   header button { all: unset; cursor: pointer; font-size: 20px; font-weight: 700; letter-spacing: -0.25px; }
   header button:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 4px; }
+  nav { display: flex; gap: 4px; margin-left: 12px; flex-wrap: wrap; }
+  nav button { all: unset; cursor: pointer; font-size: 15px; font-weight: 500; color: var(--ink-muted);
+               padding: 4px 12px; border-radius: 8px; }
+  nav button:active { background: var(--hairline); }
+  nav button[aria-current="page"] { color: var(--primary); background: var(--primary-soft); }
+  nav button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .layout { display: grid; grid-template-columns: 288px 1fr; min-height: calc(100vh - 57px);
             max-width: 1240px; margin: 0 auto; }
   aside { padding: 20px 12px 32px 24px; }
@@ -124,6 +130,16 @@
   .bars.big { height: 40px; gap: 6px; margin-right: 16px; vertical-align: -4px; }
   .bars.big i { width: 9px; border-radius: 2px; }
 
+  /* home overview */
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .grid2 .card { margin-bottom: 0; }
+  .card .more-link { margin-top: 16px; }
+  .card.plain h3 { margin-bottom: 4px; }
+  .card.plain p { color: var(--ink-muted); font-size: 14px; margin: 0 0 4px; }
+  .soon { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: 0.125px;
+          color: var(--ink-muted); border: 1px solid var(--hairline); border-radius: 9999px;
+          padding: 2px 8px; margin-left: 8px; vertical-align: 3px; background: var(--surface); }
+  ul.plan { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
   /* check call to action */
   .cta { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
   .cta b { display: block; font-size: 20px; font-weight: 600; letter-spacing: -0.125px; }
@@ -188,7 +204,7 @@
 </style>
 </head>
 <body>
-<header><button id="home" type="button">Wireless Lab</button></header>
+<header><button id="home" type="button">Wireless Lab</button><nav id="nav"></nav></header>
 <div class="layout">
   <aside>
     <h2 id="h-runs"></h2>
@@ -225,6 +241,19 @@ const TEXT = {
   start: ["Start", "시작"], stop: ["Stop", "중지"], seconds: ["seconds", "초 동안"],
   address: ["Address, e.g. 1.1.1.1", "주소 (예: 1.1.1.1)"],
   noRuns: ["Nothing recorded yet.", "아직 기록이 없습니다."],
+  navHome: ["Home", "홈"], navWifi: ["Wi-Fi", "Wi-Fi"], navBluetooth: ["Bluetooth", "블루투스"], navCellular: ["Mobile network", "기지국"],
+  open: ["Open", "열기"], openWifi: ["See Wi-Fi around you", "주변 Wi-Fi 보기"], soon: ["coming", "준비 중"],
+  btLead: ["Find Bluetooth devices around you and see how strong each signal is.", "주변의 블루투스 기기를 찾아 각각의 신호 세기를 보여 줍니다."],
+  btPlan: [["List of nearby Bluetooth devices with signal strength", "Device type and maker where the device announces it", "A record of how a device's signal changes over time"],
+           ["주변 블루투스 기기 목록과 신호 세기", "기기가 스스로 알리는 경우 기기 종류와 제조사", "기기의 신호가 시간에 따라 변하는 기록"]],
+  btNeeds: ["Needs nothing extra: the Bluetooth built into this computer is enough.", "추가 장비가 필요 없습니다. 이 컴퓨터에 내장된 블루투스로 충분합니다."],
+  cellLead: ["See which mobile base station (LTE/5G) a device is connected to and how good the signal is.", "기기가 어느 기지국(LTE/5G)에 연결되어 있고 신호 품질이 어떤지 보여 줍니다."],
+  cellPlan: [["The connected base station: network type, band and cell identifiers", "Signal quality (RSRP, RSRQ, SINR)", "A record of when the device moves to another base station"],
+             ["연결된 기지국: 통신 방식, 주파수 대역, 셀 식별 번호", "신호 품질 (RSRP, RSRQ, SINR)", "다른 기지국으로 옮겨 가는 순간의 기록"]],
+  cellNeeds: ["Needs a device with a mobile modem: an Android phone connected by USB, or a USB modem. A computer alone has no mobile radio.",
+              "이동통신 모뎀이 있는 기기가 필요합니다. USB로 연결한 안드로이드 폰이나 USB 모뎀입니다. 컴퓨터만으로는 기지국 신호를 받을 수 없습니다."],
+  planned: ["What this section will show", "이 섹션에서 보여 줄 것"], needs: ["What it needs", "필요한 것"],
+  notYet: ["This part is not built yet.", "이 부분은 아직 만들어지지 않았습니다."],
   nowLabel: ["Your Wi-Fi signal right now", "지금 내 Wi-Fi 신호"],
   noWifi: ["Wi-Fi is not available", "Wi-Fi를 쓸 수 없습니다"],
   notConnectedLong: ["This computer is not connected to a Wi-Fi network.", "이 컴퓨터가 Wi-Fi에 연결되어 있지 않습니다."],
@@ -349,7 +378,7 @@ function badge(run) {
 }
 
 // --- home: signal right now, the check button, nearby Wi-Fi ----------------------------
-let viewing = null;  // null (home), "live", or the name of the run on screen
+let viewing = "section:home";  // "section:<name>", "live", or the name of the run on screen
 let scanResult = null, scanBusy = false, currentBssid = null, canSetupNames = false;
 
 function renderNow(box, status) {
@@ -436,31 +465,81 @@ async function scan() {
   scanBusy = false; renderNearby();
 }
 
-function showHome() {
-  viewing = null;
-  document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
-  const now = el("div", { className: "card now", id: "now" });
-  const check = el("button", { className: "primary", type: "button", textContent: t("ctaButton") });
-  check.onclick = () => startMeasurement({ kind: "diagnose", duration: 10 }, check, "home-error");
-  const rescan = el("button", { className: "utility", id: "rescan", type: "button", textContent: t("rescan") });
-  rescan.onclick = scan;
-  $("main").replaceChildren(
-    now,
-    el("div", { className: "card cta" },
-      el("div", {}, el("b", { textContent: t("ctaTitle") }), el("span", { textContent: t("ctaBody") }),
-        el("div", { className: "note bad", id: "home-error", role: "alert" })),
-      check),
-    el("div", { className: "section-head" },
-      el("h3", {}, t("nearby"), el("small", { id: "nearby-count" })), rescan),
-    el("div", { className: "note", id: "nearby-note", style: "margin:-4px 0 12px" }),
-    el("div", { className: "card nets", id: "nearby", style: "padding:0" }));
-  refreshNow();
-  renderNearby();
-  if (!scanResult) scan();
+const SECTIONS = ["home", "wifi", "bluetooth", "cellular"];
+const NAV_TEXT = { home: "navHome", wifi: "navWifi", bluetooth: "navBluetooth", cellular: "navCellular" };
+
+function markNav(section) {
+  document.querySelectorAll("#nav button").forEach((b) =>
+    b.dataset.section === section ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
 }
 
+function checkCard() {
+  const check = el("button", { className: "primary", type: "button", textContent: t("ctaButton") });
+  check.onclick = () => startMeasurement({ kind: "diagnose", duration: 10 }, check, "home-error");
+  return el("div", { className: "card cta" },
+    el("div", {}, el("b", { textContent: t("ctaTitle") }), el("span", { textContent: t("ctaBody") }),
+      el("div", { className: "note bad", id: "home-error", role: "alert" })),
+    check);
+}
+
+function goButton(section, label) {
+  const button = el("button", { className: "utility more-link", type: "button", textContent: label });
+  button.onclick = () => showSection(section);
+  return button;
+}
+
+function plannedSection(title, lead, plan, needs) {
+  return [
+    el("h1", { className: "title" }, title, el("span", { className: "soon", textContent: t("soon") })),
+    el("p", { className: "lead", textContent: lead }),
+    el("div", { className: "alert soft", textContent: t("notYet") }),
+    el("div", { className: "section-head" }, el("h3", { textContent: t("planned") })),
+    el("div", { className: "card" }, el("ul", { className: "plan", style: "margin-top:0" }, ...plan.map((x) => el("li", { textContent: x })))),
+    el("div", { className: "section-head" }, el("h3", { textContent: t("needs") })),
+    el("div", { className: "card", textContent: needs }),
+  ];
+}
+
+function showSection(section, remember = true) {
+  if (!SECTIONS.includes(section)) section = "home";
+  viewing = `section:${section}`;
+  if (remember && location.hash !== `#${section}`) history.pushState(null, "", `#${section}`);
+  document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
+  markNav(section);
+  const main = $("main");
+  if (section === "home") {
+    const soon = () => el("span", { className: "soon", textContent: t("soon") });
+    main.replaceChildren(
+      el("div", { className: "card now", id: "now" }),
+      el("div", { style: "margin:-4px 0 16px" }, goButton("wifi", t("openWifi"))),
+      checkCard(),
+      el("div", { className: "grid2" },
+        el("div", { className: "card plain" }, el("h3", {}, t("navBluetooth"), soon()),
+          el("p", { textContent: t("btLead") }), goButton("bluetooth", t("open"))),
+        el("div", { className: "card plain" }, el("h3", {}, t("navCellular"), soon()),
+          el("p", { textContent: t("cellLead") }), goButton("cellular", t("open")))));
+    refreshNow();
+  } else if (section === "wifi") {
+    const rescan = el("button", { className: "utility", id: "rescan", type: "button", textContent: t("rescan") });
+    rescan.onclick = scan;
+    main.replaceChildren(
+      el("div", { className: "card now", id: "now" }),
+      el("div", { className: "section-head" }, el("h3", {}, t("nearby"), el("small", { id: "nearby-count" })), rescan),
+      el("div", { className: "note", id: "nearby-note", style: "margin:-4px 0 12px" }),
+      el("div", { className: "card nets", id: "nearby", style: "padding:0" }));
+    refreshNow();
+    renderNearby();
+    if (!scanResult) scan();
+  } else if (section === "bluetooth") {
+    main.replaceChildren(...plannedSection(t("navBluetooth"), t("btLead"), t("btPlan"), t("btNeeds")));
+  } else {
+    main.replaceChildren(...plannedSection(t("navCellular"), t("cellLead"), t("cellPlan"), t("cellNeeds")));
+  }
+}
+const showHome = () => showSection("home");
+
 async function refreshNow() {
-  if (viewing !== null || !$("now")) return;
+  if (!$("now")) return;
   try {
     const status = await getJSON("/api/wifi");
     const changed = canSetupNames !== Boolean(status.can_setup_names);
@@ -622,6 +701,7 @@ function renderRun(run, live, notices = [], progress = null) {
 async function showRun(name, button, notices = []) {
   document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
   button.setAttribute("aria-current", "true");
+  markNav(null);
   viewing = name;
   let run;
   try { run = await getJSON(`/api/runs/${encodeURIComponent(name)}`); }
@@ -689,6 +769,7 @@ function setRunning(on, title = "") {
 
 function follow() {
   viewing = "live";
+  markNav(null);
   document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
   const live = { kind: "", duration: 0, events: [], notices: [], errors: [], series: new Map() };
   const snapshot = () => ({ ...live, series: [...live.series.values()] });
@@ -773,8 +854,15 @@ $("stop").textContent = t("stop");
 $("seconds").textContent = t("seconds");
 $("target").placeholder = t("address");
 getJSON("/api/info").then((i) => { $("foot").textContent = `${t("savedIn")}: ${i.runs_dir} · v${i.version}`; });
+$("nav").replaceChildren(...SECTIONS.map((section) => {
+  const button = el("button", { type: "button", textContent: t(NAV_TEXT[section]) });
+  button.dataset.section = section;
+  button.onclick = () => showSection(section);
+  return button;
+}));
+window.addEventListener("popstate", () => showSection(location.hash.slice(1), false));
 loadDevices().catch(() => {});
-showHome();
+showSection(location.hash.slice(1), false);
 (async () => {
   await loadKinds();
   const status = await getJSON("/api/measure");
