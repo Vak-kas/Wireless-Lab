@@ -25,6 +25,7 @@ wls diagnose
 wls ping 1.1.1.1 --duration 10
 wls wifi --duration 10
 wls speed
+wls web                          # then open http://127.0.0.1:8765
 wls verify runs/<file>.sqlite
 wls export runs/<file>.sqlite --format csv -o out.csv
 ```
@@ -39,6 +40,10 @@ wls diagnose
 together for 10 seconds and says where the problem is: Wi-Fi, the local
 network, or beyond the router. Its thresholds are rules of thumb and the
 result describes only the measured period.
+
+`wls web` shows recorded runs as charts in the browser, with the seal status
+of each run and the capabilities of connected devices. It listens on this
+computer only and has no login.
 
 `wls ping` runs until `--duration` elapses or you press Ctrl+C, prints each
 reply, and saves the run to `runs/`. A run that ended normally is sealed with

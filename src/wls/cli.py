@@ -7,6 +7,7 @@
     wls wifi [--iface NAME] [--duration S] [--interval S] [--out DIR]
     wls diagnose [--target HOST] [--duration S] [--out DIR]
     wls speed [--seconds S] [--down-url URL] [--up-url URL] [--out DIR]
+    wls web [--port N] [--runs DIR]
     wls verify RUN.sqlite
     wls export RUN.sqlite --format csv|json [-o FILE]
 """
@@ -339,6 +340,18 @@ async def _diagnose(args: argparse.Namespace) -> int:
     return _finish(state, path)
 
 
+def _web(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    from wls.web.app import create_app
+
+    app = create_app(args.runs, _providers)
+    print(f"Wireless Lab is running at http://127.0.0.1:{args.port}  (Ctrl+C to stop)", flush=True)
+    # Bound to this computer only: the UI has no login.
+    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+    return EXIT_OK
+
+
 def _verify(args: argparse.Namespace) -> int:
     check = verify_run(args.run)
     if not check.sealed:
@@ -409,6 +422,10 @@ def build_parser() -> argparse.ArgumentParser:
     speed.add_argument("--out", default="runs", help="directory for run files (default: runs)")
     speed.add_argument("--quiet", action="store_true", help="do not print each sample")
 
+    web = sub.add_parser("web", help="show recorded runs in the browser (this computer only)")
+    web.add_argument("--port", type=int, default=8765)
+    web.add_argument("--runs", default="runs", help="directory with run files (default: runs)")
+
     verify = sub.add_parser("verify", help="check that a run file is complete and unmodified")
     verify.add_argument("run")
 
@@ -435,6 +452,8 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_diagnose(args))
         case "speed":
             return asyncio.run(_speed(args))
+        case "web":
+            return _web(args)
         case "verify":
             return _verify(args)
         case "export":

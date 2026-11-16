@@ -97,7 +97,9 @@ class SqliteRecorder:
         self._set_meta(
             sealed="1", event_count=str(events), sample_count=str(samples), sha256=digest
         )
+        # Leave a single self-contained file: no -wal/-shm companions once sealed.
         self._db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        self._db.execute("PRAGMA journal_mode=DELETE")
         self._db.close()
         self._closed = True
 

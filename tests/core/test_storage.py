@@ -128,3 +128,13 @@ async def test_real_ping_run_is_controlled_and_stored(tmp_path):
     assert any(e.kind == "mark" for e in events)
     rtts = [value for _, probe, metric, value in samples if metric == "rtt_ms"]
     assert rtts and all(v >= 0 for v in rtts)
+
+
+def test_sealed_run_is_a_single_file_even_after_reading(tmp_path):
+    path = tmp_path / "run.sqlite"
+    recorder = SqliteRecorder(path)
+    fill(recorder)
+    recorder.close()
+    read_run(path)
+    verify_run(path)
+    assert [p.name for p in tmp_path.iterdir()] == ["run.sqlite"]

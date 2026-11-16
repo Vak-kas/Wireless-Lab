@@ -1,0 +1,237 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireless Lab</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --line: #e1e4e8; --text: #1c2128; --muted: #667085;
+    --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+    --band: rgba(220, 38, 38, 0.10); --grid: #eceef1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --line: #2a3038; --text: #e6e9ee; --muted: #8b95a3;
+      --accent: #6ea8fe; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+      --band: rgba(248, 113, 113, 0.14); --grid: #222830;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: baseline; gap: 12px; padding: 14px 20px;
+           border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 16px; margin: 0; }
+  header span { color: var(--muted); font-size: 12px; }
+  .layout { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 50px); }
+  aside { border-right: 1px solid var(--line); background: var(--panel); padding: 12px; overflow: auto; }
+  main { padding: 20px; min-width: 0; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+       margin: 14px 4px 8px; }
+  .run { display: block; width: 100%; text-align: left; border: 1px solid transparent; background: none;
+         color: inherit; font: inherit; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+  .run:hover { background: var(--bg); }
+  .run[aria-current="true"] { border-color: var(--accent); background: var(--bg); }
+  .run b { display: block; }
+  .run small { color: var(--muted); }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor;
+           margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .device { padding: 8px 10px; }
+  .device ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; }
+  .device li { color: var(--muted); }
+  .device li.yes { color: var(--text); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 18px; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .chip small { display: block; color: var(--muted); font-size: 11px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+          padding: 12px 14px 8px; margin-bottom: 14px; }
+  .card h3 { font-size: 13px; margin: 0 0 6px; font-weight: 600; }
+  .card h3 small { color: var(--muted); font-weight: 400; margin-left: 8px; }
+  canvas { width: 100%; height: 180px; display: block; }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  .title { font-size: 18px; margin: 0; }
+  .legend { color: var(--muted); font-size: 12px; margin: -8px 0 14px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; background: var(--band);
+            border: 1px solid var(--bad); vertical-align: -1px; margin-right: 4px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } aside { border-right: 0; } }
+</style>
+</head>
+<body>
+<header><h1>Wireless Lab</h1><span id="version"></span></header>
+<div class="layout">
+  <aside>
+    <h2>Runs</h2>
+    <div id="runs"><div class="empty">Loading…</div></div>
+    <h2>Devices</h2>
+    <div id="devices"></div>
+  </aside>
+  <main id="main"><div class="empty">Select a run on the left.</div></main>
+</div>
+<script>
+"use strict";
+const LABELS = {
+  rtt_ms: ["Latency", "ms"], rssi_dbm: ["Signal strength", "dBm"], noise_dbm: ["Noise", "dBm"],
+  snr_db: ["Signal above noise", "dB"], tx_rate_mbps: ["Link rate", "Mbps"],
+  down_mbps: ["Download", "Mbps"], up_mbps: ["Upload", "Mbps"], channel: ["Channel", ""],
+  band_ghz: ["Band", "GHz"], width_mhz: ["Channel width", "MHz"],
+};
+const el = (tag, props = {}, ...children) => {
+  const node = Object.assign(document.createElement(tag), props);
+  node.append(...children);
+  return node;
+};
+const getJSON = async (url) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  return response.json();
+};
+const fmt = (v) => Number.isInteger(v) ? String(v) : Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+function badge(run) {
+  if (!run.sealed) return el("span", { className: "badge warn", textContent: "not sealed",
+    title: "The run did not end normally; data may be incomplete." });
+  if (!run.intact) return el("span", { className: "badge bad", textContent: "modified",
+    title: "Content does not match the seal." });
+  return el("span", { className: "badge ok", textContent: "verified",
+    title: "Complete and unmodified." });
+}
+const when = (iso) => iso ? new Date(iso).toLocaleString() : "";
+
+async function loadRuns() {
+  const box = document.getElementById("runs");
+  const { runs } = await getJSON("/api/runs");
+  box.replaceChildren();
+  if (!runs.length) {
+    box.append(el("div", { className: "empty", textContent: "No runs yet. Try: wls diagnose" }));
+    return;
+  }
+  for (const run of runs) {
+    const button = el("button", { className: "run" },
+      el("b", {}, run.kind, badge(run)), el("small", { textContent: when(run.started_utc) }));
+    button.onclick = () => showRun(run.name, button);
+    box.append(button);
+  }
+  box.firstElementChild.click();
+}
+
+async function loadDevices() {
+  const box = document.getElementById("devices");
+  const { devices } = await getJSON("/api/devices");
+  box.replaceChildren(...devices.map((d) => el("div", { className: "device" },
+    el("b", { textContent: d.name }),
+    el("ul", {}, ...d.capabilities.map((c) => el("li", {
+      className: c.supported ? "yes" : "", title: c.reason,
+      textContent: (c.supported ? "✓ " : "– ") + c.name.replaceAll("_", " "),
+    }))))));
+}
+
+function testBands(events, duration) {
+  const bands = []; let start = null;
+  for (const e of events) {
+    if (e.kind !== "state") continue;
+    if (e.label === "test_running" && start === null) start = e.t;
+    else if (start !== null && e.label !== "test_running") { bands.push([start, e.t]); start = null; }
+  }
+  if (start !== null) bands.push([start, duration]);
+  return bands;
+}
+
+function draw(canvas, points, duration, bands, marks) {
+  const ratio = window.devicePixelRatio || 1;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  canvas.width = width * ratio; canvas.height = height * ratio;
+  const g = canvas.getContext("2d"); g.scale(ratio, ratio);
+  const pad = { l: 46, r: 10, t: 8, b: 22 };
+  const values = points.map((p) => p[1]);
+  let lo = Math.min(...values), hi = Math.max(...values);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const margin = (hi - lo) * 0.1; lo -= margin; hi += margin;
+  const span = Math.max(duration, 1e-9);
+  const x = (t) => pad.l + (t / span) * (width - pad.l - pad.r);
+  const y = (v) => pad.t + (1 - (v - lo) / (hi - lo)) * (height - pad.t - pad.b);
+
+  g.fillStyle = css("--band");
+  for (const [a, b] of bands) g.fillRect(x(a), pad.t, Math.max(x(b) - x(a), 1), height - pad.t - pad.b);
+
+  g.font = "11px system-ui, sans-serif"; g.fillStyle = css("--muted");
+  g.strokeStyle = css("--grid"); g.lineWidth = 1;
+  g.textAlign = "right"; g.textBaseline = "middle";
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + ((hi - lo) * i) / 3;
+    g.beginPath(); g.moveTo(pad.l, y(v)); g.lineTo(width - pad.r, y(v)); g.stroke();
+    g.fillText(fmt(v), pad.l - 6, y(v));
+  }
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (let i = 0; i <= 4; i++) {
+    const t = (span * i) / 4;
+    g.fillText(`${t.toFixed(t < 10 ? 1 : 0)} s`, Math.min(Math.max(x(t), pad.l + 12), width - 16), height - pad.b + 5);
+  }
+  g.strokeStyle = css("--muted"); g.setLineDash([3, 3]);
+  for (const t of marks) { g.beginPath(); g.moveTo(x(t), pad.t); g.lineTo(x(t), height - pad.b); g.stroke(); }
+  g.setLineDash([]);
+
+  g.strokeStyle = css("--accent"); g.fillStyle = css("--accent"); g.lineWidth = 1.6; g.lineJoin = "round";
+  g.beginPath();
+  points.forEach(([t, v], i) => (i ? g.lineTo(x(t), y(v)) : g.moveTo(x(t), y(v))));
+  g.stroke();
+  if (points.length <= 60) for (const [t, v] of points) { g.beginPath(); g.arc(x(t), y(v), 2.2, 0, 7); g.fill(); }
+}
+
+const stats = (values) => ({
+  min: Math.min(...values), max: Math.max(...values),
+  avg: values.reduce((a, b) => a + b, 0) / values.length,
+});
+
+async function showRun(name, button) {
+  document.querySelectorAll(".run").forEach((b) => b.removeAttribute("aria-current"));
+  button.setAttribute("aria-current", "true");
+  const main = document.getElementById("main");
+  let run;
+  try { run = await getJSON(`/api/runs/${encodeURIComponent(name)}`); }
+  catch (error) { main.replaceChildren(el("div", { className: "empty", textContent: String(error) })); return; }
+
+  const chips = el("div", { className: "chips" });
+  const chip = (label, value) => chips.append(el("div", { className: "chip" }, el("small", { textContent: label }), value));
+  chip("Started", when(run.started_utc));
+  chip("Duration", `${run.duration.toFixed(1)} s`);
+  chip("Samples", String(run.sample_count));
+
+  const bands = testBands(run.events, run.duration);
+  const marks = run.events.filter((e) => e.kind === "mark").map((e) => e.t);
+  const cards = [];
+  for (const s of run.series) {
+    const values = s.points.map((p) => p[1]);
+    const { min, max, avg } = stats(values);
+    if (s.metric === "lost") { chip(`${s.probe} · packet loss`, `${(100 * avg).toFixed(1)} %`); continue; }
+    if (s.metric === "associated") { chip(`${s.probe} · connected`, `${(100 * avg).toFixed(0)} % of the time`); continue; }
+    const [label, unit] = LABELS[s.metric] || [s.metric, ""];
+    if (min === max) { chip(`${s.probe} · ${label}`, `${fmt(min)} ${unit}`.trim()); continue; }
+    const canvas = el("canvas");
+    const card = el("div", { className: "card" },
+      el("h3", {}, `${s.probe} · ${label}`,
+        el("small", { textContent: `min ${fmt(min)} · avg ${fmt(avg)} · max ${fmt(max)} ${unit}` })),
+      canvas);
+    cards.push([canvas, s.points, card]);
+  }
+  const title = el("h1", { className: "title" }, run.kind, badge(run));
+  const nodes = [title, chips];
+  if (bands.length || marks.length) nodes.push(el("div", { className: "legend" },
+    el("span", { className: "swatch" }), "test active", marks.length ? "  ·  dashed line: mark" : ""));
+  nodes.push(...cards.map((c) => c[2]));
+  if (!cards.length) nodes.push(el("div", { className: "empty", textContent: "Nothing varied during this run." }));
+  main.replaceChildren(...nodes);
+  const redraw = () => cards.forEach(([canvas, points]) => draw(canvas, points, run.duration, bands, marks));
+  redraw();
+  window.onresize = redraw;
+}
+
+getJSON("/api/info").then((i) => { document.getElementById("version").textContent = `v${i.version} · ${i.runs_dir}`; });
+loadRuns().catch((e) => { document.getElementById("runs").textContent = String(e); });
+loadDevices().catch(() => {});
+</script>
+</body>
+</html>
