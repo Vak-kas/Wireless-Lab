@@ -236,8 +236,10 @@ const TEXT = {
   nearby: ["Wi-Fi around you", "주변 Wi-Fi"], count: [(n) => `${n} found`, (n) => `${n}개`],
   rescan: ["Search again", "다시 검색"], scanning: ["Searching… this takes about 7 seconds.", "검색 중입니다… 7초쯤 걸립니다."],
   scanFailed: ["The search failed.", "검색하지 못했습니다."], noNetworks: ["No networks found.", "찾은 Wi-Fi가 없습니다."],
-  namesHidden: ["Network names are hidden: macOS gives them only to an installed app that was allowed to use Location. Signal, channel and security are shown.",
-                "네트워크 이름이 보이지 않습니다. macOS는 위치 권한을 받은 설치형 앱에만 이름을 알려 줍니다. 신호 세기, 채널, 보안 방식은 그대로 보입니다."],
+  namesHidden: ["Network names are hidden. macOS shows them only to an app you allowed to use Location Services. Your location itself is not read or sent anywhere.",
+                "네트워크 이름이 보이지 않습니다. macOS는 위치 서비스 사용을 허용한 앱에만 이름을 알려 줍니다. 위치 자체는 읽거나 보내지 않습니다."],
+  showNames: ["Show names", "이름 보이게 하기"], settingUp: ["Preparing… macOS will ask for permission. Choose Allow.", "준비 중입니다… macOS가 권한을 물으면 '허용'을 눌러 주세요."],
+  setupFailed: ["Could not turn on names:", "이름 표시를 켜지 못했습니다:"], connectedHere: ["connected", "연결됨"],
   colSignal: ["Signal", "신호"], colName: ["Name", "이름"], colChannel: ["Channel", "채널"], colSecurity: ["Security", "보안"],
   hiddenName: ["(name hidden)", "(이름 숨김)"],
   secOpen: ["No password", "암호 없음"], secWep: ["WEP (unsafe)", "WEP (취약)"], secEnterprise: ["Enterprise login", "기업용 인증"],
@@ -348,7 +350,7 @@ function badge(run) {
 
 // --- home: signal right now, the check button, nearby Wi-Fi ----------------------------
 let viewing = null;  // null (home), "live", or the name of the run on screen
-let scanResult = null, scanBusy = false;
+let scanResult = null, scanBusy = false, currentBssid = null, canSetupNames = false;
 
 function renderNow(box, status) {
   if (!status.supported || !status.link || !status.link.associated) {
@@ -358,10 +360,11 @@ function renderNow(box, status) {
     return;
   }
   const link = status.link;
+  currentBssid = status.bssid || null;
   const [tone, word, level] = grade(link.rssi_dbm);
   const fact = (label, value) => value === undefined ? null : el("div", {}, el("small", { textContent: label }), value);
   box.replaceChildren(
-    el("div", { className: "label", textContent: t("nowLabel") }),
+    el("div", { className: "label", textContent: status.ssid ? `${t("nowLabel")} · ${status.ssid}` : t("nowLabel") }),
     el("div", {}, el("div", { className: `word ${tone}` }, bars(level, tone, true), word),
       el("div", { className: "dbm", textContent: `${link.rssi_dbm.toFixed(0)} dBm` })),
     el("div", { className: "facts" },
@@ -394,7 +397,8 @@ function renderNearby() {
                    n.width_mhz ? `${n.width_mhz} MHz` : null].filter(Boolean).join(" · ");
     return el("div", { className: "net" },
       el("div", { className: "sig" }, bars(level, tone), el("span", { textContent: `${n.rssi_dbm.toFixed(0)} dBm` })),
-      el("div", { className: `name ${n.ssid ? "" : "hidden-name"}`, textContent: n.ssid || t("hiddenName") }),
+      el("div", { className: `name ${n.ssid ? "" : "hidden-name"}` }, n.ssid || t("hiddenName"),
+        n.bssid && n.bssid === currentBssid ? el("span", { className: "badge ok", textContent: t("connectedHere") }) : null),
       el("div", { className: "dim", textContent: place }),
       el("div", { className: "dim" }, securityText(n.security)));
   });
@@ -402,7 +406,26 @@ function renderNearby() {
     el("div", { className: "net head" }, el("div", { textContent: t("colSignal") }), el("div", { textContent: t("colName") }),
       el("div", { textContent: t("colChannel") }), el("div", { textContent: t("colSecurity") })),
     ...rows);
-  $("nearby-note").textContent = scanResult.names_hidden ? t("namesHidden") : "";
+  const note = $("nearby-note");
+  note.replaceChildren();
+  if (scanResult.names_hidden) {
+    note.append(t("namesHidden") + " ");
+    if (canSetupNames) {
+      const button = el("button", { className: "utility", type: "button", textContent: t("showNames"), style: "margin-left:4px" });
+      button.onclick = async () => {
+        button.disabled = true;
+        note.replaceChildren(t("settingUp"));
+        try {
+          const response = await fetch("/api/wifi/names", { method: "POST" });
+          const answer = await response.json();
+          if (!response.ok) throw new Error(answer.detail || `HTTP ${response.status}`);
+          if (answer.status !== "authorized") throw new Error(answer.status);
+          scanResult = null; scan();
+        } catch (error) { note.replaceChildren(`${t("setupFailed")} ${error.message}`); }
+      };
+      note.append(button);
+    }
+  }
 }
 
 async function scan() {
@@ -438,7 +461,13 @@ function showHome() {
 
 async function refreshNow() {
   if (viewing !== null || !$("now")) return;
-  try { renderNow($("now"), await getJSON("/api/wifi")); } catch { /* keep the last reading */ }
+  try {
+    const status = await getJSON("/api/wifi");
+    const changed = canSetupNames !== Boolean(status.can_setup_names);
+    canSetupNames = Boolean(status.can_setup_names);
+    renderNow($("now"), status);
+    if (changed) renderNearby();
+  } catch { /* keep the last reading */ }
 }
 setInterval(refreshNow, 2000);
 

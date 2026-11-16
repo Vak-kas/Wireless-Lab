@@ -13,6 +13,7 @@ from __future__ import annotations
 import CoreWLAN  # available on macOS only; importers must guard this module
 
 from wls.core.devices import SUPPORTED, Capability, Device, DeviceKind, unsupported
+from wls.providers import macos_helper
 from wls.probes.wifi_link import LinkReading, Reader, ScanEntry, Scanner, WifiBackend
 
 _BAND_GHZ = {1: 2.4, 2: 5.0, 3: 6.0}
@@ -82,9 +83,60 @@ def security_label(supported: set[int]) -> str:
     return ""
 
 
+def entries_from_helper(answer: dict) -> list[ScanEntry]:
+    """Convert the helper's scan answer."""
+    entries = [
+        ScanEntry(
+            rssi_dbm=float(n["rssi"]),
+            ssid=n.get("ssid"),
+            bssid=n.get("bssid"),
+            channel=n.get("channel"),
+            band_ghz=_BAND_GHZ.get(n.get("band")),
+            width_mhz=_WIDTH_MHZ.get(n.get("width")),
+            security=security_label(set(n.get("security", []))),
+        )
+        for n in answer.get("networks", [])
+    ]
+    return sorted(entries, key=lambda e: e.rssi_dbm, reverse=True)
+
+
+def identity(interface_name: str) -> tuple[str | None, str | None]:
+    """SSID and BSSID of the connected network, when the helper may read them."""
+    if not macos_helper.installed():
+        return None, None
+    try:
+        answer = macos_helper.cached("link", interface_name)
+    except macos_helper.HelperError:
+        return None, None
+    return answer.get("ssid"), answer.get("bssid")
+
+
+def _identity_support(interface_name: str, connected: bool):
+    if not connected:
+        return unsupported("not connected to a network")
+    if not macos_helper.installed():
+        return unsupported(
+            "macOS gives network names only to an app allowed to use Location Services; "
+            "run 'wls macos-setup' once"
+        )
+    try:
+        answer = macos_helper.cached("link", interface_name)
+    except macos_helper.HelperError as exc:
+        return unsupported(f"the helper failed: {exc}")
+    if answer.get("ssid") is not None:
+        return SUPPORTED
+    status = str(answer.get("location", "unknown"))
+    return unsupported(macos_helper.STATUS_HELP.get(status) or f"location status: {status}")
+
+
 def scanner(interface_name: str) -> Scanner:
     def scan() -> list[ScanEntry]:
         """Blocks for several seconds; call from a worker thread."""
+        if macos_helper.installed():
+            try:
+                return entries_from_helper(macos_helper.run("scan", interface_name, timeout=30))
+            except macos_helper.HelperError:
+                pass  # fall back to scanning without names
         networks, error = _interface(interface_name).scanForNetworksWithName_error_(None, None)
         if networks is None:
             raise RuntimeError(f"Wi-Fi scan failed: {error}")
@@ -118,13 +170,9 @@ class MacWifiProvider:
             name = str(interface.interfaceName())
             connected = bool(interface.powerOn()) and interface.rssiValue() != 0
             if interface.ssid() is not None:
-                identity = SUPPORTED
-            elif not connected:
-                identity = unsupported("not connected to a network")
+                identity_support = SUPPORTED
             else:
-                identity = unsupported(
-                    "macOS gives SSID/BSSID only to a signed app with Location permission"
-                )
+                identity_support = _identity_support(name, connected)
             phy = _PHY.get(interface.activePHYMode(), "")
             details = {"interface": name, "power": "on" if interface.powerOn() else "off"}
             if phy:
@@ -136,7 +184,7 @@ class MacWifiProvider:
                     f"Wi-Fi {name}" + (f" ({phy})" if phy else ""),
                     {
                         Capability.WIFI_LINK_INFO: SUPPORTED,
-                        Capability.WIFI_IDENTITY: identity,
+                        Capability.WIFI_IDENTITY: identity_support,
                         Capability.WIFI_SCAN: SUPPORTED,
                         Capability.WIFI_MONITOR: unsupported("not implemented yet"),
                         Capability.WIFI_INJECT: unsupported(
@@ -150,4 +198,6 @@ class MacWifiProvider:
 
 
 def backend() -> WifiBackend:
-    return WifiBackend(MacWifiProvider(), link_reader, scanner, ID_PREFIX)
+    return WifiBackend(
+        MacWifiProvider(), link_reader, scanner, ID_PREFIX, identity, macos_helper.setup
+    )

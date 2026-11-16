@@ -57,10 +57,24 @@ No administrator rights are needed. `wls ping` uses the system `ping` command
 and works on macOS, Windows and Linux.
 
 `wls wifi` records signal strength, noise, channel and link rate of the
-current Wi-Fi connection. It is implemented for macOS so far. macOS gives the
-network name (SSID) and BSSID only to a signed application with Location
-permission, so they are not recorded from the command line; `wls devices`
-shows this and every other unavailable capability with its reason.
+current Wi-Fi connection. It is implemented for macOS so far.
+
+### Network names on macOS
+
+macOS gives Wi-Fi network names (SSID) and BSSIDs only to an application that
+you allowed to use Location Services. Run this once:
+
+```bash
+wls macos-setup
+```
+
+It builds a small helper app from the Swift source in this repository (needs
+the Xcode command line tools), installs it under
+`~/Library/Application Support/WirelessLab/`, and macOS asks whether to allow
+it. The helper only prints Wi-Fi information for Wireless Lab; it does not
+read, store or send your location. Without it everything else still works,
+and nearby networks are listed without their names. The helper is signed for
+your own computer only; rebuilding it makes macOS ask again.
 
 `wls speed` measures download and upload throughput against an HTTP server
 (`--down-url`, `--up-url`; the default is Cloudflare's public speed test

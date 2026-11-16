@@ -8,6 +8,7 @@
     wls diagnose [--target HOST] [--duration S] [--out DIR]
     wls speed [--seconds S] [--down-url URL] [--up-url URL] [--out DIR]
     wls web [--port N] [--runs DIR]
+    wls macos-setup
     wls verify RUN.sqlite
     wls export RUN.sqlite --format csv|json [-o FILE]
 """
@@ -255,6 +256,27 @@ def _web(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _macos_setup() -> int:
+    if sys.platform != "darwin":
+        print("error: this command is for macOS only", file=sys.stderr)
+        return EXIT_FAILED
+    from wls.providers import macos_helper
+
+    print("macOS shows Wi-Fi network names only to an app allowed to use Location Services.")
+    print("Building the helper app if needed; then macOS may ask you to allow it.")
+    try:
+        status = macos_helper.setup()
+    except macos_helper.HelperError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_FAILED
+    print(f"helper: {macos_helper.APP}")
+    if status == "authorized":
+        print("allowed: network names will be shown")
+        return EXIT_OK
+    print(f"not allowed yet: {macos_helper.STATUS_HELP.get(status, status)}")
+    return EXIT_FAILED
+
+
 def _verify(args: argparse.Namespace) -> int:
     check = verify_run(args.run)
     if not check.sealed:
@@ -329,6 +351,8 @@ def build_parser() -> argparse.ArgumentParser:
     web.add_argument("--port", type=int, default=8765)
     web.add_argument("--runs", default="runs", help="directory with run files (default: runs)")
 
+    sub.add_parser("macos-setup", help="macOS: allow Wi-Fi network names to be shown (one time)")
+
     verify = sub.add_parser("verify", help="check that a run file is complete and unmodified")
     verify.add_argument("run")
 
@@ -357,6 +381,8 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_speed(args))
         case "web":
             return _web(args)
+        case "macos-setup":
+            return _macos_setup()
         case "verify":
             return _verify(args)
         case "export":

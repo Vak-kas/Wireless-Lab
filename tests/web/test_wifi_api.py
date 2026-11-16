@@ -82,3 +82,57 @@ def test_macos_security_labels():
     assert security_label({11}) == "WPA3"
     assert security_label({8, 9, 10}) == "enterprise"
     assert security_label(set()) == ""
+
+
+def test_current_network_name_is_included_when_the_backend_knows_it(tmp_path):
+    from dataclasses import replace
+
+    known = replace(backend(), identity=lambda interface: ("home", "aa:bb:cc:dd:ee:ff"))
+    now = client(tmp_path, known).get("/api/wifi").json()
+    assert (now["ssid"], now["bssid"]) == ("home", "aa:bb:cc:dd:ee:ff")
+    assert client(tmp_path, backend()).get("/api/wifi").json()["ssid"] is None
+
+
+def test_names_setup_runs_the_backend_setup(tmp_path):
+    from dataclasses import replace
+
+    calls = []
+    ready = replace(backend(), names_setup=lambda: calls.append(1) or "authorized")
+    assert client(tmp_path, ready).get("/api/wifi").json()["can_setup_names"] is True
+    assert client(tmp_path, ready).post("/api/wifi/names").json() == {"status": "authorized"}
+    assert calls == [1]
+
+
+def test_names_setup_is_absent_where_it_is_not_needed(tmp_path):
+    assert client(tmp_path, backend()).get("/api/wifi").json()["can_setup_names"] is False
+    assert client(tmp_path, backend()).post("/api/wifi/names").status_code == 404
+
+
+def test_names_setup_failure_is_reported(tmp_path):
+    from dataclasses import replace
+
+    def failing():
+        raise RuntimeError("the Swift compiler was not found")
+
+    response = client(tmp_path, replace(backend(), names_setup=failing)).post("/api/wifi/names")
+    assert response.status_code == 503 and "Swift" in response.json()["detail"]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
+def test_macos_helper_scan_answer_is_converted():
+    from wls.providers.wifi_macos import entries_from_helper
+
+    answer = {
+        "location": "authorized",
+        "networks": [
+            {"rssi": -70, "ssid": "cafe", "bssid": None, "channel": 1, "band": 1, "width": 1,
+             "security": [0]},
+            {"rssi": -40, "ssid": "home", "bssid": "aa:bb:cc:dd:ee:ff", "channel": 36, "band": 2,
+             "width": 3, "security": [5, 11, 13]},
+        ],
+    }  # fmt: skip
+    assert entries_from_helper(answer) == [
+        ScanEntry(-40.0, "home", "aa:bb:cc:dd:ee:ff", 36, 5.0, 80, "WPA2/WPA3"),
+        ScanEntry(-70.0, "cafe", None, 1, 2.4, 20, "open"),
+    ]
+    assert entries_from_helper({"networks": []}) == []

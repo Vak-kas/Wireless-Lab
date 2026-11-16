@@ -157,6 +157,9 @@ def create_app(
             return {"supported": False, "reason": reason, "link": None}
         interface, name, names, why = found
         reading = backend.link_reader(interface)()  # type: ignore[union-attr]
+        ssid = bssid = None
+        if backend.identity is not None:  # type: ignore[union-attr]
+            ssid, bssid = await asyncio.to_thread(backend.identity, interface)  # type: ignore[union-attr]
         return {
             "supported": True,
             "reason": "",
@@ -165,7 +168,21 @@ def create_app(
             "names_available": names,
             "names_reason": why,
             "link": reading.values() if reading else None,
+            "ssid": ssid,
+            "bssid": bssid,
+            "can_setup_names": backend.names_setup is not None,  # type: ignore[union-attr]
         }
+
+    @app.post("/api/wifi/names")
+    async def wifi_names_setup() -> dict:
+        """One-time setup so that network names become visible (asks the OS for permission)."""
+        if backend is None or backend.names_setup is None:
+            raise HTTPException(404, "nothing to set up on this system")
+        try:
+            status = await asyncio.to_thread(backend.names_setup)
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc)) from None
+        return {"status": status}
 
     @app.get("/api/wifi/scan")
     async def wifi_scan() -> dict:
