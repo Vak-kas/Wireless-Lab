@@ -1,6 +1,128 @@
+/* 바탕 규칙과 구역(tile)별 의미 색. 값은 전부 tokens.css 의 토큰에서 가져온다. */
+
+:root {
+  /* 밝은 구역 기본값 */
+  --fg: var(--color-ink);
+  --fg-muted: var(--color-ink-disabled);
+  --link: var(--color-primary);
+  --surface: var(--color-canvas);
+  --card: var(--color-canvas);
+  --line: var(--color-hairline);
+  --ok: var(--color-success);
+  --warn: var(--color-warning);
+  --bad: var(--color-error);
+  --viz-ink: var(--color-viz-ink);
+  --viz-accent: var(--color-viz-accent);
+  --viz-muted: var(--color-viz-muted);
+  --viz-grid: var(--color-viz-grid);
+  --cat-1: var(--color-viz-cat-1);
+  --cat-2: var(--color-viz-cat-2);
+  --cat-3: var(--color-viz-cat-3);
+  --cat-4: var(--color-viz-cat-4);
+  --cat-5: var(--color-viz-cat-5);
+  --cat-6: var(--color-viz-cat-6);
+}
+
+[data-tone="parchment"] {
+  --surface: var(--color-canvas-parchment);
+}
+
+[data-tone="dark"] {
+  --fg: var(--color-body-on-dark);
+  --fg-muted: var(--color-body-muted);
+  --link: var(--color-primary-on-dark);
+  --surface: var(--color-surface-tile-1);
+  --card: var(--color-card-on-dark);
+  --line: var(--color-hairline-on-dark);
+  --ok: var(--color-success-on-dark);
+  --warn: var(--color-warning-on-dark);
+  --bad: var(--color-error-on-dark);
+  --viz-ink: var(--color-viz-ink-on-dark);
+  --viz-accent: var(--color-viz-accent-on-dark);
+  --viz-grid: var(--color-viz-grid-on-dark);
+  --cat-1: var(--color-viz-cat-1-on-dark);
+  --cat-2: var(--color-viz-cat-2-on-dark);
+  --cat-3: var(--color-viz-cat-3-on-dark);
+  --cat-4: var(--color-viz-cat-4-on-dark);
+  --cat-5: var(--color-viz-cat-5-on-dark);
+  --cat-6: var(--color-viz-cat-6-on-dark);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--size-nav-height) + var(--size-subnav-height) + var(--space-md));
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.374px;
   color: var(--color-ink);
   background: var(--color-canvas);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-primary-focus);
+  outline-offset: 2px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

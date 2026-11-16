@@ -1,0 +1,656 @@
+{
+ "stage": "ntn",
+ "status": "ok",
+ "summary_easy": "위성은 지금 고도각 85.9°, 거리 608.575 km에 있고, 신호는 2.03 ms 늦게 도착합니다.",
+ "summary_expert": "d=608.575 km el=85.92 az=239.39 TA_ue=4059.975us TA_common=7999.998us fD=3498.5Hz",
+ "values": [
+  {
+   "key": "elevation",
+   "label": "고도각",
+   "value": 85.92,
+   "unit": "°",
+   "kind": "derived",
+   "derivation_id": "geometry",
+   "primary": true,
+   "group": "기하"
+  },
+  {
+   "key": "azimuth",
+   "label": "방위각",
+   "value": 239.39,
+   "unit": "°",
+   "kind": "derived",
+   "derivation_id": "geometry",
+   "group": "기하"
+  },
+  {
+   "key": "range",
+   "label": "위성까지 거리",
+   "value": 608.575,
+   "unit": "km",
+   "kind": "derived",
+   "derivation_id": "geometry",
+   "primary": true,
+   "group": "기하"
+  },
+  {
+   "key": "delay",
+   "label": "서비스 링크 지연",
+   "value": 2029.987,
+   "unit": "µs",
+   "kind": "derived",
+   "derivation_id": "delay",
+   "primary": true,
+   "group": "타이밍",
+   "term": "service_link"
+  },
+  {
+   "key": "ta_ue",
+   "label": "단말별 TA",
+   "value": 4059.975,
+   "unit": "µs",
+   "kind": "derived",
+   "derivation_id": "ta_ue",
+   "group": "타이밍",
+   "term": "ta"
+  },
+  {
+   "key": "ta_common",
+   "label": "공통 TA",
+   "value": 7999.998,
+   "unit": "µs",
+   "kind": "decoded",
+   "raw": 1964636,
+   "source": "SIB19.ntn-Config-r17.ta-Info-r17.ta-Common-r17",
+   "group": "타이밍",
+   "term": "ta_common"
+  },
+  {
+   "key": "ta_total",
+   "label": "전체 TA (N_TA,offset 제외)",
+   "value": 12059.973,
+   "unit": "µs",
+   "kind": "derived",
+   "derivation_id": "ta_total",
+   "primary": true,
+   "group": "타이밍",
+   "term": "ta"
+  },
+  {
+   "key": "ta_rate",
+   "label": "TA 변화율",
+   "value": -2.919,
+   "unit": "µs/s",
+   "kind": "derived",
+   "derivation_id": "rates",
+   "group": "변화율"
+  },
+  {
+   "key": "doppler",
+   "label": "예상 도플러",
+   "value": 3498.5,
+   "unit": "Hz",
+   "kind": "derived",
+   "derivation_id": "doppler",
+   "primary": true,
+   "group": "도플러",
+   "term": "doppler"
+  },
+  {
+   "key": "cfo_measured",
+   "label": "측정한 주파수 오차",
+   "value": 2311.1,
+   "unit": "Hz",
+   "kind": "measured",
+   "group": "도플러",
+   "term": "cfo"
+  },
+  {
+   "key": "doppler_residual",
+   "label": "도플러 잔차 (측정 − 예상)",
+   "value": -1187.4,
+   "unit": "Hz",
+   "kind": "derived",
+   "derivation_id": "doppler_residual",
+   "primary": true,
+   "group": "도플러"
+  },
+  {
+   "key": "doppler_rate",
+   "label": "도플러 변화율",
+   "value": -622.36,
+   "unit": "Hz/s",
+   "kind": "derived",
+   "derivation_id": "rates",
+   "group": "변화율"
+  },
+  {
+   "key": "validity_left",
+   "label": "남은 유효 시간",
+   "value": 20,
+   "unit": "s",
+   "kind": "decoded",
+   "raw": "s20",
+   "source": "SIB19.ntn-Config-r17.ntn-UlSyncValidityDuration-r17",
+   "group": "시각",
+   "term": "validity"
+  },
+  {
+   "key": "k_offset_ok",
+   "label": "K_offset이 TA를 덮는가",
+   "value": true,
+   "unit": "",
+   "kind": "derived",
+   "derivation_id": "k_offset",
+   "group": "타이밍",
+   "term": "k_offset"
+  }
+ ],
+ "derivations": [
+  {
+   "id": "geometry",
+   "title": "단말에서 본 위성의 거리·고도각·방위각",
+   "formula_tex": "d = \\lVert \\mathbf{r}_{sat} - \\mathbf{r}_{ue} \\rVert,\\quad el = \\arcsin\\frac{u}{d},\\quad az = \\operatorname{atan2}(e, n)",
+   "inputs": [
+    {
+     "symbol": "r_sat",
+     "value": "(-3397.501, 4508.400, 4101.600) km",
+     "source": "SIB19 ephemerisInfo-r17 (ECEF)"
+    },
+    {
+     "symbol": "r_ue",
+     "value": "36.35°N, 127.38°E, 60 m",
+     "source": "설정의 내 위치 (WGS84 → ECEF)"
+    }
+   ],
+   "steps": [
+    "d = 608.575 km",
+    "(e, n, u) → el = 85.92°, az = 239.39°"
+   ],
+   "result": {
+    "value": 608.575,
+    "unit": "km"
+   },
+   "spec_ref": "TS 38.213 4.2 (위성 위치로 단말별 TA를 구함)"
+  },
+  {
+   "id": "delay",
+   "title": "서비스 링크 지연",
+   "formula_tex": "\\tau = \\frac{d}{c}",
+   "inputs": [
+    {
+     "symbol": "d",
+     "value": 608574.9,
+     "unit": "m",
+     "source": "위 계산"
+    },
+    {
+     "symbol": "c",
+     "value": 299792458,
+     "unit": "m/s",
+     "source": "빛의 속도"
+    }
+   ],
+   "steps": [
+    "608574.9 / 299792458 = 2029.987 µs"
+   ],
+   "result": {
+    "value": 2029.987,
+    "unit": "µs"
+   },
+   "spec_ref": "TS 38.213 4.2"
+  },
+  {
+   "id": "ta_ue",
+   "title": "단말별 TA",
+   "formula_tex": "N_{TA,adj}^{UE} = \\frac{2d}{c \\cdot T_c}",
+   "inputs": [
+    {
+     "symbol": "d",
+     "value": 608574.9,
+     "unit": "m",
+     "source": "위 계산"
+    },
+    {
+     "symbol": "T_c",
+     "value": "1/(480000·4096)",
+     "unit": "s",
+     "source": "TS 38.211 4.1"
+    }
+   ],
+   "steps": [
+    "2 × 608574.9 / 299792458 = 4059.975 µs",
+    "÷ T_c = 7982235 T_c"
+   ],
+   "result": {
+    "value": 4059.975,
+    "unit": "µs"
+   },
+   "spec_ref": "TS 38.213 4.2"
+  },
+  {
+   "id": "ta_total",
+   "title": "전체 TA",
+   "formula_tex": "T_{TA} = (N_{TA} + N_{TA,offset} + N_{TA,adj}^{common} + N_{TA,adj}^{UE})\\,T_c",
+   "inputs": [
+    {
+     "symbol": "N_TA,adj^common",
+     "value": 7999.998,
+     "unit": "µs",
+     "source": "SIB19 ta-Common-r17"
+    },
+    {
+     "symbol": "N_TA,adj^UE",
+     "value": 4059.975,
+     "unit": "µs",
+     "source": "위 계산"
+    },
+    {
+     "symbol": "N_TA",
+     "value": 0,
+     "source": "초기 접속 전이므로 0"
+    }
+   ],
+   "steps": [
+    "7999.998 + 4059.975 = 12059.973 µs (N_TA,offset은 더하지 않음)"
+   ],
+   "result": {
+    "value": 12059.973,
+    "unit": "µs"
+   },
+   "spec_ref": "TS 38.211 4.3.1"
+  },
+  {
+   "id": "doppler",
+   "title": "서비스 링크 도플러",
+   "formula_tex": "f_D = -\\frac{v_r}{c} f_c,\\quad v_r = \\frac{\\mathbf{v}_{sat} \\cdot (\\mathbf{r}_{sat} - \\mathbf{r}_{ue})}{d}",
+   "inputs": [
+    {
+     "symbol": "v_sat",
+     "value": "(-4.326, -5.626, 2.600) km/s",
+     "source": "SIB19 ephemerisInfo-r17 (ECEF)"
+    },
+    {
+     "symbol": "f_c",
+     "value": 2184.15,
+     "unit": "MHz",
+     "source": "SSB 중심 주파수"
+    }
+   ],
+   "steps": [
+    "v_r = -480.2 m/s",
+    "f_D = -(-480.2) / 299792458 × 2184150000 = 3498.5 Hz"
+   ],
+   "result": {
+    "value": 3498.5,
+    "unit": "Hz"
+   },
+   "spec_ref": "TR 38.821 6.1 (도플러)"
+  },
+  {
+   "id": "doppler_residual",
+   "title": "도플러 잔차",
+   "formula_tex": "\\Delta f = f_{CFO,meas} - f_D",
+   "inputs": [
+    {
+     "symbol": "f_CFO,meas",
+     "value": 2311.1,
+     "unit": "Hz",
+     "source": "SSB 단계 측정"
+    },
+    {
+     "symbol": "f_D",
+     "value": 3498.5,
+     "unit": "Hz",
+     "source": "위 계산"
+    }
+   ],
+   "steps": [
+    "2311.1 − (3498.5) = -1187.4 Hz"
+   ],
+   "result": {
+    "value": -1187.4,
+    "unit": "Hz"
+   },
+   "spec_ref": "SPEC 7절 (관측용 비교)"
+  },
+  {
+   "id": "rates",
+   "title": "1초 뒤와의 차이로 구한 변화율",
+   "formula_tex": "\\dot{x} \\approx x(t + 1\\,\\mathrm{s}) - x(t)",
+   "inputs": [
+    {
+     "symbol": "t",
+     "value": 0,
+     "unit": "s",
+     "source": "epochTime 기준"
+    }
+   ],
+   "steps": [
+    "TA: -2.919 µs/s",
+    "도플러: -622.36 Hz/s"
+   ],
+   "result": {
+    "value": -622.36,
+    "unit": "Hz/s"
+   },
+   "spec_ref": "SPEC 7절"
+  },
+  {
+   "id": "k_offset",
+   "title": "K_offset이 전체 TA를 덮는지",
+   "formula_tex": "K_{offset} \\cdot T_{slot} \\ge T_{TA}",
+   "inputs": [
+    {
+     "symbol": "K_offset",
+     "value": 12,
+     "unit": "ms",
+     "source": "SIB19 cellSpecificKoffset-r17 (15 kHz 슬롯 = 1 ms)"
+    },
+    {
+     "symbol": "T_TA",
+     "value": 12.06,
+     "unit": "ms",
+     "source": "위 계산"
+    }
+   ],
+   "steps": [
+    "12 ms ≥ 12.06 ms → 덮음"
+   ],
+   "result": {
+    "value": true,
+    "unit": ""
+   },
+   "spec_ref": "TS 38.213 4.2"
+  }
+ ],
+ "plots": [
+  {
+   "id": "sky",
+   "type": "sky_geometry",
+   "title": "하늘 지도",
+   "caption": "가운데가 머리 위, 바깥 원이 지평선입니다. 선은 앞뒤 2분 동안 위성이 지나가는 길입니다.",
+   "sky": {
+    "tracks": [
+     {
+      "name": "위성 경로",
+      "az_deg": [
+       244.81,
+       244.79,
+       244.76,
+       244.73,
+       244.69,
+       244.64,
+       244.57,
+       244.48,
+       244.35,
+       244.15,
+       243.8,
+       243.0,
+       239.39,
+       72.57,
+       67.33,
+       66.39,
+       66.0,
+       65.79,
+       65.65,
+       65.56,
+       65.49,
+       65.44,
+       65.39,
+       65.36,
+       65.33
+      ],
+      "el_deg": [
+       29.76,
+       32.3,
+       35.11,
+       38.23,
+       41.7,
+       45.57,
+       49.89,
+       54.69,
+       60.0,
+       65.84,
+       72.17,
+       78.91,
+       85.92,
+       86.91,
+       79.89,
+       73.11,
+       66.73,
+       60.83,
+       55.45,
+       50.58,
+       46.21,
+       42.29,
+       38.78,
+       35.62,
+       32.77
+      ]
+     }
+    ],
+    "markers": [
+     {
+      "name": "지금",
+      "az_deg": 239.39,
+      "el_deg": 85.92
+     }
+    ]
+   },
+   "annotations": []
+  },
+  {
+   "id": "delay_parts",
+   "type": "timeseries",
+   "title": "지연 구성",
+   "caption": "전체 TA가 어떤 지연으로 이루어지는지입니다.",
+   "x": {
+    "label": "1 = 공통 TA, 2 = 단말별 TA, 3 = 합"
+   },
+   "y": {
+    "label": "지연",
+    "unit": "µs"
+   },
+   "series": [
+    {
+     "name": "지연",
+     "x": [
+      1,
+      2,
+      3
+     ],
+     "y": [
+      8000.0,
+      4060.0,
+      12060.0
+     ],
+     "mode": "bars",
+     "role": "accent"
+    }
+   ],
+   "annotations": []
+  },
+  {
+   "id": "ta_pred",
+   "type": "timeseries",
+   "title": "TA 예측",
+   "caption": "앞뒤 1분 동안 단말별 TA가 어떻게 변하는지입니다.",
+   "x": {
+    "label": "시간",
+    "unit": "s"
+   },
+   "y": {
+    "label": "단말별 TA",
+    "unit": "µs"
+   },
+   "series": [
+    {
+     "name": "단말별 TA",
+     "x": [
+      -60,
+      -55,
+      -50,
+      -45,
+      -40,
+      -35,
+      -30,
+      -25,
+      -20,
+      -15,
+      -10,
+      -5,
+      0,
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "y": [
+      5137.82,
+      4993.34,
+      4856.49,
+      4727.94,
+      4608.39,
+      4498.56,
+      4399.17,
+      4310.97,
+      4234.64,
+      4170.84,
+      4120.15,
+      4083.07,
+      4059.97,
+      4051.09,
+      4056.53,
+      4076.22,
+      4109.95,
+      4157.4,
+      4218.09,
+      4291.45,
+      4376.86,
+      4473.62,
+      4581.0,
+      4698.28,
+      4824.72
+     ],
+     "role": "accent"
+    }
+   ],
+   "annotations": [
+    {
+     "kind": "vline",
+     "x": 0,
+     "label": "지금",
+     "description": "epochTime 기준 시각"
+    }
+   ]
+  },
+  {
+   "id": "doppler_pred",
+   "type": "timeseries",
+   "title": "도플러 예측",
+   "caption": "위성이 다가올 때는 +, 멀어질 때는 −입니다.",
+   "x": {
+    "label": "시간",
+    "unit": "s"
+   },
+   "y": {
+    "label": "도플러",
+    "unit": "Hz"
+   },
+   "series": [
+    {
+     "name": "도플러",
+     "x": [
+      -60,
+      -55,
+      -50,
+      -45,
+      -40,
+      -35,
+      -30,
+      -25,
+      -20,
+      -15,
+      -10,
+      -5,
+      0,
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60
+     ],
+     "y": [
+      32343.6,
+      30746.8,
+      29008.3,
+      27120.4,
+      25077.1,
+      22874.6,
+      20512.4,
+      17993.6,
+      15325.9,
+      12522.1,
+      9600.1,
+      6583.1,
+      3498.5,
+      377.1,
+      -2748.2,
+      -5844.6,
+      -8880.6,
+      -11827.8,
+      -14662.0,
+      -17363.9,
+      -19919.5,
+      -22319.9,
+      -24561.0,
+      -26642.5,
+      -28567.4
+     ],
+     "role": "accent"
+    }
+   ],
+   "annotations": [
+    {
+     "kind": "vline",
+     "x": 0,
+     "label": "지금",
+     "description": "epochTime 기준 시각"
+    }
+   ]
+  }
+ ],
+ "diagnostics": [
+  {
+   "level": "info",
+   "code": "CFO_INCLUDES_LO",
+   "message_easy": "측정한 주파수 오차에는 수신기 자체의 오차도 섞여 있습니다.",
+   "fix": "잔차가 크다고 바로 이상은 아닙니다. 기준값은 설정에서 바꿀 수 있습니다."
+  }
+ ],
+ "next_inputs": {},
+ "spec_refs": [
+  "TS 38.213 4.2",
+  "TS 38.211 4.3.1",
+  "TR 38.821"
+ ],
+ "meta": {
+  "engine": "local-example"
+ }
+}

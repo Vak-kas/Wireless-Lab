@@ -1,0 +1,145 @@
+{
+ "running": false,
+ "interval_s": 5,
+ "series": [
+  {
+   "key": "cfo_hz",
+   "label": "주파수 오차 (CFO)",
+   "unit": "Hz"
+  },
+  {
+   "key": "doppler_hz",
+   "label": "예상 도플러",
+   "unit": "Hz"
+  },
+  {
+   "key": "ta_us",
+   "label": "전체 TA",
+   "unit": "µs"
+  },
+  {
+   "key": "rsrp_dbfs",
+   "label": "신호 세기 (SS-RSRP)",
+   "unit": "dBFS"
+  },
+  {
+   "key": "sinr_db",
+   "label": "신호 품질 (SS-SINR)",
+   "unit": "dB"
+  }
+ ],
+ "points": [
+  {
+   "t_s": 0,
+   "cfo_hz": 2311.1,
+   "rsrp_dbfs": -31.0,
+   "sinr_db": 14.8,
+   "ta_us": 12059.97,
+   "doppler_hz": 3498.5
+  },
+  {
+   "t_s": 5,
+   "cfo_hz": -804.3,
+   "rsrp_dbfs": -30.6,
+   "sinr_db": 14.57,
+   "ta_us": 12051.09,
+   "doppler_hz": 377.1
+  },
+  {
+   "t_s": 10,
+   "cfo_hz": -3937.1,
+   "rsrp_dbfs": -31.1,
+   "sinr_db": 14.09,
+   "ta_us": 12056.53,
+   "doppler_hz": -2748.2
+  },
+  {
+   "t_s": 15,
+   "cfo_hz": -7037.6,
+   "rsrp_dbfs": -31.37,
+   "sinr_db": 13.81,
+   "ta_us": 12076.21,
+   "doppler_hz": -5844.6
+  },
+  {
+   "t_s": 20,
+   "cfo_hz": -10065.1,
+   "rsrp_dbfs": -30.8,
+   "sinr_db": 13.97,
+   "ta_us": 12109.95,
+   "doppler_hz": -8880.6
+  },
+  {
+   "t_s": 25,
+   "cfo_hz": -13010.4,
+   "rsrp_dbfs": -30.68,
+   "sinr_db": 14.44,
+   "ta_us": 12157.4,
+   "doppler_hz": -11827.8
+  },
+  {
+   "t_s": 30,
+   "cfo_hz": -15853.6,
+   "rsrp_dbfs": -31.28,
+   "sinr_db": 14.78,
+   "ta_us": 12218.08,
+   "doppler_hz": -14662.0
+  },
+  {
+   "t_s": 35,
+   "cfo_hz": -18555.0,
+   "rsrp_dbfs": -31.25,
+   "sinr_db": 14.68,
+   "ta_us": 12291.45,
+   "doppler_hz": -17363.9
+  },
+  {
+   "t_s": 40,
+   "cfo_hz": -21101.7,
+   "rsrp_dbfs": -30.66,
+   "sinr_db": 14.23,
+   "ta_us": 12376.86,
+   "doppler_hz": -19919.5
+  },
+  {
+   "t_s": 45,
+   "cfo_hz": -23504.9,
+   "rsrp_dbfs": -30.84,
+   "sinr_db": 13.84,
+   "ta_us": 12473.62,
+   "doppler_hz": -22319.9
+  },
+  {
+   "t_s": 50,
+   "cfo_hz": -25754.2,
+   "rsrp_dbfs": -31.38,
+   "sinr_db": 13.88,
+   "ta_us": 12581.0,
+   "doppler_hz": -24561.0
+  },
+  {
+   "t_s": 55,
+   "cfo_hz": -27830.8,
+   "rsrp_dbfs": -31.06,
+   "sinr_db": 14.3,
+   "ta_us": 12698.27,
+   "doppler_hz": -26642.5
+  },
+  {
+   "t_s": 60,
+   "cfo_hz": -29748.8,
+   "rsrp_dbfs": -30.6,
+   "sinr_db": 14.72,
+   "ta_us": 12824.72,
+   "doppler_hz": -28567.4
+  },
+  {
+   "t_s": 65,
+   "cfo_hz": -31529.4,
+   "rsrp_dbfs": -31.04,
+   "sinr_db": 14.75,
+   "ta_us": 12959.63,
+   "doppler_hz": -30341.4
+  }
+ ]
+}
