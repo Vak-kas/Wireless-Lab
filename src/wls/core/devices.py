@@ -26,7 +26,8 @@ class DeviceKind(Enum):
 
 class Capability(Enum):
     NET_PROBE = "net_probe"  # latency, loss, throughput
-    WIFI_LINK_INFO = "wifi_link_info"
+    WIFI_LINK_INFO = "wifi_link_info"  # signal, noise, channel, rate
+    WIFI_IDENTITY = "wifi_identity"  # SSID and BSSID of the connected network
     WIFI_SCAN = "wifi_scan"
     WIFI_MONITOR = "wifi_monitor"
     WIFI_INJECT = "wifi_inject"

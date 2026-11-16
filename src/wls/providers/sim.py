@@ -35,6 +35,7 @@ def sim_wifi_nic(
     caps = {
         Capability.NET_PROBE: SUPPORTED,
         Capability.WIFI_LINK_INFO: SUPPORTED,
+        Capability.WIFI_IDENTITY: SUPPORTED,
         Capability.WIFI_SCAN: SUPPORTED,
         Capability.WIFI_MONITOR: SUPPORTED
         if monitor

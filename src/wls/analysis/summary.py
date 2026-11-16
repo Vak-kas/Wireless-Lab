@@ -24,6 +24,21 @@ class LatencySummary:
         return 100.0 * self.lost / self.sent if self.sent else 0.0
 
 
+@dataclass(frozen=True, slots=True)
+class MetricSummary:
+    count: int
+    min: float | None
+    avg: float | None
+    max: float | None
+
+
+def summarize_metric(rows: Iterable[SampleRow], probe: str, metric: str) -> MetricSummary:
+    values = [v for _, name, m, v in rows if name == probe and m == metric]
+    if not values:
+        return MetricSummary(0, None, None, None)
+    return MetricSummary(len(values), min(values), sum(values) / len(values), max(values))
+
+
 def summarize_latency(rows: Iterable[SampleRow], probe: str = "ping") -> LatencySummary:
     rtts: list[float] = []
     sent = lost = 0

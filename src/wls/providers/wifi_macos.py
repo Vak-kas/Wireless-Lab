@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 서민재
+"""Wi-Fi interfaces on macOS through CoreWLAN.
+
+Signal, noise, channel and rate are available to any process. macOS returns
+the SSID and BSSID only to a signed application that was granted Location
+permission, so a command line process gets none; that is reported as an
+unsupported capability with the reason, not as an error.
+"""
+
+from __future__ import annotations
+
+import CoreWLAN  # available on macOS only; importers must guard this module
+
+from wls.core.devices import SUPPORTED, Capability, Device, DeviceKind, unsupported
+from wls.probes.wifi_link import LinkReading, Reader
+
+_BAND_GHZ = {1: 2.4, 2: 5.0, 3: 6.0}
+_WIDTH_MHZ = {1: 20, 2: 40, 3: 80, 4: 160}
+_PHY = {1: "802.11a", 2: "802.11b", 3: "802.11g", 4: "802.11n", 5: "802.11ac", 6: "802.11ax"}
+
+ID_PREFIX = "wifi:"
+
+
+def to_reading(
+    rssi: int, noise: int, tx_rate: float, channel: int | None, band: int | None, width: int | None
+) -> LinkReading | None:
+    """Convert raw CoreWLAN numbers. RSSI 0 means the interface is not connected."""
+    if rssi == 0:
+        return None
+    return LinkReading(
+        rssi_dbm=float(rssi),
+        noise_dbm=float(noise) if noise != 0 else None,
+        tx_rate_mbps=float(tx_rate) if tx_rate > 0 else None,
+        channel=channel,
+        band_ghz=_BAND_GHZ.get(band) if band is not None else None,
+        width_mhz=_WIDTH_MHZ.get(width) if width is not None else None,
+    )
+
+
+def _interface(name: str):
+    interface = CoreWLAN.CWWiFiClient.sharedWiFiClient().interfaceWithName_(name)
+    if interface is None:
+        raise RuntimeError(f"Wi-Fi interface {name} is no longer present")
+    return interface
+
+
+def link_reader(interface_name: str) -> Reader:
+    def read() -> LinkReading | None:
+        interface = _interface(interface_name)
+        if not interface.powerOn():
+            return None
+        channel = interface.wlanChannel()
+        return to_reading(
+            interface.rssiValue(),
+            interface.noiseMeasurement(),
+            interface.transmitRate(),
+            channel.channelNumber() if channel else None,
+            channel.channelBand() if channel else None,
+            channel.channelWidth() if channel else None,
+        )
+
+    return read
+
+
+class MacWifiProvider:
+    name = "wifi-macos"
+
+    async def discover(self) -> list[Device]:
+        devices = []
+        for interface in CoreWLAN.CWWiFiClient.sharedWiFiClient().interfaces() or []:
+            name = str(interface.interfaceName())
+            connected = bool(interface.powerOn()) and interface.rssiValue() != 0
+            if interface.ssid() is not None:
+                identity = SUPPORTED
+            elif not connected:
+                identity = unsupported("not connected to a network")
+            else:
+                identity = unsupported(
+                    "macOS gives SSID/BSSID only to a signed app with Location permission"
+                )
+            phy = _PHY.get(interface.activePHYMode(), "")
+            details = {"interface": name, "power": "on" if interface.powerOn() else "off"}
+            if phy:
+                details["phy"] = phy
+            devices.append(
+                Device(
+                    ID_PREFIX + name,
+                    DeviceKind.WIFI_NIC,
+                    f"Wi-Fi {name}" + (f" ({phy})" if phy else ""),
+                    {
+                        Capability.WIFI_LINK_INFO: SUPPORTED,
+                        Capability.WIFI_IDENTITY: identity,
+                        Capability.WIFI_SCAN: unsupported("not implemented yet"),
+                        Capability.WIFI_MONITOR: unsupported("not implemented yet"),
+                        Capability.WIFI_INJECT: unsupported(
+                            "macOS drivers do not allow frame injection"
+                        ),
+                    },
+                    details,
+                )
+            )
+        return devices

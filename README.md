@@ -21,8 +21,18 @@ uv run --no-editable wls export runs/<file>.sqlite --format csv -o out.csv
 reply, and saves the run to `runs/`. A run that ended normally is sealed with
 a hash; `wls verify` tells whether a file is complete and unmodified.
 
-No administrator rights are needed. Measurement uses the system `ping`
-command and works on macOS, Windows and Linux.
+No administrator rights are needed. `wls ping` uses the system `ping` command
+and works on macOS, Windows and Linux.
+
+```bash
+uv run --no-editable wls wifi --duration 10
+```
+
+`wls wifi` records signal strength, noise, channel and link rate of the
+current Wi-Fi connection. It is implemented for macOS so far. macOS gives the
+network name (SSID) and BSSID only to a signed application with Location
+permission, so they are not recorded from the command line; `wls devices`
+shows this and every other unavailable capability with its reason.
 
 ## Planned scope of this repository
 

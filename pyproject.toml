@@ -10,7 +10,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
-dependencies = []
+dependencies = [
+    "pyobjc-framework-corewlan>=13.0 ; sys_platform == 'darwin'",
+]
 
 [project.scripts]
 wls = "wls.cli:main"
