@@ -6,57 +6,89 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wireless Lab</title>
 <style>
+  /* Quiet, paper-like chrome: warm canvas, white cards, hairlines, one blue accent. */
   :root {
-    --bg: #f6f7f9; --panel: #ffffff; --line: #e1e4e8; --text: #1c2128; --muted: #667085;
-    --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
-    --band: rgba(220, 38, 38, 0.10); --grid: #eceef1;
+    --canvas: #f6f5f4; --surface: #ffffff; --hairline: #e6e6e6;
+    --ink: #000000; --ink-2: #31302e; --ink-muted: #615d59; --ink-faint: #a39e98;
+    --primary: #0075de; --primary-soft: rgba(0, 117, 222, 0.08);
+    --ok: #1aae39; --warn: #dd5b00; --bad: #c4321f;
+    --band: rgba(221, 91, 0, 0.10); --grid: #efeeec;
+    --shadow: rgba(0,0,0,0.01) 0 0.175px 1.041px, rgba(0,0,0,0.02) 0 0.8px 2.925px,
+              rgba(0,0,0,0.027) 0 2.025px 7.847px, rgba(0,0,0,0.04) 0 4px 18px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0f1216; --panel: #171b21; --line: #2a3038; --text: #e6e9ee; --muted: #8b95a3;
-      --accent: #6ea8fe; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
-      --band: rgba(248, 113, 113, 0.14); --grid: #222830;
+      --canvas: #191918; --surface: #202020; --hairline: #2f2f2e;
+      --ink: #f1f0ee; --ink-2: #d6d3cf; --ink-muted: #a39e98; --ink-faint: #75716c;
+      --primary: #4a9cec; --primary-soft: rgba(74, 156, 236, 0.14);
+      --ok: #3ccb5a; --warn: #f08a3c; --bad: #f0705e;
+      --band: rgba(240, 138, 60, 0.16); --grid: #2a2a29;
+      --shadow: none;
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  header { display: flex; align-items: baseline; gap: 12px; padding: 14px 20px;
-           border-bottom: 1px solid var(--line); background: var(--panel); }
-  header h1 { font-size: 16px; margin: 0; }
-  header span { color: var(--muted); font-size: 12px; }
-  .layout { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 50px); }
-  aside { border-right: 1px solid var(--line); background: var(--panel); padding: 12px; overflow: auto; }
-  main { padding: 20px; min-width: 0; }
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
-       margin: 14px 4px 8px; }
-  .run { display: block; width: 100%; text-align: left; border: 1px solid transparent; background: none;
-         color: inherit; font: inherit; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
-  .run:hover { background: var(--bg); }
-  .run[aria-current="true"] { border-color: var(--accent); background: var(--bg); }
-  .run b { display: block; }
-  .run small { color: var(--muted); }
-  .badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor;
-           margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+  body { margin: 0; background: var(--canvas); color: var(--ink);
+         font: 400 15px/1.33 Inter, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+         font-feature-settings: "lnum"; -webkit-font-smoothing: antialiased; }
+  header { display: flex; align-items: baseline; gap: 12px; padding: 16px 24px;
+           background: var(--surface); border-bottom: 1px solid var(--hairline);
+           position: sticky; top: 0; z-index: 1; }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.25px; margin: 0; }
+  header span { color: var(--ink-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis;
+                white-space: nowrap; }
+  .layout { display: grid; grid-template-columns: 296px 1fr; min-height: calc(100vh - 57px);
+            max-width: 1300px; margin: 0 auto; }
+  aside { padding: 16px 12px 32px 24px; overflow: auto; }
+  main { padding: 28px 24px 48px; min-width: 0; }
+  h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.125px; color: var(--ink-muted);
+       margin: 20px 12px 8px; }
+  .run { display: block; width: 100%; text-align: left; border: 0; background: none; color: inherit;
+         font: inherit; padding: 8px 12px; border-radius: 5px; cursor: pointer;
+         box-shadow: inset 2px 0 0 transparent; }
+  .run:active { background: var(--hairline); }
+  .run[aria-current="true"] { background: var(--primary-soft); box-shadow: inset 2px 0 0 var(--primary); }
+  .run:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .run b { display: block; font-weight: 600; text-transform: capitalize; }
+  .run small { color: var(--ink-faint); font-size: 12px; }
+  .badge { font-size: 12px; font-weight: 600; letter-spacing: 0.125px; line-height: 1.33;
+           padding: 2px 8px; border-radius: 9999px; background: var(--surface);
+           border: 1px solid var(--hairline); margin-left: 8px; vertical-align: 2px;
+           white-space: nowrap; text-transform: none; }
+  .badge::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+                   background: currentColor; margin-right: 6px; vertical-align: 1px; }
   .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
-  .device { padding: 8px 10px; }
-  .device ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; }
-  .device li { color: var(--muted); }
-  .device li.yes { color: var(--text); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 18px; }
-  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
-  .chip small { display: block; color: var(--muted); font-size: 11px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-          padding: 12px 14px 8px; margin-bottom: 14px; }
-  .card h3 { font-size: 13px; margin: 0 0 6px; font-weight: 600; }
-  .card h3 small { color: var(--muted); font-weight: 400; margin-left: 8px; }
-  canvas { width: 100%; height: 180px; display: block; }
-  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
-  .title { font-size: 18px; margin: 0; }
-  .legend { color: var(--muted); font-size: 12px; margin: -8px 0 14px; }
-  .swatch { display: inline-block; width: 10px; height: 10px; background: var(--band);
-            border: 1px solid var(--bad); vertical-align: -1px; margin-right: 4px; }
-  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } aside { border-right: 0; } }
+  .device { padding: 8px 12px; }
+  .device b { font-weight: 600; }
+  .device ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px; }
+  .device li { color: var(--ink-faint); }
+  .device li.yes { color: var(--ink-2); }
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
+           margin: 20px 0 24px; }
+  .chip { background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px;
+          padding: 12px 16px; font-size: 16px; font-weight: 600; letter-spacing: -0.125px; }
+  .chip small { display: block; color: var(--ink-muted); font-size: 12px; font-weight: 600;
+                letter-spacing: 0.125px; margin-bottom: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
+          padding: 24px 24px 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.125px; line-height: 1.4;
+             margin: 0 0 12px; text-transform: capitalize; }
+  .card h3 small { display: block; color: var(--ink-muted); font-size: 14px; font-weight: 400;
+                   letter-spacing: 0; text-transform: none; }
+  canvas { width: 100%; height: 200px; display: block; }
+  .empty { color: var(--ink-faint); padding: 48px 0; text-align: center; }
+  .title { font-size: 40px; font-weight: 700; line-height: 1.1; letter-spacing: -1px; margin: 0;
+           text-transform: capitalize; }
+  .title .badge { vertical-align: 9px; }
+  .legend { color: var(--ink-muted); font-size: 14px; margin: -8px 0 16px; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px;
+            background: var(--band); border: 1px solid var(--warn); vertical-align: -1px;
+            margin-right: 6px; }
+  @media (max-width: 840px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { padding: 8px 12px 0; }
+    main { padding: 20px 16px 40px; }
+    .title { font-size: 26px; letter-spacing: -0.625px; }
+  }
 </style>
 </head>
 <body>
@@ -157,7 +189,7 @@ function draw(canvas, points, duration, bands, marks) {
   g.fillStyle = css("--band");
   for (const [a, b] of bands) g.fillRect(x(a), pad.t, Math.max(x(b) - x(a), 1), height - pad.t - pad.b);
 
-  g.font = "11px system-ui, sans-serif"; g.fillStyle = css("--muted");
+  g.font = "11px system-ui, sans-serif"; g.fillStyle = css("--ink-muted");
   g.strokeStyle = css("--grid"); g.lineWidth = 1;
   g.textAlign = "right"; g.textBaseline = "middle";
   for (let i = 0; i <= 3; i++) {
@@ -170,11 +202,11 @@ function draw(canvas, points, duration, bands, marks) {
     const t = (span * i) / 4;
     g.fillText(`${t.toFixed(t < 10 ? 1 : 0)} s`, Math.min(Math.max(x(t), pad.l + 12), width - 16), height - pad.b + 5);
   }
-  g.strokeStyle = css("--muted"); g.setLineDash([3, 3]);
+  g.strokeStyle = css("--ink-muted"); g.setLineDash([3, 3]);
   for (const t of marks) { g.beginPath(); g.moveTo(x(t), pad.t); g.lineTo(x(t), height - pad.b); g.stroke(); }
   g.setLineDash([]);
 
-  g.strokeStyle = css("--accent"); g.fillStyle = css("--accent"); g.lineWidth = 1.6; g.lineJoin = "round";
+  g.strokeStyle = css("--primary"); g.fillStyle = css("--primary"); g.lineWidth = 1.6; g.lineJoin = "round";
   g.beginPath();
   points.forEach(([t, v], i) => (i ? g.lineTo(x(t), y(v)) : g.moveTo(x(t), y(v))));
   g.stroke();
