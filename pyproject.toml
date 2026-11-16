@@ -21,6 +21,10 @@ dev = [
     "pytest-asyncio>=1.5.0",
 ]
 
+[tool.uv]
+# Rebuild the installed copy when source files change, not only pyproject.toml.
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/wls"]
 
