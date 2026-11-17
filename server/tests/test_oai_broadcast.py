@@ -72,3 +72,21 @@ def test_oai_common_ta_drift_matches_the_change_between_broadcasts():
     for a, b in zip(vals, vals[1:], strict=False):
         assert (b["ta_common"] - a["ta_common"]) == pytest.approx(a["ta_drift"] * 0.16, abs=0.01)
     assert vals[0]["k_offset"] == 40 and vals[0]["validity"] == 5
+
+
+def test_oai_ntn_calculation_under_the_satellite_and_from_far_away():
+    """OAI가 방송한 궤도로 위성 계산: 위성 바로 아래에서는 정상, 지구 반대편(한국)에서는 '지평선 아래' 이상 징후가 뜬다."""
+    from nrtrail.stages import ntn as ntn_stage
+
+    first = assemble(FX["si_tb_hex_list"][0])
+    pos = tuple(first.next_inputs["ephemeris"]["pos_m"])
+    lat, lon, _ = ntn.ecef_to_geodetic(pos)
+    assert (round(lat, 1), round(lon, 1)) == (66.3, -90.0)
+    common = dict(sib19=first.next_inputs, n_ta_offset=0, mib={"sfn": 465, "half_frame": 0}, cfo_hz=None, carrier_hz=2_488_850_000.0,
+                  t_offset_s=0.0, thresholds={})
+    under = ntn_stage.assemble(load_pipeline().stage("ntn"), location={"lat": lat, "lon": lon, "alt_m": 0.0}, **common)
+    val = {v.key: getattr(v.value, "root", v.value) for v in under.values}
+    assert under.status == "ok" and val["elevation"] > 89 and val["range"] == pytest.approx(val["altitude"], abs=1.0)
+    assert val["k_offset_ok"] is True and 20 < val["ta_total"] < 40          # 공통 지연 18.8 ms + 서비스 링크 왕복 4.1 ms < K_offset 40 ms
+    far = ntn_stage.assemble(load_pipeline().stage("ntn"), location={"lat": 36.35, "lon": 127.38, "alt_m": 60.0}, **common)
+    assert "BELOW_HORIZON" in {d.code for d in far.diagnostics if d.level == "warn"}
