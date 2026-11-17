@@ -166,7 +166,7 @@ def sib1(sc: dict[str, Any]) -> dict[str, Any]:
 
 # 시험용 위성: 고도 600 km 원궤도, 한반도 상공. 위치는 1.3 m, 속도는 0.06 m/s 단위의 원시값.
 SIB19_SAMPLE: dict[str, Any] = dict(epoch_sfn=420, epoch_subframe=0, position=(-2613462, 3468000, 3155077), velocity=(-72107, -93772, 43330),
-                    ta_common=1964636, ta_drift=-12, ta_drift_variant=0, k_offset=12)
+                    ta_common=1964636, ta_drift=-12, ta_drift_variant=0, k_offset=16)
 
 
 def si(sc: dict[str, Any]) -> dict[str, Any]:

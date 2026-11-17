@@ -1,0 +1,8 @@
+# 합성 예시: 테스트용으로 직접 작성한 dumpsys telephony.registry 발췌. 실제 기기 출력이 아니며 식별자는 모두 가짜다.
+last known state:
+Phone Id=0
+  mCallState=0
+  mServiceState={mVoiceRegState=0(IN_SERVICE), mDataRegState=0(IN_SERVICE), mChannelNumber=640000, mOperatorNumeric=45005, getRilDataRadioTechnology=20(NR), mNetworkRegistrationInfos=[NetworkRegistrationInfo{ domain=CS transportType=WWAN registrationState=NOT_REG_OR_SEARCHING accessNetworkTechnology=UNKNOWN cellIdentity=null}, NetworkRegistrationInfo{ domain=PS transportType=WWAN registrationState=HOME roamingType=NOT_ROAMING accessNetworkTechnology=NR reasonForDenial=0 emergencyEnabled=false cellIdentity=CellIdentityNr:{ mPci = 410 mTac = 2000 mNrArfcn = 640000 mBands = [78] mMcc = 450 mMnc = 05 mNci = 55555 mAlphaLong = Test mAlphaShort = Test mAdditionalPlmns = {} } }]}
+  mSignalStrength=SignalStrength:{mCdma=CellSignalStrengthCdma: cdmaDbm=2147483647 cdmaEcio=2147483647 level=0,mGsm=CellSignalStrengthGsm: rssi=2147483647 ber=2147483647 mTa=2147483647 mLevel=0,mLte=CellSignalStrengthLte: rssi=2147483647 rsrp=2147483647 rsrq=2147483647 rssnr=2147483647 cqi=2147483647 ta=2147483647 level=0,mNr=CellSignalStrengthNr:{ csiRsrp = 2147483647 csiRsrq = 2147483647 ssRsrp = -90 ssRsrq = -10 ssSinr = 21 level = 4 },primary=CellSignalStrengthNr}
+  mCellInfo=[]
+  mDataConnectionState=2

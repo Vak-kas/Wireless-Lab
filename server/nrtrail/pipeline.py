@@ -45,15 +45,16 @@ class Pipeline:
     def __init__(self, data: dict[str, Any]):
         self.stages = [StageDef(s | {"_common_diagnostics": data.get("common_diagnostics", {})}) for s in data["stages"]]
         self.order = [s.id for s in self.stages]
+        self.views = [StageDef(s | {"_common_diagnostics": data.get("common_diagnostics", {})}) for s in data.get("views", [])]
 
     def stage(self, stage_id: str) -> StageDef:
-        for s in self.stages:
+        for s in self.stages + self.views:
             if s.id == stage_id:
                 return s
         raise KeyError(stage_id)
 
     def public(self) -> dict[str, Any]:
-        return {"stages": [s.public() for s in self.stages]}
+        return {"stages": [s.public() for s in self.stages], "views": [s.public() for s in self.views]}
 
 
 @lru_cache(maxsize=4)

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
@@ -20,6 +21,8 @@ from nrtrail.engines.mock import MOCK, MockEngine  # noqa: E402
 from nrtrail.paths import PIPELINE, ROOT, WEB  # noqa: E402
 from nrtrail.pipeline import load_glossary, load_pipeline  # noqa: E402
 from nrtrail.runner import RunState, StageLocked, run_stage  # noqa: E402
+from nrtrail.sessions import DEFAULT_SETTINGS  # noqa: E402
+from nrtrail.stages import ntn  # noqa: E402
 
 FIXTURES = WEB / "src" / "mock" / "fixtures"
 
@@ -46,6 +49,12 @@ def main() -> int:
                 break
             dump(FIXTURES / sc["id"] / f"{stage}.json", result.model_dump(mode="json", exclude_none=True))
             line.append(f"{stage}={result.status}")
+        if state.done("sib19"):
+            loc = DEFAULT_SETTINGS["location"]
+            state.settings = DEFAULT_SETTINGS
+            ntn_result = ntn.compute(SimpleNamespace(state=state), loc["lat"], loc["lon"], loc["alt_m"])
+            dump(FIXTURES / sc["id"] / "ntn.json", ntn_result.model_dump(mode="json", exclude_none=True))
+            line.append(f"ntn={ntn_result.status}")
         print(f"{sc['id']}: " + ", ".join(line))
     dump(FIXTURES / "pipeline.json", pipeline.public())
     dump(FIXTURES / "glossary.json", load_glossary())

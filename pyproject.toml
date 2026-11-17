@@ -33,6 +33,7 @@ include = ["nrtrail*"]
 [tool.pytest.ini_options]
 testpaths = ["server/tests"]
 addopts = "-q"
+filterwarnings = ["ignore:.*on_event is deprecated.*:DeprecationWarning"]
 
 [tool.ruff]
 line-length = 110

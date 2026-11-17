@@ -1,0 +1,9 @@
+# 합성 예시: 테스트용으로 직접 작성한 dumpsys telephony.registry 발췌. 실제 기기 출력이 아니며 식별자는 모두 가짜다.
+last known state:
+Phone Id=0
+  mCallState=0
+  mCellInfo=[CellInfoNr:{mRegistered=true mTimeStamp=912345678ns mCellConnectionStatus=1
+ CellIdentityNr:{ mPci = 45 mTac = 100 mNrArfcn = 436830 mMcc = 001 mMnc = 01 mNci = 123456789 mAlphaLong = TEST mAlphaShort = TEST }
+ CellSignalStrengthNr:{ csiRsrp = 2147483647 csiRsrq = 2147483647 csiSinr = 2147483647 ssRsrp = 92 ssRsrq = -12 ssSinr = 9 level = 3 }
+}]
+  mDataConnectionState=2

@@ -1257,5 +1257,321 @@
         ]
       }
     }
+  ],
+  "views": [
+    {
+      "id": "ntn",
+      "requires": [
+        "sib19"
+      ],
+      "label": "NTN",
+      "title": "위성 계산",
+      "question": "위성은 어디 있고, 신호는 얼마나 늦게 오나",
+      "intro": "SIB19에 적힌 위성 위치와 내 위치로, 위성까지의 거리·지연·도플러를 계산합니다.",
+      "analogy": "번개가 친 뒤 천둥이 늦게 들리는 것처럼, 위성 신호도 거리만큼 늦게 옵니다. 그만큼을 미리 계산해 맞춥니다.",
+      "button": "다시 계산",
+      "locked_reason": "SIB19를 읽어야 위성 위치를 알 수 있습니다.",
+      "spec_refs": [
+        "TS 38.213 4.2",
+        "TS 38.211 4.3.1",
+        "TS 38.331 6.3.2 NTN-Config",
+        "TR 38.821 6.1"
+      ],
+      "summary": {
+        "ok_easy": "위성은 {elevation}° 높이에 있고, 신호가 오는 데 {delay_ms} ms 걸립니다.",
+        "ok_expert": "d={range_km} km, el={elevation}°, az={azimuth}°, T_TA={ta_ms} ms, 도플러 예측 {doppler} Hz / 측정 {cfo} Hz (잔차 {residual} Hz)",
+        "fail_easy": "위성 계산을 할 수 없습니다.",
+        "fail_expert": "{reason}"
+      },
+      "progress": {},
+      "groups": {
+        "time": "기준 시각과 유효 시간",
+        "geometry": "위성의 위치",
+        "delay": "지연과 타이밍 보정(TA)",
+        "doppler": "도플러",
+        "rate": "변화율"
+      },
+      "values": {
+        "dt": {
+          "label": "기준 시각으로부터 지난 시간",
+          "unit": "s",
+          "term": "epoch_time",
+          "group": "time"
+        },
+        "validity_left": {
+          "label": "남은 유효 시간",
+          "unit": "s",
+          "term": "validity",
+          "group": "time"
+        },
+        "sat_lat": {
+          "label": "위성 바로 아래 지점 (위도)",
+          "unit": "°",
+          "group": "geometry"
+        },
+        "sat_lon": {
+          "label": "위성 바로 아래 지점 (경도)",
+          "unit": "°",
+          "group": "geometry"
+        },
+        "altitude": {
+          "label": "위성 고도",
+          "unit": "km",
+          "group": "geometry"
+        },
+        "speed": {
+          "label": "위성 속력",
+          "unit": "km/s",
+          "group": "geometry"
+        },
+        "range": {
+          "label": "위성까지 거리",
+          "unit": "km",
+          "group": "geometry"
+        },
+        "elevation": {
+          "label": "고도각",
+          "unit": "°",
+          "term": "elevation",
+          "group": "geometry"
+        },
+        "azimuth": {
+          "label": "방위각",
+          "unit": "°",
+          "term": "azimuth",
+          "group": "geometry"
+        },
+        "service_delay": {
+          "label": "서비스 링크 지연 (편도)",
+          "unit": "ms",
+          "group": "delay"
+        },
+        "ta_ue": {
+          "label": "단말별 TA (N_TA,adj^UE)",
+          "unit": "Tc",
+          "term": "ta",
+          "group": "delay"
+        },
+        "common_delay": {
+          "label": "공통 지연 (편도)",
+          "unit": "ms",
+          "term": "ta_common",
+          "group": "delay"
+        },
+        "ta_common": {
+          "label": "공통 TA (N_TA,adj^common)",
+          "unit": "Tc",
+          "term": "ta_common",
+          "group": "delay"
+        },
+        "ta_total": {
+          "label": "전체 TA (T_TA)",
+          "unit": "ms",
+          "term": "ta",
+          "group": "delay"
+        },
+        "k_offset_ok": {
+          "label": "K_offset이 TA를 덮는가",
+          "unit": "",
+          "term": "k_offset",
+          "group": "delay"
+        },
+        "doppler_pred": {
+          "label": "도플러 (궤도로 예측)",
+          "unit": "Hz",
+          "term": "doppler",
+          "group": "doppler"
+        },
+        "cfo_meas": {
+          "label": "측정한 주파수 어긋남 (CFO)",
+          "unit": "Hz",
+          "term": "cfo",
+          "group": "doppler"
+        },
+        "doppler_residual": {
+          "label": "차이 (측정 − 예측)",
+          "unit": "Hz",
+          "term": "doppler",
+          "group": "doppler"
+        },
+        "ta_rate": {
+          "label": "TA 변화율",
+          "unit": "µs/s",
+          "term": "ta",
+          "group": "rate"
+        },
+        "doppler_rate": {
+          "label": "도플러 변화율",
+          "unit": "Hz/s",
+          "term": "doppler",
+          "group": "rate"
+        }
+      },
+      "derivations": {
+        "dt": {
+          "title": "기준 시각(epochTime)과 지금의 차"
+        },
+        "validity_left": {
+          "title": "남은 유효 시간"
+        },
+        "propagate": {
+          "title": "위성 위치를 지금 시각으로 옮기기"
+        },
+        "altitude": {
+          "title": "위성 고도와 속력"
+        },
+        "range": {
+          "title": "단말–위성 거리"
+        },
+        "angles": {
+          "title": "고도각과 방위각"
+        },
+        "service_delay": {
+          "title": "서비스 링크 지연"
+        },
+        "ta_ue": {
+          "title": "단말별 TA"
+        },
+        "common_delay": {
+          "title": "공통 지연 (TS 38.213 4.2의 다항식)"
+        },
+        "ta_common": {
+          "title": "공통 TA"
+        },
+        "ta_total": {
+          "title": "전체 TA"
+        },
+        "k_offset_ok": {
+          "title": "K_offset 점검"
+        },
+        "doppler_pred": {
+          "title": "서비스 링크 도플러"
+        },
+        "doppler_residual": {
+          "title": "측정값과 예측값의 차"
+        },
+        "ta_rate": {
+          "title": "TA 변화율"
+        },
+        "doppler_rate": {
+          "title": "도플러 변화율"
+        }
+      },
+      "plots": {
+        "sky": {
+          "title": "하늘 지도",
+          "caption": "가운데가 머리 위, 바깥 원이 지평선입니다. 선은 유효 시간 동안 위성이 지나가는 길입니다."
+        },
+        "delays": {
+          "title": "지연의 구성",
+          "caption": "신호가 단말에서 위성을 거쳐 기준점까지 가는 데 걸리는 시간(편도)입니다.",
+          "x": "",
+          "y": "지연"
+        },
+        "ta_curve": {
+          "title": "TA 예측",
+          "caption": "앞으로 유효 시간 동안 TA가 어떻게 변하는지입니다.",
+          "x": "지금부터",
+          "y": "전체 TA"
+        },
+        "doppler_curve": {
+          "title": "도플러 예측",
+          "caption": "점은 지금 측정한 CFO입니다. 선에서 많이 벗어나면 이상 징후입니다.",
+          "x": "지금부터",
+          "y": "도플러"
+        }
+      },
+      "columns": {},
+      "annotations": {
+        "now": "지금",
+        "satellite": "위성",
+        "track": "예상 경로",
+        "service": "단말 ↔ 위성",
+        "common": "위성 ↔ 기준점",
+        "measured": "측정 CFO"
+      },
+      "diagnostics": {
+        "NO_EPHEMERIS": [
+          {
+            "message": "SIB19에 위성 위치 정보가 없거나 지원하지 않는 형식입니다.",
+            "fix": "SIB19 단계의 전문가 정보에서 ephemerisInfo를 확인하세요."
+          }
+        ],
+        "DOPPLER_MISMATCH": [
+          {
+            "level": "warn",
+            "message": "궤도 정보로 예측한 도플러와 실제로 잰 주파수 어긋남이 크게 다릅니다.",
+            "fix": "내 위치 설정이 맞는지 확인하세요. 맞다면 방송된 궤도 정보가 실제 위성과 다를 수 있습니다. 수신기 클럭 오차도 원인일 수 있습니다."
+          }
+        ],
+        "ORBIT_UNPHYSICAL": [
+          {
+            "level": "warn",
+            "message": "방송된 궤도의 고도나 속력이 물리적으로 있을 수 없는 값입니다.",
+            "fix": "이 고도의 원궤도 속력과 비교해 보세요. 값이 조작되었거나 잘못 방송되었을 수 있습니다."
+          }
+        ],
+        "EPOCH_OUT_OF_RANGE": [
+          {
+            "level": "warn",
+            "message": "위성 정보의 기준 시각이 유효 시간을 벗어났습니다.",
+            "fix": "SIB19를 다시 받아 최신 값으로 갱신하세요.",
+            "action": {
+              "label": "SIB19 다시 읽기",
+              "kind": "rerun",
+              "target": "sib19",
+              "params": {}
+            }
+          }
+        ],
+        "EPOCH_IN_FUTURE": [
+          {
+            "level": "info",
+            "message": "기준 시각이 지금보다 조금 뒤입니다. 표준이 허용하는 정상 동작입니다.",
+            "fix": "따로 할 일은 없습니다."
+          }
+        ],
+        "TA_COMMON_IMPLAUSIBLE": [
+          {
+            "level": "warn",
+            "message": "공통 TA 값이 이 고도의 위성에서 나올 수 있는 지연 범위를 벗어납니다.",
+            "fix": "ta-Common과 궤도 고도를 비교해 보세요."
+          }
+        ],
+        "K_OFFSET_TOO_SMALL": [
+          {
+            "level": "warn",
+            "message": "cellSpecificKoffset이 계산된 TA보다 작습니다.",
+            "fix": "단말이 이 값으로는 제때 송신할 수 없습니다. 방송 값이 잘못되었을 수 있습니다."
+          }
+        ],
+        "BELOW_HORIZON": [
+          {
+            "level": "warn",
+            "message": "계산상 위성이 지평선 아래에 있습니다. 이 위치에서는 신호를 받을 수 없어야 합니다.",
+            "fix": "내 위치 설정이 맞는지 확인하세요. 맞다면 방송된 궤도 정보가 실제와 다릅니다."
+          }
+        ],
+        "SIB19_JUMP": [
+          {
+            "level": "warn",
+            "message": "연속으로 받은 SIB19 사이에 궤도 운동으로 설명되지 않는 값의 점프가 있습니다.",
+            "fix": "추적 화면의 변경 이력을 확인하세요."
+          }
+        ],
+        "LOCATION_DEFAULT": [
+          {
+            "level": "info",
+            "message": "내 위치가 기본값입니다.",
+            "fix": "설정에서 실제 위치를 넣으면 계산이 정확해집니다.",
+            "action": {
+              "label": "설정 열기",
+              "kind": "goto",
+              "target": "settings"
+            }
+          }
+        ]
+      }
+    }
   ]
 }
