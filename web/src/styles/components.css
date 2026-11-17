@@ -850,3 +850,81 @@ details.fold > .fold-body {
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- 신호가 오는 길 그림 (OAI 카드) ---------- */
+.flow {
+  list-style: none;
+  margin: var(--space-sm) 0;
+  padding: 0;
+}
+.flow-node {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: var(--space-sm);
+  align-items: start;
+  position: relative;
+  padding-bottom: var(--space-md);
+  color: var(--fg-muted);
+}
+.flow-node:last-child {
+  padding-bottom: 0;
+}
+/* 다음 칸으로 이어지는 세로 선 */
+.flow-node:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 19px;
+  top: 40px;
+  bottom: 0;
+  border-left: 2px solid var(--line);
+}
+.flow-node[data-link="soft"]:not(:last-child)::before {
+  border-left-style: dashed;
+}
+.flow-icon {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.flow-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.flow-name {
+  color: var(--fg);
+  font-weight: 600;
+}
+.flow-link {
+  margin-top: var(--space-xxs);
+}
+.flow-node[data-state="active"] .flow-icon {
+  border-color: var(--link);
+  color: var(--link);
+}
+.flow-node[data-state="done"] .flow-icon {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.flow-node[data-state="done"]:not(:last-child)::before {
+  border-left-color: var(--ok);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .flow-node[data-state="active"] .flow-icon {
+    animation: flow-pulse 1.2s ease-in-out infinite;
+  }
+}
+@keyframes flow-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}

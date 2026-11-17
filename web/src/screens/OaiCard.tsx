@@ -4,6 +4,7 @@ import { Badge, Button, Chip } from "../components/ui";
 import { t } from "../i18n";
 import { go } from "../router";
 import { useStore } from "../state/store";
+import { OaiFlow, type FlowPhase } from "./OaiFlow";
 
 const LENGTHS = [0.6, 1, 2];
 
@@ -13,17 +14,32 @@ export function OaiCard() {
   const [status, setStatus] = useState<OaiStatus | null>(null);
   const [seconds, setSeconds] = useState(0.6);
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<FlowPhase>("idle");
 
   useEffect(() => {
     void api.oaiStatus().then(setStatus, () => setStatus(null));
   }, [api]);
 
+  // 기록하는 동안 서버에 "지금 어느 단계인지" 물어 그림에 표시한다.
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setInterval(() => {
+      void api.oaiProgress().then(
+        (p) => setPhase((cur) => (cur === "opening" || p.phase === "idle" ? cur : p.phase)),
+        () => undefined,
+      );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [api, busy]);
+
   if (!status?.available) return null;
 
   const record = async () => {
     setBusy(true);
+    setPhase(status.running ? "waiting" : "starting");
     try {
       const rec = await api.oaiRecord(seconds);
+      setPhase("opening");
       const s = await start({ kind: "file", path: rec.meta_path, testbed: true, band: rec.band });
       go("scan", s.id);
     } catch (e) {
@@ -31,6 +47,7 @@ export function OaiCard() {
       void api.oaiStatus().then(setStatus, () => undefined);
     } finally {
       setBusy(false);
+      setPhase("idle");
     }
   };
 
@@ -48,6 +65,7 @@ export function OaiCard() {
           {status.reason}
         </p>
       )}
+      <OaiFlow phase={phase} band={status.band ?? ""} seconds={seconds} />
       <div className="chips" role="group" aria-label={t("oai.length")}>
         {LENGTHS.filter((s) => s <= (status.max_seconds ?? 3)).map((s) => (
           <Chip key={s} selected={s === seconds} onSelect={() => setSeconds(s)} disabled={busy}>
@@ -60,6 +78,11 @@ export function OaiCard() {
         <Button variant="secondary" disabled={busy || !status.ready} onClick={() => void record()} data-testid="oai-record">
           {busy ? t("oai.busy") : t("oai.button")}
         </Button>
+        {busy && phase !== "idle" && (
+          <p className="t-caption muted" role="status" data-testid="oai-phase">
+            {t(`oai.phase.${phase}`)}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -213,5 +213,22 @@
   "oai.busy": "Recording… (about a minute if the base station has to start)",
   "oai.running": "Base station running",
   "oai.stopped": "Base station off · it is started briefly and stopped again",
-  "oai.hint": "On the satellite screen use latitude {lat}, longitude {lon} (directly below the simulated satellite)."
+  "oai.hint": "On the satellite screen use latitude {lat}, longitude {lon} (directly below the simulated satellite).",
+  "oai.diagram.label": "How the signal gets from the OAI simulator to this screen",
+  "oai.node.gnb": "Base-station program (OAI)",
+  "oai.node.gnb.desc": "Keeps broadcasting like a base station carried on a satellite. Band {band}.",
+  "oai.node.link": "In-computer link (TCP) · not radio",
+  "oai.node.recorder": "Recorder",
+  "oai.node.recorder.desc": "Captures the signal for {s} s.",
+  "oai.node.file": "Signal file",
+  "oai.node.file.desc": "Stores the received signal as is (marked as testbed).",
+  "oai.node.follow": "Follow",
+  "oai.node.follow.desc": "Decodes in order: find → sync → MIB → SIB1 → SIB19.",
+  "oai.phase.starting": "Starting the base-station program…",
+  "oai.phase.waiting": "Waiting for the base station to start broadcasting…",
+  "oai.phase.recording": "Capturing the signal…",
+  "oai.phase.stopping": "Stopping the base station that was started…",
+  "oai.phase.opening": "Opening the file…",
+  "oai.state.active": "in progress",
+  "oai.state.done": "done"
 }

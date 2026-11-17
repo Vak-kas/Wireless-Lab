@@ -194,6 +194,7 @@ export const mockApi: Api = {
   oaiRecord: async () => {
     throw new Error("mock");
   },
+  oaiProgress: async () => ({ phase: "idle" }),
   trackCsvUrl: () => "#",
   async record(id, on) {
     const m = need(id);

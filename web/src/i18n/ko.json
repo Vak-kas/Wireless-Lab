@@ -213,5 +213,22 @@
   "oai.busy": "기록하는 중… (기지국을 켜야 하면 1분쯤 걸립니다)",
   "oai.running": "기지국 실행 중",
   "oai.stopped": "기지국 꺼짐 · 누르면 잠깐 켰다가 끕니다",
-  "oai.hint": "위성 계산 화면에서는 위도 {lat}, 경도 {lon} 을 넣으세요(가상 위성 바로 아래)."
+  "oai.hint": "위성 계산 화면에서는 위도 {lat}, 경도 {lon} 을 넣으세요(가상 위성 바로 아래).",
+  "oai.diagram.label": "OAI 시뮬레이터에서 화면까지 신호가 오는 길",
+  "oai.node.gnb": "기지국 프로그램 (OAI)",
+  "oai.node.gnb.desc": "위성에 실린 기지국처럼 방송 정보를 계속 내보냅니다. 대역 {band}.",
+  "oai.node.link": "컴퓨터 안 연결 (TCP) · 전파 아님",
+  "oai.node.recorder": "기록기",
+  "oai.node.recorder.desc": "{s}초 동안 신호를 받아 적습니다.",
+  "oai.node.file": "신호 파일",
+  "oai.node.file.desc": "받은 신호를 그대로 저장합니다 (테스트베드 표시).",
+  "oai.node.follow": "따라가기",
+  "oai.node.follow.desc": "찾기 → 동기 → MIB → SIB1 → SIB19 순서로 풉니다.",
+  "oai.phase.starting": "기지국 프로그램을 켜는 중…",
+  "oai.phase.waiting": "기지국이 방송을 시작하기를 기다리는 중…",
+  "oai.phase.recording": "신호를 받아 적는 중…",
+  "oai.phase.stopping": "켰던 기지국을 다시 끄는 중…",
+  "oai.phase.opening": "파일을 여는 중…",
+  "oai.state.active": "진행 중",
+  "oai.state.done": "끝남"
 }

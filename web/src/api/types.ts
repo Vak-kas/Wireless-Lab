@@ -143,6 +143,8 @@ export interface OaiStatus {
   max_seconds?: number;
 }
 
+export type OaiPhase = "idle" | "starting" | "waiting" | "recording" | "stopping";
+
 export interface OaiRecording {
   meta_path: string;
   seconds: number;
@@ -155,6 +157,8 @@ export interface OaiRecording {
 export interface Api {
   oaiStatus(): Promise<OaiStatus>;
   oaiRecord(seconds: number): Promise<OaiRecording>;
+  /** 기록이 지금 어느 단계인지 (그림에 표시) */
+  oaiProgress(): Promise<{ phase: OaiPhase }>;
   pipeline(): Promise<PipelineDef>;
   glossary(): Promise<Glossary>;
   scenarios(): Promise<Scenario[]>;

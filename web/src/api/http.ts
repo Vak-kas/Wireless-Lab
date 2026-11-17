@@ -73,4 +73,5 @@ export const httpApi: Api = {
   phoneCells: () => call("/phone/cells"),
   oaiStatus: () => call("/testbed/oai"),
   oaiRecord: (seconds) => call("/testbed/oai/record", "POST", { seconds }),
+  oaiProgress: () => call("/testbed/oai/progress"),
 };
