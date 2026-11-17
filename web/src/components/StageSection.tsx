@@ -6,6 +6,7 @@ import { useStore } from "../state/store";
 import { Figure } from "./Figure";
 import { Tile, TileHead } from "./layout";
 import { Derivations, Diagnostics, ExpertInfo, Values } from "./result";
+import { StageConcept } from "./StageConcept";
 import { Badge, Button, Empty, LockIcon } from "./ui";
 
 const STATUS_LEVEL = { ok: "ok", partial: "warn", fail: "error" } as const;
@@ -65,6 +66,7 @@ export function StageSection({
             {t("chain.state.locked")} · {lockedText ?? stageState(def.id)?.locked_reason ?? def.locked_reason ?? ""}
           </span>
         </TileHead>
+        <StageConcept stage={def.id} />
       </Tile>
     );
   }
@@ -94,6 +96,7 @@ export function StageSection({
         )}
       </TileHead>
 
+      {!result && <StageConcept stage={def.id} />}
       {!result && !running && def.analogy && <p className="center muted t-body">{def.analogy}</p>}
       {!result && running && <Empty>{t("stage.figure_pending")}</Empty>}
 

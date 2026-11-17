@@ -928,3 +928,53 @@ details.fold > .fold-body {
     opacity: 0.45;
   }
 }
+
+/* ---------- 단계 개념도 ---------- */
+.concept {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto var(--space-md);
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.concept-line {
+  stroke: var(--viz-grid);
+}
+.concept-ink {
+  stroke: var(--fg-muted);
+}
+.concept-accent {
+  stroke: var(--link);
+}
+.concept .dashed {
+  stroke-dasharray: 4 4;
+}
+.concept-ink.soft {
+  fill: var(--fg-muted);
+  fill-opacity: 0.12;
+}
+.concept-accent.soft {
+  fill: var(--link);
+  fill-opacity: 0.18;
+}
+.concept-text {
+  fill: var(--fg-muted);
+  stroke: none;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.concept-text.strong {
+  fill: var(--fg);
+  font-weight: 600;
+}
+.concept-text.mono {
+  font-family: var(--font-mono);
+}
+
+.tile-locked .concept {
+  margin-top: var(--space-lg);
+  margin-bottom: 0;
+}
