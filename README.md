@@ -27,6 +27,14 @@ venv/bin/python tools/doctor.py          # 환경 점검
 venv/bin/python tools/dev.py --built     # http://127.0.0.1:8765
 ```
 
+프로그램처럼 쓰려면 `pip install -e '.[app]'` 을 한 번 하고 아래를 더블클릭합니다. 서버를 띄우고 창을 열며, 창을 닫으면 전부 꺼집니다.
+
+| 운영체제 | 실행 파일 |
+|---|---|
+| macOS | `nrtrail.app` (처음 한 번 폴더 접근 허용을 묻습니다) 또는 `nrtrail.command` |
+| Windows | `nrtrail.bat` |
+| Linux | `./nrtrail.sh` |
+
 Windows에서는 `venv\Scripts\python`으로 바꿔 씁니다. 전체 검증은 `venv/bin/python tools/verify.py`.
 
 ## 하지 않는 것
