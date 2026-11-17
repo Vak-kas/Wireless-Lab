@@ -1,0 +1,1 @@
+{"stage":"mib","ok":true,"error_code":"","error_detail":"","measurements":{"crc_ok":true,"lmax":4,"sfn_4lsb":12,"half_frame":0,"msb_idx_offset":0},"bits":{"bch_trblk_hex":"324084","bch_trblk_bits":24},"soft":{},"plots":{}}

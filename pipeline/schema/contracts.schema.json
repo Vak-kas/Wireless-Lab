@@ -12,7 +12,7 @@
   },
   "$defs": {
     "Scalar": {
-      "anyOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }, { "type": "null" }]
+      "anyOf": [{ "type": "integer" }, { "type": "number" }, { "type": "string" }, { "type": "boolean" }, { "type": "null" }]
     },
     "StageResult": {
       "type": "object",

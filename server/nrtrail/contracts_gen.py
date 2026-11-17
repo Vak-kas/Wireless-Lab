@@ -8,8 +8,8 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
-class Scalar(RootModel[float | str | bool | None]):
-    root: float | str | bool | None
+class Scalar(RootModel[int | float | str | bool | None]):
+    root: int | float | str | bool | None
 
 
 class ResultMeta(BaseModel):

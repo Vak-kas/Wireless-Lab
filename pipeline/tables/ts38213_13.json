@@ -1,0 +1,613 @@
+{
+ "_source": "3GPP TS 38.213 (38213-j50), 13절. tools/extract_38213.py 로 원문에서 추출. 손으로 고치지 말 것.",
+ "version": "j50",
+ "coreset0": {
+  "13-1": {
+   "ssb_scs_khz": 15,
+   "pdcch_scs_khz": 15,
+   "condition": "min_bw_5_or_10",
+   "title": "Table 13-1: Set of resource blocks and slot symbols of CORESET for Type0-PDCCH s",
+   "rows": [
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 2
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 2
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 12
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 16
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 12
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 16
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 12
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 16
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 1,
+     "offset_rb": 38
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 2,
+     "offset_rb": 38
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 3,
+     "offset_rb": 38
+    },
+    null
+   ]
+  },
+  "13-2": {
+   "ssb_scs_khz": 15,
+   "pdcch_scs_khz": 30,
+   "condition": "min_bw_5_or_10",
+   "title": "Table 13-2: Set of resource blocks and slot symbols of CORESET for Type0-PDCCH s",
+   "rows": [
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 5
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 6
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 7
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 8
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 5
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 6
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 7
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 8
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 18
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 20
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 18
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 20
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 18
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 20
+    },
+    null,
+    null
+   ]
+  },
+  "13-3": {
+   "ssb_scs_khz": 30,
+   "pdcch_scs_khz": 15,
+   "condition": "min_bw_5_or_10",
+   "title": "Table 13-3: Set of resource blocks and slot symbols of CORESET for Type0-PDCCH s",
+   "rows": [
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 2
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 6
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 2
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 6
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 2
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 6
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 1,
+     "offset_rb": 28
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 2,
+     "offset_rb": 28
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 3,
+     "offset_rb": 28
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  "13-4": {
+   "ssb_scs_khz": 30,
+   "pdcch_scs_khz": 30,
+   "condition": "min_bw_5_or_10",
+   "title": "Table 13-4: Set of resource blocks and slot symbols of CORESET for Type0-PDCCH s",
+   "rows": [
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 1
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 2
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 3
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 1
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 2
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 3
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 12
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 14
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 16
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 12
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 14
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 16
+    }
+   ]
+  },
+  "13-5": {
+   "ssb_scs_khz": 30,
+   "pdcch_scs_khz": 15,
+   "condition": "min_bw_40",
+   "title": "Table 13-5: Set of resource blocks and slot symbols of CORESET for Type0-PDCCH s",
+   "rows": [
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 1,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 1,
+     "offset_rb": 56
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 2,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 2,
+     "offset_rb": 56
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 3,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 96,
+     "n_sym": 3,
+     "offset_rb": 56
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  "13-6": {
+   "ssb_scs_khz": 30,
+   "pdcch_scs_khz": 30,
+   "condition": "min_bw_40",
+   "title": "Table 13-6: Set of resource blocks and slot symbols of CORESET for Type0-PDCCH s",
+   "rows": [
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 2,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 24,
+     "n_sym": 3,
+     "offset_rb": 4
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 1,
+     "offset_rb": 28
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 2,
+     "offset_rb": 28
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 0
+    },
+    {
+     "pattern": 1,
+     "n_rb": 48,
+     "n_sym": 3,
+     "offset_rb": 28
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ },
+ "monitoring_pattern1_fr1": [
+  {
+   "o": 0.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 0
+  },
+  {
+   "o": 0.0,
+   "sets_per_slot": 2,
+   "m": 0.5,
+   "first_symbol": "alt"
+  },
+  {
+   "o": 2.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 0
+  },
+  {
+   "o": 2.0,
+   "sets_per_slot": 2,
+   "m": 0.5,
+   "first_symbol": "alt"
+  },
+  {
+   "o": 5.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 0
+  },
+  {
+   "o": 5.0,
+   "sets_per_slot": 2,
+   "m": 0.5,
+   "first_symbol": "alt"
+  },
+  {
+   "o": 7.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 0
+  },
+  {
+   "o": 7.0,
+   "sets_per_slot": 2,
+   "m": 0.5,
+   "first_symbol": "alt"
+  },
+  {
+   "o": 0.0,
+   "sets_per_slot": 1,
+   "m": 2.0,
+   "first_symbol": 0
+  },
+  {
+   "o": 5.0,
+   "sets_per_slot": 1,
+   "m": 2.0,
+   "first_symbol": 0
+  },
+  {
+   "o": 0.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 1
+  },
+  {
+   "o": 0.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 2
+  },
+  {
+   "o": 2.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 1
+  },
+  {
+   "o": 2.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 2
+  },
+  {
+   "o": 5.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 1
+  },
+  {
+   "o": 5.0,
+   "sets_per_slot": 1,
+   "m": 1.0,
+   "first_symbol": 2
+  }
+ ]
+}

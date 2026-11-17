@@ -1,1 +1,1261 @@
-{ "stages": [] }
+{
+  "_comment": "단계 정의. 이름, 선행 조건, 설명 문구, 값 이름표, 실패 안내, 표준 조항을 여기 둔다. 코드는 키만 참조한다. 영어는 pipeline/stages.en.json 에 같은 경로로 덮어쓴다.",
+  "common_diagnostics": {
+    "INTERNAL": [
+      {
+        "message": "처리 중 예상하지 못한 오류가 났습니다.",
+        "fix": "다시 시도해 보세요. 계속되면 설정/점검 화면의 환경 점검 결과와 전문가 정보의 오류 내용을 확인하세요.",
+        "action": {
+          "label": "다시 시도",
+          "kind": "rerun",
+          "params": {}
+        }
+      }
+    ],
+    "ENGINE_UNAVAILABLE": [
+      {
+        "message": "이 입력을 처리할 엔진(MATLAB)을 쓸 수 없습니다.",
+        "fix": "설정/점검 화면에서 MATLAB 상태를 확인하세요. 연습 모드는 MATLAB 없이도 됩니다.",
+        "action": {
+          "label": "점검 화면 열기",
+          "kind": "goto",
+          "target": "settings"
+        }
+      }
+    ],
+    "CAPTURE_FAILED": [
+      {
+        "message": "장비에서 신호를 받지 못했습니다.",
+        "fix": "장비 연결과 설정(주파수, 샘플레이트)을 확인하세요.",
+        "action": {
+          "label": "다시 시도",
+          "kind": "rerun",
+          "params": {}
+        }
+      }
+    ]
+  },
+  "stages": [
+    {
+      "id": "scan",
+      "requires": [],
+      "label": "스캔",
+      "title": "대역 스캔",
+      "question": "주변에 어떤 기지국이 있나",
+      "intro": "정해진 주파수 자리들을 하나씩 들여다보며 기지국이 보내는 동기 신호가 있는지 찾습니다.",
+      "analogy": "라디오 다이얼을 돌리며 방송이 나오는 채널을 찾는 것과 같습니다.",
+      "button": "스캔 시작",
+      "spec_refs": [
+        "TS 38.104 5.4.3.1",
+        "TS 38.104 5.4.2.1",
+        "TS 38.211 7.4.2",
+        "TS 38.213 4.1"
+      ],
+      "summary": {
+        "ok_easy": "기지국 {count}곳을 찾았습니다. 가장 잘 들리는 곳은 {freq_mhz} MHz입니다.",
+        "ok_expert": "셀 {count}개, 최강 GSCN {gscn} ({freq_mhz} MHz), PCI {pci}, 피크/잡음 {pnr} dB",
+        "fail_easy": "이 대역에서 기지국 신호를 찾지 못했습니다.",
+        "fail_expert": "후보 {n_candidates}개에서 PSS 상관 피크가 기준({threshold} dB)을 넘지 못함"
+      },
+      "progress": {
+        "scan.read": "받은 신호를 읽는 중",
+        "scan.candidate": "SSB가 있을 만한 자리를 하나씩 들여다보는 중",
+        "scan.cells": "찾은 기지국의 셀 번호를 확인하는 중",
+        "scan.done": "스캔 결과를 정리하는 중"
+      },
+      "values": {
+        "n_cells": {
+          "label": "찾은 기지국",
+          "unit": "곳"
+        },
+        "best_freq": {
+          "label": "가장 센 곳의 주파수",
+          "unit": "MHz",
+          "term": "ss_ref"
+        },
+        "best_gscn": {
+          "label": "GSCN",
+          "unit": "",
+          "term": "gscn"
+        },
+        "best_pci": {
+          "label": "셀 번호 (PCI)",
+          "unit": "",
+          "term": "pci"
+        },
+        "best_pnr": {
+          "label": "피크 대 잡음",
+          "unit": "dB"
+        },
+        "best_cfo": {
+          "label": "주파수 어긋남 (추정)",
+          "unit": "Hz",
+          "term": "cfo"
+        }
+      },
+      "derivations": {
+        "gscn": {
+          "title": "GSCN에서 SSB 주파수 구하기"
+        },
+        "pci": {
+          "title": "셀 번호(PCI) 계산"
+        }
+      },
+      "plots": {
+        "spectrum": {
+          "title": "주파수별 신호 세기",
+          "caption": "솟아오른 곳에 기지국 신호가 있습니다. 세로선은 SSB가 놓일 수 있는 자리(GSCN)입니다.",
+          "x": "주파수",
+          "y": "세기"
+        },
+        "cells": {
+          "title": "찾은 기지국",
+          "caption": "따라갈 기지국을 고르세요."
+        }
+      },
+      "columns": {
+        "gscn": "GSCN",
+        "freq_mhz": "중심 주파수",
+        "ssb_scs_khz": "SSB SCS",
+        "pci": "PCI",
+        "pnr_db": "피크/잡음",
+        "cfo_hz": "추정 CFO",
+        "rel_power_db": "상대 세기",
+        "n_ssb": "SSB 수"
+      },
+      "annotations": {
+        "candidate": "SSB 후보 자리",
+        "detected": "기지국 발견"
+      },
+      "diagnostics": {
+        "NO_CELL": [
+          {
+            "message": "신호가 약해서 안 보일 수 있습니다.",
+            "fix": "수신 이득을 올려 다시 스캔하세요.",
+            "action": {
+              "label": "이득 +10 dB로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "gain_delta_db": 10
+              }
+            }
+          },
+          {
+            "message": "수집 시간이 짧아 SSB를 놓쳤을 수 있습니다.",
+            "fix": "SSB는 보통 20 ms마다 나옵니다. 더 오래 받아 보세요.",
+            "action": {
+              "label": "수집 시간 2배로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "duration_scale": 2
+              }
+            }
+          },
+          {
+            "message": "이 대역에 기지국이 없거나 안테나가 맞지 않을 수 있습니다.",
+            "fix": "안테나 연결과 대역을 확인하고 다른 대역을 골라 보세요.",
+            "action": {
+              "label": "대역 다시 고르기",
+              "kind": "goto",
+              "target": "scan-setup"
+            }
+          }
+        ],
+        "NO_CANDIDATE": [
+          {
+            "message": "받은 대역 안에 SSB가 놓일 수 있는 자리가 없습니다.",
+            "fix": "중심 주파수나 샘플레이트를 바꿔 대역을 넓히세요.",
+            "action": {
+              "label": "입력 다시 고르기",
+              "kind": "goto",
+              "target": "start"
+            }
+          }
+        ],
+        "CAPTURE_TOO_SHORT": [
+          {
+            "message": "받은 신호가 너무 짧습니다.",
+            "fix": "40 ms 이상 받아야 SSB를 놓치지 않습니다.",
+            "action": {
+              "label": "수집 시간 2배로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "duration_scale": 2
+              }
+            }
+          }
+        ],
+        "RSSI_ONLY_DEVICE": [
+          {
+            "level": "warn",
+            "message": "이 장비는 대역폭이 좁아 스펙트럼 보기만 지원합니다.",
+            "fix": "SSB를 복호하려면 대역폭이 더 넓은 SDR이 필요합니다."
+          }
+        ]
+      }
+    },
+    {
+      "id": "ssb",
+      "requires": [
+        "scan"
+      ],
+      "locked_reason": "먼저 스캔으로 따라갈 기지국을 찾아야 합니다.",
+      "label": "SSB",
+      "title": "SSB 동기",
+      "question": "기지국의 박자에 맞추기",
+      "intro": "기지국이 일정한 간격으로 내보내는 '여기 있어요' 신호(SSB)에 시간과 주파수를 맞춥니다.",
+      "analogy": "등대 불빛을 찾고, 그 깜빡임에 내 시계를 맞추는 단계입니다.",
+      "button": "SSB에 동기 맞추기",
+      "spec_refs": [
+        "TS 38.211 7.4.2",
+        "TS 38.211 7.4.3",
+        "TS 38.211 7.4.1.4",
+        "TS 38.213 4.1",
+        "TS 38.215 5.1.1"
+      ],
+      "summary": {
+        "ok_easy": "기지국의 신호등(SSB)을 찾아 박자를 맞췄습니다.",
+        "ok_expert": "PCI {pci}, SSB #{ssb_index}, 타이밍 {timing_us} µs, CFO {cfo_hz} Hz ({cfo_ppm} ppm), SINR {sinr} dB",
+        "fail_easy": "SSB를 찾지 못했습니다.",
+        "fail_expert": "PSS 상관 피크 없음 (탐색 ±{cfo_search_khz} kHz)"
+      },
+      "progress": {
+        "ssb.read": "받은 신호를 읽는 중",
+        "ssb.pss": "SSB가 시작되는 시점을 찾는 중",
+        "ssb.fine_cfo": "주파수 어긋남을 재고 바로잡는 중",
+        "ssb.pbch": "SSB를 풀어 격자로 펼치고 몇 번째 SSB인지 확인하는 중",
+        "ssb.done": "신호 세기와 품질을 정리하는 중"
+      },
+      "values": {
+        "pci": {
+          "label": "셀 번호 (PCI)",
+          "unit": "",
+          "term": "pci"
+        },
+        "nid1": {
+          "label": "N_ID1 (SSS에서)",
+          "unit": "",
+          "term": "sss"
+        },
+        "nid2": {
+          "label": "N_ID2 (PSS에서)",
+          "unit": "",
+          "term": "pss"
+        },
+        "ssb_index": {
+          "label": "SSB 번호",
+          "unit": "",
+          "term": "ssb_index"
+        },
+        "timing_samples": {
+          "label": "SSB 시작 위치",
+          "unit": "샘플"
+        },
+        "timing_us": {
+          "label": "SSB 시작 시각",
+          "unit": "µs"
+        },
+        "cfo_hz": {
+          "label": "주파수 어긋남 (CFO)",
+          "unit": "Hz",
+          "term": "cfo"
+        },
+        "cfo_ppm": {
+          "label": "CFO (비율)",
+          "unit": "ppm",
+          "term": "cfo"
+        },
+        "cfo_search": {
+          "label": "CFO 탐색 범위",
+          "unit": "kHz"
+        },
+        "rsrp": {
+          "label": "신호 세기 (SS-RSRP)",
+          "unit": "dBFS",
+          "term": "rsrp",
+          "note": "장비 보정값이 없어 절대 전력(dBm)이 아니라 풀스케일 대비 값(dBFS)으로 표시합니다."
+        },
+        "sinr": {
+          "label": "신호 품질 (SS-SINR)",
+          "unit": "dB",
+          "term": "sinr"
+        }
+      },
+      "derivations": {
+        "pci": {
+          "title": "셀 번호(PCI) 계산"
+        },
+        "timing_us": {
+          "title": "샘플 위치를 시간으로"
+        },
+        "cfo_total": {
+          "title": "거친 추정과 미세 추정 합치기"
+        },
+        "cfo_ppm": {
+          "title": "CFO를 ppm으로"
+        },
+        "ssb_index": {
+          "title": "DM-RS에서 SSB 번호 읽기"
+        }
+      },
+      "plots": {
+        "correlation": {
+          "title": "PSS 상관",
+          "caption": "뾰족하게 솟은 곳이 SSB가 시작되는 순간입니다. 세 가지 PSS 중 맞는 것 하나만 높게 솟습니다.",
+          "x": "시간",
+          "y": "상관 크기"
+        },
+        "ssb_grid": {
+          "title": "SSB 자원 격자",
+          "caption": "진한 칸일수록 신호가 셉니다. SSB는 부반송파 240개 × 심볼 4개로 이루어집니다.",
+          "x": "OFDM 심볼",
+          "y": "부반송파"
+        },
+        "constellation": {
+          "title": "PBCH 성상도",
+          "caption": "점들이 네 무리로 또렷이 모일수록 안내판을 읽기 쉽습니다.",
+          "x": "I",
+          "y": "Q"
+        }
+      },
+      "annotations": {
+        "peak": "SSB 시작",
+        "PSS": "주 동기 신호. 시간을 맞추고 N_ID2를 알아냅니다.",
+        "SSS": "부 동기 신호. N_ID1을 알아내 셀 번호를 확정합니다.",
+        "PBCH": "기본 안내판(MIB)이 실린 채널입니다.",
+        "PBCH DM-RS": "PBCH를 읽기 위한 기준 신호. SSB 번호도 여기서 알 수 있습니다."
+      },
+      "diagnostics": {
+        "NO_SSB": [
+          {
+            "message": "신호가 약해 동기 신호가 잡음에 묻혔을 수 있습니다.",
+            "fix": "수신 이득을 올리거나 안테나 위치를 바꿔 보세요.",
+            "action": {
+              "label": "이득 +10 dB로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "gain_delta_db": 10
+              }
+            }
+          },
+          {
+            "message": "주파수 어긋남이 탐색 범위보다 클 수 있습니다 (위성, 클럭 오차가 큰 장비).",
+            "fix": "CFO 탐색 범위를 넓혀 보세요.",
+            "action": {
+              "label": "탐색 범위 2배로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "cfo_search_scale": 2
+              }
+            }
+          },
+          {
+            "message": "고른 주파수에 기지국이 없을 수 있습니다.",
+            "fix": "스캔으로 돌아가 다른 기지국을 골라 보세요.",
+            "action": {
+              "label": "스캔으로 돌아가기",
+              "kind": "goto",
+              "target": "scan"
+            }
+          }
+        ],
+        "LOW_SNR": [
+          {
+            "level": "warn",
+            "message": "동기는 맞췄지만 신호 품질이 낮습니다. 다음 단계에서 읽기에 실패할 수 있습니다.",
+            "fix": "이득을 올리거나 안테나 위치를 바꿔 보세요.",
+            "action": {
+              "label": "이득 +10 dB로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "gain_delta_db": 10
+              }
+            }
+          }
+        ],
+        "RSRP_UNCALIBRATED": [
+          {
+            "level": "info",
+            "message": "신호 세기는 보정되지 않은 값(dBFS)입니다.",
+            "fix": "절대 전력(dBm)이 필요하면 장비 보정값을 설정에 넣으세요."
+          }
+        ],
+        "WIDE_CFO_SEARCH": [
+          {
+            "level": "info",
+            "message": "위성(NTN) 대역이라 도플러를 감안해 CFO 탐색 범위를 넓혔습니다.",
+            "fix": "탐색 범위는 설정에서 바꿀 수 있습니다."
+          }
+        ],
+        "DMRS_AMBIGUOUS": [
+          {
+            "level": "warn",
+            "message": "몇 번째 SSB인지 판정이 아슬아슬했습니다. SSB 번호가 틀렸을 수 있습니다.",
+            "fix": "신호 품질을 높여 다시 동기를 맞춰 보세요.",
+            "action": {
+              "label": "SSB 동기 다시 하기",
+              "kind": "rerun",
+              "params": {}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mib",
+      "requires": [
+        "ssb"
+      ],
+      "locked_reason": "SSB에 동기를 맞춘 뒤에 읽을 수 있습니다.",
+      "label": "MIB",
+      "title": "MIB",
+      "question": "기본 안내판 읽기",
+      "intro": "SSB 안에 실린 가장 기본적인 안내문(MIB)을 읽습니다. 지금 몇 번째 프레임인지, 자세한 안내(SIB1)는 어디서 받는지 적혀 있습니다.",
+      "analogy": "가게 문 앞 간판을 읽는 단계입니다. 영업 중인지, 자세한 안내는 어디서 받는지 적혀 있습니다.",
+      "button": "MIB 읽기",
+      "spec_refs": [
+        "TS 38.212 7.1",
+        "TS 38.331 6.2.2 MIB",
+        "TS 38.213 13",
+        "TS 38.213 4.1",
+        "TS 38.211 7.4.3.1"
+      ],
+      "summary": {
+        "ok_easy": "기지국의 기본 안내판(MIB)을 읽었습니다.",
+        "ok_expert": "PBCH CRC OK, SFN={sfn}, 하프프레임={hrf}, k_SSB={k_ssb}, CORESET0 idx={coreset0}, SS0 idx={ss0}",
+        "fail_easy": "안내판(MIB)을 읽지 못했습니다.",
+        "fail_expert": "PBCH CRC 불일치"
+      },
+      "progress": {
+        "mib.decode": "안내판의 부호를 풀고 검사하는 중",
+        "mib.done": "내용을 해석하는 중"
+      },
+      "values": {
+        "sfn": {
+          "label": "시스템 프레임 번호 (SFN)",
+          "unit": "",
+          "term": "sfn"
+        },
+        "half_frame": {
+          "label": "하프프레임",
+          "unit": "",
+          "term": "half_frame"
+        },
+        "ssb_index": {
+          "label": "SSB 번호",
+          "unit": "",
+          "term": "ssb_index"
+        },
+        "k_ssb": {
+          "label": "k_SSB",
+          "unit": "부반송파",
+          "term": "k_ssb"
+        },
+        "sib1_present": {
+          "label": "이 SSB에 SIB1 안내",
+          "unit": ""
+        },
+        "scs_common": {
+          "label": "공통 부반송파 간격",
+          "unit": "kHz",
+          "term": "scs"
+        },
+        "dmrs_typea_pos": {
+          "label": "dmrs-TypeA-Position",
+          "unit": ""
+        },
+        "pdcch_config_sib1": {
+          "label": "pdcch-ConfigSIB1",
+          "unit": ""
+        },
+        "coreset0_index": {
+          "label": "controlResourceSetZero",
+          "unit": "",
+          "term": "coreset0"
+        },
+        "ss0_index": {
+          "label": "searchSpaceZero",
+          "unit": "",
+          "term": "search_space"
+        },
+        "cell_barred": {
+          "label": "접속 허용",
+          "unit": ""
+        },
+        "intra_freq": {
+          "label": "같은 주파수 재선택",
+          "unit": ""
+        },
+        "frame_start": {
+          "label": "프레임 시작 위치",
+          "unit": "샘플"
+        },
+        "coreset0_rbs": {
+          "label": "CORESET0 폭",
+          "unit": "RB",
+          "term": "coreset0"
+        },
+        "coreset0_symbols": {
+          "label": "CORESET0 길이",
+          "unit": "심볼",
+          "term": "coreset0"
+        },
+        "coreset0_offset": {
+          "label": "CORESET0 오프셋",
+          "unit": "RB",
+          "term": "coreset0"
+        },
+        "coreset0_bw": {
+          "label": "CORESET0 대역폭",
+          "unit": "MHz",
+          "term": "coreset0"
+        },
+        "monitor_slot": {
+          "label": "SIB1 안내를 볼 슬롯",
+          "unit": "",
+          "term": "search_space"
+        },
+        "monitor_symbol": {
+          "label": "시작 심볼",
+          "unit": "",
+          "term": "search_space"
+        },
+        "point_a": {
+          "label": "Point A 주파수",
+          "unit": "MHz",
+          "term": "point_a"
+        }
+      },
+      "derivations": {
+        "sfn": {
+          "title": "전체 SFN 계산"
+        },
+        "ssb_index": {
+          "title": "전체 SSB 번호"
+        },
+        "k_ssb": {
+          "title": "k_SSB 계산과 SIB1 존재 여부"
+        },
+        "pdcch_config": {
+          "title": "pdcch-ConfigSIB1 나누기"
+        },
+        "frame_start": {
+          "title": "프레임 시작 위치"
+        },
+        "coreset0": {
+          "title": "CORESET0 표 찾기"
+        },
+        "coreset0_bw": {
+          "title": "CORESET0를 받는 데 필요한 대역폭"
+        },
+        "monitor": {
+          "title": "Type0-PDCCH 감시 시점"
+        },
+        "point_a": {
+          "title": "Point A 주파수"
+        }
+      },
+      "plots": {
+        "payload": {
+          "title": "MIB에 적힌 내용",
+          "caption": "24비트 안내문을 필드별로 나눈 것입니다."
+        },
+        "frame": {
+          "title": "프레임 안에서 SSB의 위치",
+          "caption": "SSB 번호와 배치 규칙(Case)으로 프레임이 어디서 시작하는지 거꾸로 계산합니다.",
+          "x": "시간",
+          "y": ""
+        }
+      },
+      "columns": {
+        "field": "필드",
+        "bits": "비트",
+        "raw": "원시값",
+        "meaning": "뜻"
+      },
+      "annotations": {
+        "ssb": "지금 잡은 SSB",
+        "frame_start": "프레임 시작"
+      },
+      "diagnostics": {
+        "PBCH_CRC_FAIL": [
+          {
+            "message": "신호 품질이 낮아 안내문에 오류가 생겼습니다.",
+            "fix": "이득을 올리거나 안테나 위치를 바꾼 뒤 SSB 동기부터 다시 하세요.",
+            "action": {
+              "label": "이득 +10 dB로 SSB부터 다시",
+              "kind": "rerun",
+              "target": "ssb",
+              "params": {
+                "gain_delta_db": 10
+              }
+            }
+          },
+          {
+            "message": "동기가 살짝 어긋났을 수 있습니다.",
+            "fix": "SSB 동기를 다시 실행해 시간·주파수를 새로 맞추세요.",
+            "action": {
+              "label": "SSB 동기 다시 하기",
+              "kind": "rerun",
+              "target": "ssb",
+              "params": {}
+            }
+          },
+          {
+            "message": "다른 기지국의 신호와 겹쳤을 수 있습니다.",
+            "fix": "스캔으로 돌아가 다른 기지국을 골라 보세요.",
+            "action": {
+              "label": "스캔으로 돌아가기",
+              "kind": "goto",
+              "target": "scan"
+            }
+          }
+        ],
+        "NO_SIB1_HERE": [
+          {
+            "level": "warn",
+            "message": "이 SSB에는 SIB1 안내가 붙어 있지 않습니다.",
+            "fix": "k_SSB 값이 '다른 주파수에서 찾으라'고 알려 줍니다. 스캔에서 다른 SSB를 골라 보세요.",
+            "action": {
+              "label": "스캔으로 돌아가기",
+              "kind": "goto",
+              "target": "scan"
+            }
+          }
+        ],
+        "CELL_BARRED": [
+          {
+            "level": "info",
+            "message": "이 기지국은 단말 접속을 막아 둔 상태(cellBarred)입니다.",
+            "fix": "방송 정보를 읽는 데는 문제가 없습니다."
+          }
+        ],
+        "DEVICE_BW_TOO_NARROW": [
+          {
+            "level": "warn",
+            "message": "이 장비로는 SIB1 수신이 어렵습니다. CORESET0 대역폭이 장비의 최대 샘플레이트보다 넓습니다.",
+            "fix": "대역폭이 더 넓은 SDR을 쓰거나 저장된 파일로 진행하세요."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sib1",
+      "requires": [
+        "mib"
+      ],
+      "locked_reason": "MIB를 읽어야 SIB1이 어디 있는지 알 수 있습니다.",
+      "label": "SIB1",
+      "title": "SIB1",
+      "question": "접속 안내서 읽기",
+      "intro": "MIB가 알려 준 자리에서 더 자세한 안내문(SIB1)을 받아 해석합니다. 어느 통신망인지, 어떤 추가 안내가 언제 방송되는지 적혀 있습니다.",
+      "analogy": "안내 데스크에서 책자를 받는 단계입니다.",
+      "button": "SIB1 읽기",
+      "spec_refs": [
+        "TS 38.213 13",
+        "TS 38.213 10.1",
+        "TS 38.212 7.3.1.2.1",
+        "TS 38.214 5.1",
+        "TS 38.331 6.2.2 SIB1",
+        "TS 38.331 5.2.2.3.2"
+      ],
+      "summary": {
+        "ok_easy": "{plmn} 통신망의 기지국입니다. 추가 안내문 {si_count}종을 방송하고 있습니다.",
+        "ok_expert": "DCI 1_0 @AL{al}, RIV={riv} → RB {rb_start}+{rb_len}, MCS {mcs}, TBS {tbs} bit, CRC OK",
+        "fail_easy": "SIB1을 읽지 못했습니다.",
+        "fail_expert": "{reason}"
+      },
+      "progress": {
+        "sib1.read": "SIB1이 실린 구간을 읽는 중",
+        "sib1.pdcch": "SIB1 위치를 알려 주는 제어 신호(PDCCH)를 찾는 중",
+        "sib1.dci": "제어 정보(DCI)를 해석하는 중",
+        "sib1.pdsch": "SIB1 본문(PDSCH)을 푸는 중",
+        "sib1.asn1": "내용을 해석하는 중"
+      },
+      "groups": {
+        "identity": "통신망과 셀",
+        "frequency": "주파수와 대역폭",
+        "rach": "접속 시도(RACH) 설정",
+        "ssb": "SSB와 타이밍",
+        "si": "추가 안내문 시간표",
+        "ntn": "위성(NTN) 관련",
+        "dci": "제어 정보 (DCI 1_0)"
+      },
+      "values": {
+        "plmn": {
+          "label": "통신망 (PLMN)",
+          "unit": "",
+          "term": "plmn",
+          "group": "identity"
+        },
+        "tac": {
+          "label": "지역 코드 (TAC)",
+          "unit": "",
+          "term": "tac",
+          "group": "identity"
+        },
+        "cell_id": {
+          "label": "셀 ID",
+          "unit": "",
+          "group": "identity"
+        },
+        "q_rxlevmin": {
+          "label": "최소 수신 세기 (q-RxLevMin)",
+          "unit": "dBm",
+          "group": "identity"
+        },
+        "band": {
+          "label": "대역",
+          "unit": "",
+          "group": "frequency"
+        },
+        "offset_to_point_a": {
+          "label": "offsetToPointA",
+          "unit": "RB",
+          "term": "point_a",
+          "group": "frequency"
+        },
+        "carrier_bw": {
+          "label": "반송파 대역폭",
+          "unit": "RB",
+          "group": "frequency"
+        },
+        "carrier_bw_mhz": {
+          "label": "반송파 대역폭 (점유)",
+          "unit": "MHz",
+          "group": "frequency"
+        },
+        "initial_bwp": {
+          "label": "초기 BWP",
+          "unit": "",
+          "term": "bwp",
+          "group": "frequency"
+        },
+        "prach_config_index": {
+          "label": "prach-ConfigurationIndex",
+          "unit": "",
+          "term": "prach",
+          "group": "rach"
+        },
+        "msg1_fdm": {
+          "label": "msg1-FDM",
+          "unit": "",
+          "group": "rach"
+        },
+        "msg1_freq_start": {
+          "label": "msg1-FrequencyStart",
+          "unit": "RB",
+          "group": "rach"
+        },
+        "zczc": {
+          "label": "zeroCorrelationZoneConfig",
+          "unit": "",
+          "group": "rach"
+        },
+        "root_seq": {
+          "label": "prach-RootSequenceIndex",
+          "unit": "",
+          "group": "rach"
+        },
+        "ra_window": {
+          "label": "ra-ResponseWindow",
+          "unit": "슬롯",
+          "group": "rach"
+        },
+        "msg1_scs": {
+          "label": "msg1-SubcarrierSpacing",
+          "unit": "kHz",
+          "group": "rach"
+        },
+        "ssb_positions": {
+          "label": "ssb-PositionsInBurst",
+          "unit": "",
+          "group": "ssb"
+        },
+        "ssb_period": {
+          "label": "SSB 주기",
+          "unit": "ms",
+          "group": "ssb"
+        },
+        "n_ta_offset": {
+          "label": "n-TimingAdvanceOffset",
+          "unit": "Tc",
+          "term": "ta",
+          "group": "ssb"
+        },
+        "tdd": {
+          "label": "TDD 패턴",
+          "unit": "",
+          "group": "ssb"
+        },
+        "si_window": {
+          "label": "SI 창 길이",
+          "unit": "슬롯",
+          "term": "si_window",
+          "group": "si"
+        },
+        "si_list": {
+          "label": "방송 중인 추가 안내문",
+          "unit": "",
+          "group": "si"
+        },
+        "has_sib19": {
+          "label": "위성 정보 (SIB19)",
+          "unit": "",
+          "term": "sib19",
+          "group": "si"
+        },
+        "sib19_window_start": {
+          "label": "SIB19 창 시작",
+          "unit": "",
+          "term": "si_window",
+          "group": "si"
+        },
+        "cell_barred_ntn": {
+          "label": "cellBarredNTN",
+          "unit": "",
+          "group": "ntn"
+        },
+        "dci_al": {
+          "label": "집성 레벨",
+          "unit": "",
+          "group": "dci"
+        },
+        "dci_riv": {
+          "label": "주파수 자원 할당 (RIV)",
+          "unit": "",
+          "group": "dci"
+        },
+        "dci_rb": {
+          "label": "PDSCH 위치",
+          "unit": "RB",
+          "group": "dci"
+        },
+        "dci_tdra": {
+          "label": "시간 자원 할당 번호",
+          "unit": "",
+          "group": "dci"
+        },
+        "dci_symbols": {
+          "label": "PDSCH 심볼",
+          "unit": "",
+          "group": "dci"
+        },
+        "dci_mcs": {
+          "label": "MCS",
+          "unit": "",
+          "group": "dci"
+        },
+        "dci_rv": {
+          "label": "RV",
+          "unit": "",
+          "group": "dci"
+        },
+        "dci_si_indicator": {
+          "label": "SI 지시자",
+          "unit": "",
+          "group": "dci"
+        },
+        "tbs": {
+          "label": "전송 블록 크기 (TBS)",
+          "unit": "bit",
+          "group": "dci"
+        }
+      },
+      "derivations": {
+        "riv": {
+          "title": "RIV 풀기 (주파수 자원 위치)"
+        },
+        "tdra": {
+          "title": "시간 자원 할당 표 찾기"
+        },
+        "tbs": {
+          "title": "전송 블록 크기(TBS) 계산"
+        },
+        "carrier_bw_mhz": {
+          "title": "RB 수를 대역폭으로"
+        },
+        "initial_bwp": {
+          "title": "locationAndBandwidth 풀기"
+        },
+        "si_window": {
+          "title": "SIB19가 실린 SI 창의 시작 위치"
+        },
+        "prach": {
+          "title": "PRACH 기회 (시간)"
+        },
+        "q_rxlevmin": {
+          "title": "q-RxLevMin 환산"
+        },
+        "n_ta_offset": {
+          "title": "N_TA,offset 값"
+        }
+      },
+      "plots": {
+        "coreset_grid": {
+          "title": "SIB1이 실린 자리",
+          "caption": "앞쪽 심볼의 CORESET0에 '어디를 보라'는 제어 신호가 있고, 그 뒤에 SIB1 본문이 실려 있습니다.",
+          "x": "OFDM 심볼",
+          "y": "자원 블록 (RB)"
+        },
+        "constellation": {
+          "title": "PDSCH 성상도",
+          "caption": "SIB1 본문의 신호 점입니다.",
+          "x": "I",
+          "y": "Q"
+        },
+        "si_schedule": {
+          "title": "추가 안내문 시간표",
+          "caption": "어떤 SIB가 얼마 간격으로 방송되는지입니다."
+        }
+      },
+      "columns": {
+        "sib": "안내문",
+        "period": "주기",
+        "window": "창 위치",
+        "status": "방송 여부"
+      },
+      "annotations": {
+        "CORESET0": "SIB1 위치를 알려 주는 제어 신호가 실리는 영역입니다.",
+        "PDCCH": "찾아낸 제어 신호입니다.",
+        "PDSCH": "SIB1 본문이 실린 영역입니다.",
+        "PDSCH DM-RS": "본문을 읽기 위한 기준 신호입니다."
+      },
+      "diagnostics": {
+        "NO_PDCCH": [
+          {
+            "message": "받은 대역이 CORESET0 전체를 담지 못했을 수 있습니다.",
+            "fix": "샘플레이트를 올려 더 넓게 받으세요.",
+            "action": {
+              "label": "더 넓게 받아 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "widen": true
+              }
+            }
+          },
+          {
+            "message": "신호 품질이 낮아 제어 신호를 놓쳤을 수 있습니다.",
+            "fix": "이득을 올리거나 안테나 위치를 바꿔 보세요.",
+            "action": {
+              "label": "이득 +10 dB로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "gain_delta_db": 10
+              }
+            }
+          },
+          {
+            "message": "프레임 타이밍이 어긋났을 수 있습니다.",
+            "fix": "MIB 단계를 다시 실행해 보세요.",
+            "action": {
+              "label": "MIB부터 다시",
+              "kind": "rerun",
+              "target": "mib",
+              "params": {}
+            }
+          }
+        ],
+        "PDSCH_CRC_FAIL": [
+          {
+            "message": "제어 신호는 찾았지만 본문에 오류가 있습니다.",
+            "fix": "이득을 올리거나 더 오래 받아 다음 전송을 시도하세요.",
+            "action": {
+              "label": "이득 +10 dB로 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "gain_delta_db": 10
+              }
+            }
+          }
+        ],
+        "ASN1_FAIL": [
+          {
+            "message": "본문은 받았지만 내용을 해석하지 못했습니다.",
+            "fix": "받은 바이트를 전문가 정보에서 확인하세요. 표준 판(release)이 맞지 않을 수 있습니다."
+          }
+        ],
+        "NO_SIB19": [
+          {
+            "level": "info",
+            "message": "이 기지국은 SIB19를 방송하지 않습니다. 위성이 아니라 지상 기지국으로 보입니다.",
+            "fix": "위성 대역(n255, n256)의 기지국을 고르면 다음 단계로 갈 수 있습니다.",
+            "action": {
+              "label": "스캔으로 돌아가기",
+              "kind": "goto",
+              "target": "scan"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sib19",
+      "requires": [
+        "sib1"
+      ],
+      "locked_reason": "SIB1의 시간표를 봐야 SIB19가 언제 방송되는지 알 수 있습니다.",
+      "label": "SIB19",
+      "title": "SIB19",
+      "question": "위성 안내서 읽기",
+      "intro": "위성(NTN) 기지국만 방송하는 SIB19를 받습니다. 위성이 어디 있고 어느 쪽으로 움직이는지, 지연을 얼마나 보정해야 하는지 적혀 있습니다.",
+      "analogy": "움직이는 위성이 '나는 지금 여기 있고 이쪽으로 가고 있어요'라고 알려 주는 쪽지입니다.",
+      "button": "SIB19 읽기",
+      "spec_refs": [
+        "TS 38.331 5.2.2.3.2",
+        "TS 38.331 6.3.1 SIB19",
+        "TS 38.331 6.3.2 NTN-Config",
+        "TS 38.213 4.2",
+        "TS 38.211 4.3.1"
+      ],
+      "summary": {
+        "ok_easy": "위성 기지국의 안내서(SIB19)를 읽었습니다. 위성은 고도 약 {altitude_km} km에서 초속 {speed_kms} km로 움직입니다.",
+        "ok_expert": "SI 창 {windows}개 확인, SIB {sibs} 수신, epochTime SFN {epoch_sfn}/sf {epoch_sf}, K_offset {k_offset}, ta-Common {ta_common}",
+        "fail_easy": "SIB19를 받지 못했습니다.",
+        "fail_expert": "{reason}"
+      },
+      "progress": {
+        "si.window": "SIB19가 방송될 시간 창을 계산하는 중",
+        "si.read": "그 구간의 신호를 읽는 중",
+        "si.pdcch": "제어 신호를 찾는 중",
+        "si.pdsch": "본문을 푸는 중",
+        "si.asn1": "내용을 해석하는 중"
+      },
+      "groups": {
+        "time": "기준 시각과 유효 시간",
+        "orbit": "위성 위치와 속도",
+        "delay": "지연 보정",
+        "other": "그 밖의 설정"
+      },
+      "values": {
+        "received_sibs": {
+          "label": "받은 안내문",
+          "unit": "",
+          "group": "time"
+        },
+        "epoch_sfn": {
+          "label": "기준 시각 (SFN)",
+          "unit": "",
+          "term": "epoch_time",
+          "group": "time"
+        },
+        "epoch_subframe": {
+          "label": "기준 시각 (서브프레임)",
+          "unit": "",
+          "term": "epoch_time",
+          "group": "time"
+        },
+        "validity": {
+          "label": "유효 시간",
+          "unit": "s",
+          "term": "validity",
+          "group": "time"
+        },
+        "pos_x": {
+          "label": "위성 위치 X",
+          "unit": "km",
+          "term": "ecef",
+          "group": "orbit"
+        },
+        "pos_y": {
+          "label": "위성 위치 Y",
+          "unit": "km",
+          "term": "ecef",
+          "group": "orbit"
+        },
+        "pos_z": {
+          "label": "위성 위치 Z",
+          "unit": "km",
+          "term": "ecef",
+          "group": "orbit"
+        },
+        "vel_x": {
+          "label": "위성 속도 X",
+          "unit": "km/s",
+          "term": "ecef",
+          "group": "orbit"
+        },
+        "vel_y": {
+          "label": "위성 속도 Y",
+          "unit": "km/s",
+          "term": "ecef",
+          "group": "orbit"
+        },
+        "vel_z": {
+          "label": "위성 속도 Z",
+          "unit": "km/s",
+          "term": "ecef",
+          "group": "orbit"
+        },
+        "altitude": {
+          "label": "위성 고도",
+          "unit": "km",
+          "group": "orbit"
+        },
+        "speed": {
+          "label": "위성 속력",
+          "unit": "km/s",
+          "group": "orbit"
+        },
+        "k_offset": {
+          "label": "cellSpecificKoffset",
+          "unit": "ms",
+          "term": "k_offset",
+          "group": "delay"
+        },
+        "kmac": {
+          "label": "kmac",
+          "unit": "ms",
+          "group": "delay"
+        },
+        "ta_common": {
+          "label": "공통 TA (ta-Common)",
+          "unit": "µs",
+          "term": "ta_common",
+          "group": "delay"
+        },
+        "ta_drift": {
+          "label": "공통 TA 변화율",
+          "unit": "µs/s",
+          "term": "ta_common",
+          "group": "delay"
+        },
+        "ta_drift_variant": {
+          "label": "공통 TA 변화율의 변화",
+          "unit": "µs/s²",
+          "term": "ta_common",
+          "group": "delay"
+        },
+        "polarization": {
+          "label": "하향 편파",
+          "unit": "",
+          "group": "other"
+        },
+        "ref_location": {
+          "label": "기준 위치",
+          "unit": "",
+          "group": "other"
+        },
+        "distance_thresh": {
+          "label": "거리 기준",
+          "unit": "km",
+          "group": "other"
+        },
+        "t_service": {
+          "label": "서비스 종료 시각",
+          "unit": "",
+          "group": "other"
+        },
+        "n_neighbours": {
+          "label": "이웃 NTN 셀",
+          "unit": "개",
+          "group": "other"
+        }
+      },
+      "derivations": {
+        "pos": {
+          "title": "위성 위치 단위 환산"
+        },
+        "vel": {
+          "title": "위성 속도 단위 환산"
+        },
+        "altitude": {
+          "title": "위성 고도"
+        },
+        "speed": {
+          "title": "위성 속력"
+        },
+        "ta_common": {
+          "title": "ta-Common 단위 환산"
+        },
+        "ta_drift": {
+          "title": "ta-CommonDrift 단위 환산"
+        },
+        "ta_drift_variant": {
+          "title": "ta-CommonDriftVariant 단위 환산"
+        },
+        "validity": {
+          "title": "유효 시간"
+        },
+        "k_offset": {
+          "title": "K_offset을 시간으로"
+        }
+      },
+      "plots": {
+        "si_windows": {
+          "title": "SIB19를 기다린 시간 창",
+          "caption": "SIB1의 시간표로 계산한 창 안에서 SIB19를 찾았습니다.",
+          "x": "시간",
+          "y": ""
+        },
+        "fields": {
+          "title": "SIB19에 적힌 값",
+          "caption": "원시값과, 표준의 단위로 바꾼 물리량입니다."
+        }
+      },
+      "columns": {
+        "field": "필드",
+        "raw": "원시값",
+        "physical": "물리량",
+        "unit": "단위"
+      },
+      "annotations": {
+        "window": "SI 창",
+        "found": "SIB19 수신"
+      },
+      "diagnostics": {
+        "NOT_SCHEDULED": [
+          {
+            "message": "이 기지국은 SIB19를 방송하지 않습니다. 위성이 아니라 지상 기지국으로 보입니다.",
+            "fix": "위성 대역(n255, n256)에서 다시 스캔해 보세요.",
+            "action": {
+              "label": "스캔으로 돌아가기",
+              "kind": "goto",
+              "target": "scan"
+            }
+          }
+        ],
+        "SI_TIMEOUT": [
+          {
+            "message": "수집한 구간에 SIB19의 창이 들어 있지 않습니다.",
+            "fix": "SI 주기만큼 더 길게 받아야 합니다.",
+            "action": {
+              "label": "SI 주기만큼 길게 받아 다시 시도",
+              "kind": "rerun",
+              "params": {
+                "cover_si_period": true
+              }
+            }
+          },
+          {
+            "message": "위성이 지나가며 신호가 약해졌을 수 있습니다.",
+            "fix": "SSB 동기부터 다시 실행해 보세요.",
+            "action": {
+              "label": "SSB부터 다시",
+              "kind": "rerun",
+              "target": "ssb",
+              "params": {}
+            }
+          }
+        ],
+        "PDSCH_CRC_FAIL": [
+          {
+            "message": "제어 신호는 찾았지만 본문에 오류가 있습니다.",
+            "fix": "다음 주기의 전송을 받아 보세요.",
+            "action": {
+              "label": "다시 시도",
+              "kind": "rerun",
+              "params": {}
+            }
+          }
+        ],
+        "ASN1_FAIL": [
+          {
+            "message": "본문은 받았지만 내용을 해석하지 못했습니다.",
+            "fix": "받은 바이트를 전문가 정보에서 확인하세요."
+          }
+        ]
+      }
+    }
+  ]
+}

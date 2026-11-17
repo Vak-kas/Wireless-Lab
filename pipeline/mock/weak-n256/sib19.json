@@ -1,0 +1,1 @@
+{"stage":"sib19","ok":true,"error_code":"","error_detail":"","measurements":{"windows":[{"sfn":416,"slot":0,"start_sample":0,"found":true}],"messages":[{"crc_ok":true,"tbs":288,"sfn":416,"slot":3}]},"bits":{"tb_hex_list":["002247d03b4d20181783bf4b8fb42c00007607caa34eae08c09214e655246d2a94200000"]},"soft":{},"plots":{}}

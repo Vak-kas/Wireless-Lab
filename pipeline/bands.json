@@ -1,0 +1,15 @@
+{
+  "_comment": "대역 정보. 주파수 범위·SSB SCS·배치(Case)는 TS 38.104 표 5.2-1, 5.4.3.3-1 과 TS 38.101-5(NTN 대역)에 따른다. 원문을 specs/에 두지 못해 대조하지 못했다(verified=false). 사람이 원문으로 확인한 뒤 true로 바꿀 것.",
+  "bands": [
+    { "id": "n1",   "label": "n1 · 2.1 GHz",          "dl_lo_mhz": 2110,   "dl_hi_mhz": 2170, "paired": true,  "ssb": [{ "scs_khz": 15, "pattern": "A" }], "min_bw_mhz": 5,  "ntn": false, "verified": false },
+    { "id": "n3",   "label": "n3 · 1.8 GHz",          "dl_lo_mhz": 1805,   "dl_hi_mhz": 1880, "paired": true,  "ssb": [{ "scs_khz": 15, "pattern": "A" }], "min_bw_mhz": 5,  "ntn": false, "verified": false },
+    { "id": "n28",  "label": "n28 · 700 MHz",         "dl_lo_mhz": 758,    "dl_hi_mhz": 803,  "paired": true,  "ssb": [{ "scs_khz": 15, "pattern": "A" }], "min_bw_mhz": 5,  "ntn": false, "verified": false },
+    { "id": "n41",  "label": "n41 · 2.5 GHz",         "dl_lo_mhz": 2496,   "dl_hi_mhz": 2690, "paired": false, "ssb": [{ "scs_khz": 15, "pattern": "A" }, { "scs_khz": 30, "pattern": "C" }], "min_bw_mhz": 10, "ntn": false, "verified": false },
+    { "id": "n77",  "label": "n77 · 3.7 GHz",         "dl_lo_mhz": 3300,   "dl_hi_mhz": 4200, "paired": false, "ssb": [{ "scs_khz": 30, "pattern": "C" }], "min_bw_mhz": 10, "ntn": false, "verified": false },
+    { "id": "n78",  "label": "n78 · 3.5 GHz",         "dl_lo_mhz": 3300,   "dl_hi_mhz": 3800, "paired": false, "ssb": [{ "scs_khz": 30, "pattern": "C" }], "min_bw_mhz": 10, "ntn": false, "verified": false },
+    { "id": "n79",  "label": "n79 · 4.7 GHz",         "dl_lo_mhz": 4400,   "dl_hi_mhz": 5000, "paired": false, "ssb": [{ "scs_khz": 30, "pattern": "C" }], "min_bw_mhz": 40, "ntn": false, "verified": false },
+    { "id": "n254", "label": "n254 · 위성 S대역 (2.4 GHz)", "dl_lo_mhz": 2483.5, "dl_hi_mhz": 2500, "paired": true, "ssb": [{ "scs_khz": 15, "pattern": "A" }], "min_bw_mhz": 5, "ntn": true, "verified": false },
+    { "id": "n255", "label": "n255 · 위성 L대역",      "dl_lo_mhz": 1525,   "dl_hi_mhz": 1559, "paired": true,  "ssb": [{ "scs_khz": 15, "pattern": "A" }], "min_bw_mhz": 5,  "ntn": true,  "verified": false },
+    { "id": "n256", "label": "n256 · 위성 S대역",      "dl_lo_mhz": 2170,   "dl_hi_mhz": 2200, "paired": true,  "ssb": [{ "scs_khz": 15, "pattern": "A" }], "min_bw_mhz": 5,  "ntn": true,  "verified": false }
+  ]
+}
