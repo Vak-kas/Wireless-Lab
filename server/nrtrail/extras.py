@@ -55,6 +55,13 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
             raise HTTPException(501, "휴대폰 연동은 아직 구현되지 않았습니다 (M9).") from None
         return await asyncio.to_thread(read_phone)
 
+    try:
+        from . import report
+    except ImportError:
+        pass
+    else:
+        report.register(app, store, pipeline, session)
+
     tracking: Any
     try:
         tracking = importlib.import_module(".tracking", __package__)

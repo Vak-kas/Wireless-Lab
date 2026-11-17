@@ -133,7 +133,8 @@ def dci_1_0_si_parse(bits: str, n_rb_coreset0: int) -> Dci10Si:
         vals.append(v)
         fields.append((name, f"{pos + 1}-{pos + n}" if n > 1 else f"{pos + 1}", v))
         pos += n
-    return Dci10Si(*vals, n_bits=total, fields=fields)
+    riv, tdra, vrb, mcs, rv, si, reserved = vals
+    return Dci10Si(riv, tdra, vrb, mcs, rv, si, reserved, total, fields)
 
 
 def dci_1_0_si_build(n_rb_coreset0: int, riv: int, tdra: int, vrb_to_prb: int, mcs: int, rv: int, si_indicator: int) -> str:

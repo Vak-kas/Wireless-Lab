@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
-from nrtrail import mockraw  # noqa: E402
+from nrtrail import doctor, mockraw, tracking  # noqa: E402
 from nrtrail.engines.mock import MOCK, MockEngine  # noqa: E402
 from nrtrail.paths import PIPELINE, ROOT, WEB  # noqa: E402
 from nrtrail.pipeline import load_glossary, load_pipeline  # noqa: E402
@@ -55,8 +56,21 @@ def main() -> int:
             ntn_result = ntn.compute(SimpleNamespace(state=state), loc["lat"], loc["lon"], loc["alt_m"])
             dump(FIXTURES / sc["id"] / "ntn.json", ntn_result.model_dump(mode="json", exclude_none=True))
             line.append(f"ntn={ntn_result.status}")
+            with tempfile.TemporaryDirectory() as tmp:
+                fake = SimpleNamespace(state=state, dir=Path(tmp), id=sc["id"])
+                tracker = tracking.Tracker(fake, pipeline, engine)  # type: ignore[arg-type]
+                tracker.interval_s = 2.0
+                tracker.points = [tracker.iterate(i * tracker.interval_s, i) for i in range(11)]
+                dump(FIXTURES / sc["id"] / "track.json", tracker.data())
+                dump(FIXTURES / sc["id"] / "track-changes.json", tracker.changes)
+            line.append("track=11")
         print(f"{sc['id']}: " + ", ".join(line))
     dump(FIXTURES / "pipeline.json", pipeline.public())
+    report = doctor.run_checks(quick=True)
+    for c in report["checks"]:  # 이 컴퓨터의 경로는 예시 데이터에 넣지 않는다
+        if c["id"] == "matlab" and c["status"] == "ok":
+            c["detail"] = "matlab"
+    dump(FIXTURES / "doctor.json", report)
     dump(FIXTURES / "glossary.json", load_glossary())
     dump(FIXTURES / "scenarios.json", [{k: s[k] for k in ("id", "title", "description", "band") if k in s} | {"recommended": s.get("recommended", False)}
                                        for s in scenarios])

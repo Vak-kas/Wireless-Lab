@@ -1572,6 +1572,144 @@
           }
         ]
       }
+    },
+    {
+      "id": "track",
+      "requires": [
+        "sib19"
+      ],
+      "label": "추적",
+      "title": "추적",
+      "question": "시간이 지나면 무엇이 변하나",
+      "intro": "같은 기지국을 일정 간격으로 다시 읽어, 값이 어떻게 변하는지 기록합니다.",
+      "spec_refs": [],
+      "summary": {
+        "ok_easy": "",
+        "ok_expert": "",
+        "fail_easy": "",
+        "fail_expert": ""
+      },
+      "progress": {},
+      "groups": {},
+      "values": {
+        "cfo_hz": {
+          "label": "측정 CFO",
+          "unit": "Hz"
+        },
+        "timing_drift_samples": {
+          "label": "타이밍 변화",
+          "unit": "샘플"
+        },
+        "rsrp_dbfs": {
+          "label": "신호 세기 (SS-RSRP)",
+          "unit": "dBFS"
+        },
+        "sinr_db": {
+          "label": "신호 품질 (SS-SINR)",
+          "unit": "dB"
+        },
+        "doppler_pred_hz": {
+          "label": "도플러 (궤도로 예측)",
+          "unit": "Hz"
+        },
+        "doppler_residual_hz": {
+          "label": "측정 − 예측",
+          "unit": "Hz"
+        },
+        "ta_total_ms": {
+          "label": "전체 TA",
+          "unit": "ms"
+        },
+        "range_km": {
+          "label": "위성까지 거리",
+          "unit": "km"
+        },
+        "elevation_deg": {
+          "label": "고도각",
+          "unit": "°"
+        },
+        "validity_left_s": {
+          "label": "남은 유효 시간",
+          "unit": "s"
+        }
+      },
+      "fields": {
+        "epoch_sfn": "epochTime SFN",
+        "epoch_subframe": "epochTime 서브프레임",
+        "validity_s": "유효 시간",
+        "k_offset": "cellSpecificKoffset",
+        "ta_common": "ta-Common",
+        "ta_drift": "ta-CommonDrift",
+        "ta_drift_variant": "ta-CommonDriftVariant",
+        "pos_x": "positionX",
+        "pos_y": "positionY",
+        "pos_z": "positionZ",
+        "vel_x": "velocityVX",
+        "vel_y": "velocityVY",
+        "vel_z": "velocityVZ"
+      },
+      "derivations": {},
+      "plots": {},
+      "columns": {},
+      "annotations": {},
+      "diagnostics": {
+        "REPLAY_NOTE": [
+          {
+            "level": "info",
+            "message": "저장된 신호를 다시 읽는 중이라 측정값은 매번 같습니다. 시간에 따라 변하는 것은 궤도로 계산한 값입니다.",
+            "fix": "실제 변화를 보려면 장비로 실시간 수신하세요."
+          }
+        ]
+      }
+    },
+    {
+      "id": "report",
+      "requires": [],
+      "label": "리포트",
+      "title": "세션 리포트",
+      "spec_refs": [],
+      "summary": {
+        "ok_easy": "",
+        "ok_expert": "",
+        "fail_easy": "",
+        "fail_expert": ""
+      },
+      "progress": {},
+      "groups": {},
+      "values": {},
+      "derivations": {},
+      "plots": {},
+      "columns": {},
+      "annotations": {},
+      "diagnostics": {},
+      "text": {
+        "created": "만든 시각",
+        "source": "입력",
+        "engine": "엔진",
+        "status_ok": "성공",
+        "status_partial": "주의",
+        "status_fail": "실패",
+        "values": "주요 값",
+        "derivations": "계산 과정",
+        "inputs": "입력",
+        "steps": "풀이",
+        "result": "결과",
+        "diagnostics": "안내",
+        "expert": "전문가 요약",
+        "not_run": "실행하지 않음",
+        "refs": "표준 조항",
+        "footer": "nrtrail이 만든 리포트입니다. 수신 전용 도구이며, 값은 받은 방송 정보와 그로부터 계산한 것입니다.",
+        "print": "인쇄 / PDF로 저장",
+        "kind_synthetic": "연습용 합성 신호",
+        "kind_file": "저장 파일",
+        "kind_device": "장비 수신",
+        "track": "추적 기록",
+        "changes": "SIB19 변경 이력",
+        "before": "이전 값",
+        "after": "새 값",
+        "time": "시각",
+        "field": "필드"
+      }
     }
   ]
 }

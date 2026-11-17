@@ -40,6 +40,7 @@ def steps(args: list[str]) -> list[tuple[str, str, list[str], Path]]:
         pass
     elif matlab and (MATLAB_DIR / "tests").exists():
         out.append(("matlab", "MATLAB 테스트", [matlab, "-batch", "run_tests"], MATLAB_DIR))
+        out.append(("matlab", "pytest (MATLAB 엔진 연동)", [venv_bin("pytest"), "-m", "matlab"], ROOT))
     if "--no-e2e" not in args:
         out.append(("e2e", "Playwright", [NPM, "run", "--silent", "e2e"], WEB))
     return [s for s in out if only in (None, s[0])]

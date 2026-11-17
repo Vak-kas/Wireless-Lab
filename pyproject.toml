@@ -32,7 +32,8 @@ include = ["nrtrail*"]
 
 [tool.pytest.ini_options]
 testpaths = ["server/tests"]
-addopts = "-q"
+addopts = "-q -m 'not matlab'"
+markers = ["matlab: 실제 MATLAB을 띄우는 느린 테스트 (pytest -m matlab)"]
 filterwarnings = ["ignore:.*on_event is deprecated.*:DeprecationWarning"]
 
 [tool.ruff]
