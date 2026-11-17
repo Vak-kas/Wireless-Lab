@@ -11,7 +11,7 @@ import { StoreProvider, useStore } from "./state/store";
 
 function Screens() {
   const route = useRoute();
-  const { ready, session, open, error } = useStore();
+  const { ready, session, open, error, lang } = useStore();
 
   // 주소에 세션이 있으면 그 세션을 연다. 없는 세션이면 시작 화면으로 돌아간다.
   useEffect(() => {
@@ -20,8 +20,12 @@ function Screens() {
   }, [ready, route.sessionId, session?.id, open]);
 
   const waiting = route.sessionId !== undefined && session?.id !== route.sessionId;
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   return (
-    <>
+    <div key={lang}>
       <GlobalNav route={route} />
       <main>
         {!ready || waiting ? (
@@ -41,7 +45,7 @@ function Screens() {
         )}
       </main>
       <StickyBar />
-    </>
+    </div>
   );
 }
 

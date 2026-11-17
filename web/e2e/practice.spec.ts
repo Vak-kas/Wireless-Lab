@@ -115,3 +115,14 @@ test("휴대폰 연동: 휴대폰이 없어도 이유를 알려 주고 화면은
   await expect(page.getByTestId("phone-status").or(page.getByTestId("phone-cells"))).toBeVisible();
   await page.locator("#phone").screenshot({ path: path.join(SHOTS, "11-phone.png") });
 });
+
+test("언어: 영어로 바꾸면 화면 문구가 바뀌고, 다시 한국어로 돌아온다", async ({ page }) => {
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByTestId("settings-save").click();
+  await expect(page.getByRole("link", { name: "Start", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Environment check" })).toBeVisible();
+  await page.getByRole("button", { name: "한국어" }).click();
+  await page.getByTestId("settings-save").click();
+  await expect(page.getByRole("link", { name: "시작", exact: true })).toBeVisible();
+});

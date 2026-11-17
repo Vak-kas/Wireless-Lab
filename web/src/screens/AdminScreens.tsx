@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { DeviceInfo, DoctorReport, Session, Settings } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
-import { setLang, t } from "../i18n";
+import { t } from "../i18n";
 import { href } from "../router";
 import { useStore } from "../state/store";
 
@@ -82,7 +82,7 @@ type NumKey = "lat" | "lon" | "alt_m";
 
 /** 7. 설정 / 점검: 장비, 사용자 위치, 기준값, doctor 결과. */
 export function SettingsScreen() {
-  const { api } = useStore();
+  const { api, setLanguage } = useStore();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
   const [doctor, setDoctor] = useState<DoctorReport | null>(null);
@@ -119,7 +119,7 @@ export function SettingsScreen() {
   const invalid = (["lat", "lon", "alt_m"] as NumKey[]).some((k) => locError(k));
   const save = async () => {
     setSettings(await api.saveSettings(settings));
-    setLang(settings.lang);
+    setLanguage(settings.lang);
     setSaved(true);
   };
   const numInput = (value: number | undefined, onChange: (v: number) => void, p: object) => (

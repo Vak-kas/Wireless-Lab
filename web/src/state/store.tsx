@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api as defaultApi } from "../api";
+import { getLang, setLang, type Lang } from "../i18n";
 import type { Api, Glossary, JobEvent, PipelineDef, Session, Source, StageDef, StageResult, StageState } from "../api";
 
 export interface Job {
@@ -13,6 +14,9 @@ export interface Store {
   pipeline: PipelineDef;
   glossary: Glossary;
   ready: boolean;
+  /** 화면 언어. 바꾸면 문구 전체가 다시 그려진다. */
+  lang: Lang;
+  setLanguage(lang: Lang): void;
   session: Session | null;
   results: Record<string, StageResult>;
   job: Job | null;
@@ -41,6 +45,7 @@ export function StoreProvider({ children, api = defaultApi }: { children: ReactN
   const [pipeline, setPipeline] = useState<PipelineDef>({ stages: [] });
   const [glossary, setGlossary] = useState<Glossary>({});
   const [ready, setReady] = useState(false);
+  const [lang, setLangState] = useState<Lang>(getLang());
   const [session, setSession] = useState<Session | null>(null);
   const [results, setResults] = useState<Record<string, StageResult>>({});
   const [job, setJob] = useState<Job | null>(null);
@@ -50,11 +55,15 @@ export function StoreProvider({ children, api = defaultApi }: { children: ReactN
 
   useEffect(() => {
     let alive = true;
-    Promise.all([api.pipeline(), api.glossary()])
-      .then(([p, g]) => {
+    Promise.all([api.pipeline(), api.glossary(), api.settings().catch(() => null)])
+      .then(([p, g, st]) => {
         if (!alive) return;
         setPipeline(p);
         setGlossary(g);
+        if (st && (st.lang === "ko" || st.lang === "en")) {
+          setLang(st.lang);
+          setLangState(st.lang);
+        }
         setReady(true);
       })
       .catch((e: unknown) => alive && setError(String(e instanceof Error ? e.message : e)));
@@ -124,6 +133,11 @@ export function StoreProvider({ children, api = defaultApi }: { children: ReactN
       pipeline,
       glossary,
       ready,
+      lang,
+      setLanguage(next) {
+        setLang(next);
+        setLangState(next);
+      },
       session,
       results,
       job,
@@ -170,7 +184,7 @@ export function StoreProvider({ children, api = defaultApi }: { children: ReactN
       setSession,
       clearError: () => setError(null),
     };
-  }, [api, pipeline, glossary, ready, session, results, job, error, attach]);
+  }, [api, pipeline, glossary, ready, lang, session, results, job, error, attach]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
