@@ -1,0 +1,1877 @@
+{
+ "_comment": "English overlay for stages.json. Same structure; an empty string means 'use the Korean text'. Keep list lengths equal to stages.json.",
+ "stages": [
+  {
+   "label": "Scan",
+   "title": "Band scan",
+   "question": "Which base stations are around?",
+   "intro": "Looks at each allowed frequency position in turn and checks whether a base station is sending a synchronisation signal there.",
+   "analogy": "Like turning a radio dial to find the channels that are on air.",
+   "button": "Start scan",
+   "summary": {
+    "ok_easy": "Found {count} base station(s). The strongest is at {freq_mhz} MHz.",
+    "ok_expert": "{count} cell(s), strongest GSCN {gscn} ({freq_mhz} MHz), PCI {pci}, peak/noise {pnr} dB",
+    "fail_easy": "No base station signal was found in this band.",
+    "fail_expert": "PSS correlation peak below threshold ({threshold} dB) on all {n_candidates} candidates"
+   },
+   "progress": {
+    "scan.read": "Reading the received signal",
+    "scan.candidate": "Checking each position where an SSB could be",
+    "scan.cells": "Confirming the cell IDs",
+    "scan.done": "Putting the scan result together"
+   },
+   "values": {
+    "n_cells": {
+     "label": "",
+     "unit": ""
+    },
+    "best_freq": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "best_gscn": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "best_pci": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "best_pnr": {
+     "label": "",
+     "unit": ""
+    },
+    "best_cfo": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    }
+   },
+   "derivations": {
+    "gscn": {
+     "title": ""
+    },
+    "pci": {
+     "title": ""
+    }
+   },
+   "plots": {
+    "spectrum": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "cells": {
+     "title": "",
+     "caption": ""
+    }
+   },
+   "columns": {
+    "gscn": "",
+    "freq_mhz": "",
+    "ssb_scs_khz": "",
+    "pci": "",
+    "pnr_db": "",
+    "cfo_hz": "",
+    "rel_power_db": "",
+    "n_ssb": ""
+   },
+   "annotations": {
+    "candidate": "",
+    "detected": ""
+   },
+   "diagnostics": {
+    "NO_CELL": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "gain_delta_db": 10
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "duration_scale": 2
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ],
+    "NO_CANDIDATE": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ],
+    "CAPTURE_TOO_SHORT": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "duration_scale": 2
+       }
+      }
+     }
+    ],
+    "RSSI_ONLY_DEVICE": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ]
+   }
+  },
+  {
+   "locked_reason": "Scan first to find a base station to follow.",
+   "label": "SSB",
+   "title": "SSB sync",
+   "question": "Getting in step with the base station",
+   "intro": "Aligns time and frequency to the 'here I am' signal (SSB) that the base station sends at regular intervals.",
+   "analogy": "Finding a lighthouse and setting your watch to its flashes.",
+   "button": "Synchronise to SSB",
+   "summary": {
+    "ok_easy": "Found the base station's beacon (SSB) and got in step with it.",
+    "ok_expert": "PCI {pci}, SSB #{ssb_index}, timing {timing_us} µs, CFO {cfo_hz} Hz ({cfo_ppm} ppm), SINR {sinr} dB",
+    "fail_easy": "Could not find an SSB.",
+    "fail_expert": "No PSS correlation peak (search ±{cfo_search_khz} kHz)"
+   },
+   "progress": {
+    "ssb.read": "Reading the received signal",
+    "ssb.pss": "Finding where the SSB starts",
+    "ssb.fine_cfo": "Measuring and correcting the frequency offset",
+    "ssb.pbch": "Unfolding the SSB into a grid and checking which SSB it is",
+    "ssb.done": "Summarising signal strength and quality"
+   },
+   "values": {
+    "pci": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "nid1": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "nid2": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "ssb_index": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "timing_samples": {
+     "label": "",
+     "unit": ""
+    },
+    "timing_us": {
+     "label": "",
+     "unit": ""
+    },
+    "cfo_hz": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "cfo_ppm": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "cfo_search": {
+     "label": "",
+     "unit": ""
+    },
+    "rsrp": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "note": ""
+    },
+    "sinr": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    }
+   },
+   "derivations": {
+    "pci": {
+     "title": ""
+    },
+    "timing_us": {
+     "title": ""
+    },
+    "cfo_total": {
+     "title": ""
+    },
+    "cfo_ppm": {
+     "title": ""
+    },
+    "ssb_index": {
+     "title": ""
+    }
+   },
+   "plots": {
+    "correlation": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "ssb_grid": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "constellation": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    }
+   },
+   "annotations": {
+    "peak": "",
+    "PSS": "",
+    "SSS": "",
+    "PBCH": "",
+    "PBCH DM-RS": ""
+   },
+   "diagnostics": {
+    "NO_SSB": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "gain_delta_db": 10
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "cfo_search_scale": 2
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ],
+    "LOW_SNR": [
+     {
+      "level": "",
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "gain_delta_db": 10
+       }
+      }
+     }
+    ],
+    "RSRP_UNCALIBRATED": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "WIDE_CFO_SEARCH": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "DMRS_AMBIGUOUS": [
+     {
+      "level": "",
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {}
+      }
+     }
+    ]
+   }
+  },
+  {
+   "locked_reason": "Synchronise to the SSB first.",
+   "label": "MIB",
+   "title": "MIB",
+   "question": "Reading the basic notice board",
+   "intro": "Reads the most basic notice (MIB) carried in the SSB: which frame we are in and where to get the detailed notice (SIB1).",
+   "analogy": "Reading the sign on a shop door: is it open, and where do I get more information?",
+   "button": "Read MIB",
+   "summary": {
+    "ok_easy": "Read the base station's basic notice board (MIB).",
+    "ok_expert": "PBCH CRC OK, SFN={sfn}, half frame={hrf}, k_SSB={k_ssb}, CORESET0 idx={coreset0}, SS0 idx={ss0}",
+    "fail_easy": "Could not read the notice board (MIB).",
+    "fail_expert": "PBCH CRC mismatch"
+   },
+   "progress": {
+    "mib.decode": "Decoding and checking the notice",
+    "mib.done": "Interpreting the contents"
+   },
+   "values": {
+    "sfn": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "half_frame": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "ssb_index": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "k_ssb": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "sib1_present": {
+     "label": "",
+     "unit": ""
+    },
+    "scs_common": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "dmrs_typea_pos": {
+     "label": "",
+     "unit": ""
+    },
+    "pdcch_config_sib1": {
+     "label": "",
+     "unit": ""
+    },
+    "coreset0_index": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "ss0_index": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "cell_barred": {
+     "label": "",
+     "unit": ""
+    },
+    "intra_freq": {
+     "label": "",
+     "unit": ""
+    },
+    "frame_start": {
+     "label": "",
+     "unit": ""
+    },
+    "coreset0_rbs": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "coreset0_symbols": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "coreset0_offset": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "coreset0_bw": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "monitor_slot": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "monitor_symbol": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    },
+    "point_a": {
+     "label": "",
+     "unit": "",
+     "term": ""
+    }
+   },
+   "derivations": {
+    "sfn": {
+     "title": ""
+    },
+    "ssb_index": {
+     "title": ""
+    },
+    "k_ssb": {
+     "title": ""
+    },
+    "pdcch_config": {
+     "title": ""
+    },
+    "frame_start": {
+     "title": ""
+    },
+    "coreset0": {
+     "title": ""
+    },
+    "coreset0_bw": {
+     "title": ""
+    },
+    "monitor": {
+     "title": ""
+    },
+    "point_a": {
+     "title": ""
+    }
+   },
+   "plots": {
+    "payload": {
+     "title": "",
+     "caption": ""
+    },
+    "frame": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    }
+   },
+   "columns": {
+    "field": "",
+    "bits": "",
+    "raw": "",
+    "meaning": ""
+   },
+   "annotations": {
+    "ssb": "",
+    "frame_start": ""
+   },
+   "diagnostics": {
+    "PBCH_CRC_FAIL": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": "",
+       "params": {
+        "gain_delta_db": 10
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": "",
+       "params": {}
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ],
+    "NO_SIB1_HERE": [
+     {
+      "level": "",
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ],
+    "CELL_BARRED": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "DEVICE_BW_TOO_NARROW": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ]
+   }
+  },
+  {
+   "locked_reason": "The MIB tells us where SIB1 is; read it first.",
+   "label": "SIB1",
+   "title": "SIB1",
+   "question": "Reading the access guide",
+   "intro": "Receives and interprets the detailed notice (SIB1) at the place the MIB pointed to: which network this is and which further notices are broadcast when.",
+   "analogy": "Picking up a leaflet at the information desk.",
+   "button": "Read SIB1",
+   "summary": {
+    "ok_easy": "This base station belongs to network {plmn}. It broadcasts {si_count} further notice(s).",
+    "ok_expert": "DCI 1_0 @AL{al}, RIV={riv} → RB {rb_start}+{rb_len}, MCS {mcs}, TBS {tbs} bit, CRC OK",
+    "fail_easy": "Could not read SIB1.",
+    "fail_expert": "{reason}"
+   },
+   "progress": {
+    "sib1.read": "Reading the part that carries SIB1",
+    "sib1.pdcch": "Looking for the control signal (PDCCH) that points to SIB1",
+    "sib1.dci": "Interpreting the control information (DCI)",
+    "sib1.pdsch": "Decoding the SIB1 body (PDSCH)",
+    "sib1.asn1": "Interpreting the contents"
+   },
+   "groups": {
+    "identity": "",
+    "frequency": "",
+    "rach": "",
+    "ssb": "",
+    "si": "",
+    "ntn": "",
+    "dci": ""
+   },
+   "values": {
+    "plmn": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "tac": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "cell_id": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "q_rxlevmin": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "band": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "offset_to_point_a": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "carrier_bw": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "carrier_bw_mhz": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "initial_bwp": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "prach_config_index": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "msg1_fdm": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "msg1_freq_start": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "zczc": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "root_seq": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "ra_window": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "msg1_scs": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "ssb_positions": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "ssb_period": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "n_ta_offset": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "tdd": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "si_window": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "si_list": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "has_sib19": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "sib19_window_start": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "cell_barred_ntn": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_al": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_riv": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_rb": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_tdra": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_symbols": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_mcs": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_rv": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "dci_si_indicator": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "tbs": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "point_a": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "ul_point_a": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "duplex": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "prach_format": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "prach_when": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "dci_tdra_row": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    }
+   },
+   "derivations": {
+    "riv": {
+     "title": ""
+    },
+    "tdra": {
+     "title": ""
+    },
+    "tbs": {
+     "title": ""
+    },
+    "carrier_bw_mhz": {
+     "title": ""
+    },
+    "initial_bwp": {
+     "title": ""
+    },
+    "si_window": {
+     "title": ""
+    },
+    "prach": {
+     "title": ""
+    },
+    "q_rxlevmin": {
+     "title": ""
+    },
+    "n_ta_offset": {
+     "title": ""
+    },
+    "point_a": {
+     "title": ""
+    },
+    "ul_freq": {
+     "title": ""
+    }
+   },
+   "plots": {
+    "coreset_grid": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "constellation": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "si_schedule": {
+     "title": "",
+     "caption": ""
+    }
+   },
+   "columns": {
+    "sib": "",
+    "period": "",
+    "window": "",
+    "status": ""
+   },
+   "annotations": {
+    "CORESET0": "",
+    "PDCCH": "",
+    "PDSCH": "",
+    "PDSCH DM-RS": ""
+   },
+   "diagnostics": {
+    "NO_PDCCH": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "widen": true
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "gain_delta_db": 10
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": "",
+       "params": {}
+      }
+     }
+    ],
+    "PDSCH_CRC_FAIL": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "gain_delta_db": 10
+       }
+      }
+     }
+    ],
+    "ASN1_FAIL": [
+     {
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "NO_SIB19": [
+     {
+      "level": "",
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ]
+   }
+  },
+  {
+   "locked_reason": "SIB1's schedule tells us when SIB19 is broadcast; read it first.",
+   "label": "SIB19",
+   "title": "SIB19",
+   "question": "Reading the satellite guide",
+   "intro": "Receives SIB19, which only satellite (NTN) base stations broadcast: where the satellite is, which way it moves, and how much delay to compensate.",
+   "analogy": "A note from a moving satellite saying 'I am here now and heading this way'.",
+   "button": "Read SIB19",
+   "summary": {
+    "ok_easy": "Read the satellite base station's guide (SIB19). The satellite is about {altitude_km} km up, moving at {speed_kms} km/s.",
+    "ok_expert": "{windows} SI window(s) checked, received {sibs}, epochTime SFN {epoch_sfn}/sf {epoch_sf}, K_offset {k_offset}, ta-Common {ta_common}",
+    "fail_easy": "Could not receive SIB19.",
+    "fail_expert": "{reason}"
+   },
+   "progress": {
+    "si.window": "Working out the time window in which SIB19 is broadcast",
+    "si.read": "Reading that part of the signal",
+    "si.pdcch": "Looking for the control signal",
+    "si.pdsch": "Decoding the body",
+    "si.asn1": "Interpreting the contents"
+   },
+   "groups": {
+    "time": "",
+    "orbit": "",
+    "delay": "",
+    "other": ""
+   },
+   "values": {
+    "received_sibs": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "epoch_sfn": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "epoch_subframe": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "validity": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "pos_x": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "pos_y": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "pos_z": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "vel_x": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "vel_y": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "vel_z": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "altitude": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "speed": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "k_offset": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "kmac": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "ta_common": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "ta_drift": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "ta_drift_variant": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "polarization": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "ref_location": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "distance_thresh": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "t_service": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "n_neighbours": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    }
+   },
+   "derivations": {
+    "pos": {
+     "title": ""
+    },
+    "vel": {
+     "title": ""
+    },
+    "altitude": {
+     "title": ""
+    },
+    "speed": {
+     "title": ""
+    },
+    "ta_common": {
+     "title": ""
+    },
+    "ta_drift": {
+     "title": ""
+    },
+    "ta_drift_variant": {
+     "title": ""
+    },
+    "validity": {
+     "title": ""
+    },
+    "k_offset": {
+     "title": ""
+    }
+   },
+   "plots": {
+    "si_windows": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "fields": {
+     "title": "",
+     "caption": ""
+    }
+   },
+   "columns": {
+    "field": "",
+    "raw": "",
+    "physical": "",
+    "unit": ""
+   },
+   "annotations": {
+    "window": "",
+    "found": ""
+   },
+   "diagnostics": {
+    "NOT_SCHEDULED": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ],
+    "SI_TIMEOUT": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {
+        "cover_si_period": true
+       }
+      }
+     },
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": "",
+       "params": {}
+      }
+     }
+    ],
+    "PDSCH_CRC_FAIL": [
+     {
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "params": {}
+      }
+     }
+    ],
+    "ASN1_FAIL": [
+     {
+      "message": "",
+      "fix": ""
+     }
+    ]
+   }
+  }
+ ],
+ "views": [
+  {
+   "label": "NTN",
+   "title": "Satellite calculations",
+   "question": "Where is the satellite, and how late does the signal arrive?",
+   "intro": "Uses the satellite position in SIB19 and your location to work out distance, delay and Doppler.",
+   "analogy": "",
+   "button": "Recalculate",
+   "locked_reason": "SIB19 gives the satellite position; read it first.",
+   "summary": {
+    "ok_easy": "The satellite is {elevation}° above the horizon and the signal takes {delay_ms} ms to arrive.",
+    "ok_expert": "d={range_km} km, el={elevation}°, az={azimuth}°, T_TA={ta_ms} ms, Doppler predicted {doppler} Hz / measured {cfo} Hz (residual {residual} Hz)",
+    "fail_easy": "The satellite calculations cannot be done.",
+    "fail_expert": "{reason}"
+   },
+   "progress": {},
+   "groups": {
+    "time": "",
+    "geometry": "",
+    "delay": "",
+    "doppler": "",
+    "rate": ""
+   },
+   "values": {
+    "dt": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "validity_left": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "sat_lat": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "sat_lon": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "altitude": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "speed": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "range": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "elevation": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "azimuth": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "service_delay": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "ta_ue": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "common_delay": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "ta_common": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "ta_total": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "k_offset_ok": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "doppler_pred": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "cfo_meas": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "doppler_residual": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "ta_rate": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "doppler_rate": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    }
+   },
+   "derivations": {
+    "dt": {
+     "title": ""
+    },
+    "validity_left": {
+     "title": ""
+    },
+    "propagate": {
+     "title": ""
+    },
+    "altitude": {
+     "title": ""
+    },
+    "range": {
+     "title": ""
+    },
+    "angles": {
+     "title": ""
+    },
+    "service_delay": {
+     "title": ""
+    },
+    "ta_ue": {
+     "title": ""
+    },
+    "common_delay": {
+     "title": ""
+    },
+    "ta_common": {
+     "title": ""
+    },
+    "ta_total": {
+     "title": ""
+    },
+    "k_offset_ok": {
+     "title": ""
+    },
+    "doppler_pred": {
+     "title": ""
+    },
+    "doppler_residual": {
+     "title": ""
+    },
+    "ta_rate": {
+     "title": ""
+    },
+    "doppler_rate": {
+     "title": ""
+    }
+   },
+   "plots": {
+    "sky": {
+     "title": "",
+     "caption": ""
+    },
+    "delays": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "ta_curve": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    },
+    "doppler_curve": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    }
+   },
+   "columns": {},
+   "annotations": {
+    "now": "",
+    "satellite": "",
+    "track": "",
+    "service": "",
+    "common": "",
+    "measured": ""
+   },
+   "diagnostics": {
+    "NO_EPHEMERIS": [
+     {
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "DOPPLER_MISMATCH": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "ORBIT_UNPHYSICAL": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "EPOCH_OUT_OF_RANGE": [
+     {
+      "level": "",
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": "",
+       "params": {}
+      }
+     }
+    ],
+    "EPOCH_IN_FUTURE": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "TA_COMMON_IMPLAUSIBLE": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "K_OFFSET_TOO_SMALL": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "BELOW_HORIZON": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "SIB19_JUMP": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "LOCATION_DEFAULT": [
+     {
+      "level": "",
+      "message": "",
+      "fix": "",
+      "action": {
+       "label": "",
+       "kind": "",
+       "target": ""
+      }
+     }
+    ]
+   }
+  },
+  {
+   "label": "Track",
+   "title": "Tracking",
+   "question": "What changes over time?",
+   "intro": "Re-reads the same base station at a fixed interval and records how the values change.",
+   "summary": {
+    "ok_easy": "",
+    "ok_expert": "",
+    "fail_easy": "",
+    "fail_expert": ""
+   },
+   "progress": {},
+   "groups": {},
+   "values": {
+    "cfo_hz": {
+     "label": "",
+     "unit": ""
+    },
+    "timing_drift_samples": {
+     "label": "",
+     "unit": ""
+    },
+    "rsrp_dbfs": {
+     "label": "",
+     "unit": ""
+    },
+    "sinr_db": {
+     "label": "",
+     "unit": ""
+    },
+    "doppler_pred_hz": {
+     "label": "",
+     "unit": ""
+    },
+    "doppler_residual_hz": {
+     "label": "",
+     "unit": ""
+    },
+    "ta_total_ms": {
+     "label": "",
+     "unit": ""
+    },
+    "range_km": {
+     "label": "",
+     "unit": ""
+    },
+    "elevation_deg": {
+     "label": "",
+     "unit": ""
+    },
+    "validity_left_s": {
+     "label": "",
+     "unit": ""
+    }
+   },
+   "fields": {
+    "epoch_sfn": "",
+    "epoch_subframe": "",
+    "validity_s": "",
+    "k_offset": "",
+    "ta_common": "",
+    "ta_drift": "",
+    "ta_drift_variant": "",
+    "pos_x": "",
+    "pos_y": "",
+    "pos_z": "",
+    "vel_x": "",
+    "vel_y": "",
+    "vel_z": ""
+   },
+   "derivations": {},
+   "plots": {},
+   "columns": {},
+   "annotations": {},
+   "diagnostics": {
+    "REPLAY_NOTE": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ]
+   }
+  },
+  {
+   "label": "Report",
+   "title": "Session report",
+   "summary": {
+    "ok_easy": "",
+    "ok_expert": "",
+    "fail_easy": "",
+    "fail_expert": ""
+   },
+   "progress": {},
+   "groups": {},
+   "values": {},
+   "derivations": {},
+   "plots": {},
+   "columns": {},
+   "annotations": {},
+   "diagnostics": {},
+   "text": {
+    "created": "",
+    "source": "",
+    "engine": "",
+    "status_ok": "",
+    "status_partial": "",
+    "status_fail": "",
+    "values": "",
+    "derivations": "",
+    "inputs": "",
+    "steps": "",
+    "result": "",
+    "diagnostics": "",
+    "expert": "",
+    "not_run": "",
+    "refs": "",
+    "footer": "",
+    "print": "",
+    "kind_synthetic": "",
+    "kind_file": "",
+    "kind_device": "",
+    "track": "",
+    "changes": "",
+    "before": "",
+    "after": "",
+    "time": "",
+    "field": ""
+   }
+  },
+  {
+   "label": "RA",
+   "title": "Random access observation",
+   "question": "How does the base station answer an access attempt?",
+   "intro": "Reads the base station's response (RAR) to an access attempt and the contention resolution message, from a testbed recording or a synthetic practice signal.",
+   "analogy": "",
+   "button": "Read RA response",
+   "locked_reason": "SIB1's RACH configuration is needed to find the response.",
+   "not_allowed": "This feature is for testbeds only. It works on synthetic practice signals and on files marked as testbed recordings, and stays closed for live device input.",
+   "summary": {
+    "ok_easy": "Read the base station's response (RAR). It told the device to transmit {ta_us} µs earlier.",
+    "ok_expert": "RA-RNTI {ra_rnti}, RAPID {rapid}, T_A {ta} → N_TA {n_ta} Tc ({distance_m} m), TC-RNTI {tc_rnti}, Msg4 {msg4}",
+    "fail_easy": "No access response (RAR) was found.",
+    "fail_expert": "{reason}"
+   },
+   "progress": {
+    "ra.read": "",
+    "ra.pdcch": "",
+    "ra.pdsch": "",
+    "ra.done": ""
+   },
+   "groups": {
+    "rnti": "",
+    "rar": "",
+    "grant": "",
+    "msg4": ""
+   },
+   "values": {
+    "ra_rnti": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "s_id": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "t_id": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "f_id": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "rapid": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "backoff": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "ta_command": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "n_ta": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "ta_us": {
+     "label": "",
+     "unit": "",
+     "term": "",
+     "group": ""
+    },
+    "distance": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "tc_rnti": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "grant_hopping": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "grant_freq": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "grant_time": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "grant_mcs": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "grant_tpc": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "grant_csi": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "contention_id": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    },
+    "msg4_rrc": {
+     "label": "",
+     "unit": "",
+     "group": ""
+    }
+   },
+   "derivations": {
+    "ra_rnti": {
+     "title": ""
+    },
+    "n_ta": {
+     "title": ""
+    },
+    "ta_us": {
+     "title": ""
+    },
+    "distance": {
+     "title": ""
+    },
+    "grant": {
+     "title": ""
+    }
+   },
+   "plots": {
+    "coreset_grid": {
+     "title": "",
+     "caption": "",
+     "x": "",
+     "y": ""
+    }
+   },
+   "columns": {},
+   "annotations": {
+    "CORESET0": "",
+    "PDCCH": "",
+    "PDSCH": "",
+    "PDSCH DM-RS": ""
+   },
+   "diagnostics": {
+    "NO_RAR": [
+     {
+      "message": "",
+      "fix": ""
+     },
+     {
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "NO_MSG4": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "NO_PRACH_CONFIG": [
+     {
+      "message": "",
+      "fix": ""
+     }
+    ],
+    "UPLINK_NOT_OBSERVED": [
+     {
+      "level": "",
+      "message": "",
+      "fix": ""
+     }
+    ]
+   }
+  }
+ ],
+ "common_diagnostics": {
+  "INTERNAL": [
+   {
+    "message": "",
+    "fix": "",
+    "action": {
+     "label": "",
+     "kind": "",
+     "params": {}
+    }
+   }
+  ],
+  "ENGINE_UNAVAILABLE": [
+   {
+    "message": "",
+    "fix": "",
+    "action": {
+     "label": "",
+     "kind": "",
+     "target": ""
+    }
+   }
+  ],
+  "CAPTURE_FAILED": [
+   {
+    "message": "",
+    "fix": "",
+    "action": {
+     "label": "",
+     "kind": "",
+     "params": {}
+    }
+   }
+  ]
+ }
+}

@@ -128,3 +128,47 @@ def test_settings_validation_and_persistence(client):
     assert client.get("/api/settings").json()["location"]["lon"] == 127.0
     s["location"]["lat"] = 123
     assert client.put("/api/settings", json=s).status_code == 422
+
+
+def test_english_overlay_has_the_same_shape_and_placeholders():
+    """영어 덮어쓰기: 구조가 같고, 번역된 요약 문구의 {자리}가 한국어와 같아야 한다(다르면 실행 중 오류가 난다)."""
+    import json
+    import re
+
+    from nrtrail.paths import PIPELINE
+
+    ko = json.loads((PIPELINE / "stages.json").read_text(encoding="utf-8"))
+    en = json.loads((PIPELINE / "stages.en.json").read_text(encoding="utf-8"))
+
+    def walk(a, b, path):
+        if isinstance(a, dict):
+            for k, v in b.items():
+                assert k in a or k == "_comment", f"{path}/{k}: 한국어에 없는 키"
+                if k in a:
+                    walk(a[k], v, f"{path}/{k}")
+        elif isinstance(a, list):
+            assert isinstance(b, list) and len(a) == len(b), f"{path}: 목록 길이가 다름"
+            for i, (x, y) in enumerate(zip(a, b, strict=True)):
+                walk(x, y, f"{path}[{i}]")
+        elif isinstance(a, str) and isinstance(b, str) and b:
+            assert set(re.findall(r"\{(\w+)\}", a)) == set(re.findall(r"\{(\w+)\}", b)), f"{path}: 자리 이름이 다름"
+
+    walk({"stages": [{k: v for k, v in s.items() if k not in ("id", "requires", "spec_refs")} for s in ko["stages"]],
+          "views": [{k: v for k, v in s.items() if k not in ("id", "requires", "spec_refs")} for s in ko["views"]],
+          "common_diagnostics": ko["common_diagnostics"]}, en, "")
+    kg = json.loads((PIPELINE / "glossary.json").read_text(encoding="utf-8"))["terms"]
+    eg = json.loads((PIPELINE / "glossary.en.json").read_text(encoding="utf-8"))["terms"]
+    assert set(kg) == set(eg) and all(v["short"] for v in eg.values())
+
+
+def test_language_setting_switches_server_texts(client):
+    assert client.get("/api/pipeline").json()["stages"][0]["title"] == "대역 스캔"
+    assert client.get("/api/pipeline?lang=en").json()["stages"][0]["title"] == "Band scan"
+    s = client.get("/api/settings").json()
+    s["lang"] = "en"
+    client.put("/api/settings", json=s)
+    assert client.get("/api/pipeline").json()["stages"][1]["button"] == "Synchronise to SSB"
+    assert "beacon" in client.get("/api/glossary").json()["ssb"]["short"]
+    sid = new_session(client)["id"]
+    result = run(client, sid, "scan")[-1]["result"]
+    assert result["summary_easy"].startswith("Found 1 base station")

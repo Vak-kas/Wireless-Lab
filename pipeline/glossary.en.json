@@ -1,0 +1,185 @@
+{
+ "_comment": "English overlay for glossary.json. Empty string = use Korean.",
+ "terms": {
+  "ssb": {
+   "name": "",
+   "short": "The beacon a base station sends periodically: sync signals and the basic notice in one block."
+  },
+  "pss": {
+   "name": "",
+   "short": "Primary sync signal. Found first; used to align time."
+  },
+  "sss": {
+   "name": "",
+   "short": "Secondary sync signal. Together with the PSS it gives the cell ID."
+  },
+  "pbch": {
+   "name": "",
+   "short": "The channel that carries the basic notice (MIB)."
+  },
+  "dmrs": {
+   "name": "",
+   "short": "A reference signal sent alongside so the contents can be read correctly."
+  },
+  "pci": {
+   "name": "",
+   "short": "The number (0–1007) that tells a cell apart from its neighbours."
+  },
+  "gscn": {
+   "name": "",
+   "short": "A number given to each frequency position where an SSB may sit."
+  },
+  "ss_ref": {
+   "name": "",
+   "short": "The centre frequency of the SSB."
+  },
+  "arfcn": {
+   "name": "",
+   "short": "A way of writing a frequency as a number."
+  },
+  "scs": {
+   "name": "",
+   "short": "The spacing between subcarriers: 15 kHz, 30 kHz, …"
+  },
+  "cfo": {
+   "name": "",
+   "short": "The frequency difference between receiver and base station. Large for satellites because they move fast (Doppler)."
+  },
+  "rsrp": {
+   "name": "",
+   "short": "Received strength of the sync signal."
+  },
+  "sinr": {
+   "name": "",
+   "short": "How much stronger the signal is than noise and interference. Higher reads better."
+  },
+  "ssb_index": {
+   "name": "",
+   "short": "Which one of the several SSBs (beams) sent in a burst this is."
+  },
+  "sfn": {
+   "name": "",
+   "short": "The base station's clock: a frame number (0–1023) that goes up every 10 ms."
+  },
+  "half_frame": {
+   "name": "",
+   "short": "Whether this is the first (0) or second (1) half of the 10 ms frame."
+  },
+  "k_ssb": {
+   "name": "",
+   "short": "How far the SSB is offset from the common resource grid, in subcarriers."
+  },
+  "mib": {
+   "name": "",
+   "short": "The most basic notice. It says where to get SIB1."
+  },
+  "coreset0": {
+   "name": "",
+   "short": "The frequency-time region that carries the control signal pointing to SIB1."
+  },
+  "search_space": {
+   "name": "",
+   "short": "The moments at which the control signal has to be looked for."
+  },
+  "pdcch": {
+   "name": "",
+   "short": "The control channel that says 'the data is over there'."
+  },
+  "pdsch": {
+   "name": "",
+   "short": "The data channel that carries the actual contents (SIB body)."
+  },
+  "dci": {
+   "name": "",
+   "short": "Control information on the PDCCH: where the data is and how it is formatted."
+  },
+  "si_rnti": {
+   "name": "",
+   "short": "A shared identifier (0xFFFF) used only for broadcast information."
+  },
+  "sib1": {
+   "name": "",
+   "short": "The access guide: network, cell ID and the schedule of further notices."
+  },
+  "sib19": {
+   "name": "",
+   "short": "A notice only satellite (NTN) base stations broadcast: satellite position and delay corrections."
+  },
+  "plmn": {
+   "name": "",
+   "short": "Network identifier: country code (MCC) plus operator code (MNC)."
+  },
+  "tac": {
+   "name": "",
+   "short": "The number of the area group the base station belongs to."
+  },
+  "point_a": {
+   "name": "",
+   "short": "The reference frequency from which resource blocks are numbered."
+  },
+  "bwp": {
+   "name": "",
+   "short": "The frequency range a device actually uses."
+  },
+  "prach": {
+   "name": "",
+   "short": "The channel on which a device sends its first access attempt."
+  },
+  "si_window": {
+   "name": "",
+   "short": "The time span in which one further notice is broadcast."
+  },
+  "ntn": {
+   "name": "",
+   "short": "A network whose base stations are not on the ground, e.g. on satellites."
+  },
+  "ta": {
+   "name": "",
+   "short": "A timing correction so the device transmits early by the travel time."
+  },
+  "ta_common": {
+   "name": "",
+   "short": "The value that compensates the delay between the satellite and the ground gateway."
+  },
+  "k_offset": {
+   "name": "",
+   "short": "A value that postpones scheduling to allow for the long delay to the satellite."
+  },
+  "epoch_time": {
+   "name": "",
+   "short": "The time the satellite position and velocity values refer to."
+  },
+  "validity": {
+   "name": "",
+   "short": "How long this satellite information may be trusted. After that it must be received again."
+  },
+  "ecef": {
+   "name": "",
+   "short": "A coordinate system centred on the Earth and rotating with it."
+  },
+  "doppler": {
+   "name": "",
+   "short": "The apparent frequency change because the satellite approaches or recedes."
+  },
+  "elevation": {
+   "name": "",
+   "short": "The angle from the horizon up to the satellite."
+  },
+  "azimuth": {
+   "name": "",
+   "short": "The direction of the satellite, measured clockwise from north."
+  },
+  "sigmf": {
+   "name": "",
+   "short": "A standard format for storing received signals (IQ) with a description file."
+  },
+  "iq": {
+   "name": "",
+   "short": "The raw numbers an SDR receives."
+  },
+  "ra_rnti": {
+   "name": "",
+   "short": "The number used to find the base station's answer to an access attempt."
+  }
+ }
+}

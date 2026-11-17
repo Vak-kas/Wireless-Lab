@@ -120,13 +120,18 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
     async def doctor(quick: int = 0) -> dict[str, Any]:
         return await asyncio.to_thread(doctor_mod.run_checks, bool(quick))
 
+    def localized() -> Any:
+        """설정의 언어에 맞는 단계 정의. 구조(단계, 순서)는 언어와 무관하고 문구만 다르다."""
+        return load_pipeline(str(load_settings().get("lang") or "ko"))
+
     @app.get("/api/pipeline")
-    def get_pipeline() -> dict[str, Any]:
-        return pipeline.public()
+    def get_pipeline(lang: str | None = None) -> dict[str, Any]:
+        public: dict[str, Any] = (load_pipeline(lang) if lang in ("ko", "en") else localized()).public()
+        return public
 
     @app.get("/api/glossary")
-    def glossary() -> dict[str, Any]:
-        return load_glossary()
+    def glossary(lang: str | None = None) -> dict[str, Any]:
+        return load_glossary(lang if lang in ("ko", "en") else str(load_settings().get("lang") or "ko"))
 
     @app.get("/api/scenarios")
     def scenarios() -> list[dict[str, Any]]:
@@ -214,7 +219,8 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
     # ---------- 단계 실행 ----------
     async def run_job(s: Session, job_id: str, stage: str, params: dict[str, Any]) -> None:
         base = {"job_id": job_id, "session_id": s.id, "stage": stage}
-        stage_def = pipeline.stage(stage)
+        pipe = localized()
+        stage_def = pipe.stage(stage)
         texts: dict[str, str] = stage_def.data.get("progress", {})
 
         def progress(p: float, key: str) -> None:
@@ -231,7 +237,7 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
                 await asyncio.to_thread(acquire.acquire, s)
                 chain = pipeline.order[: pipeline.order.index(stage) + 1]
             for st in chain:
-                result = await asyncio.to_thread(run_stage, engine_map[s.engine], pipeline, st, s.state,
+                result = await asyncio.to_thread(run_stage, engine_map[s.engine], pipe, st, s.state,
                                                  params if st == stage else {}, progress)
                 s.record_result(st, pipeline)
                 if result.status == "fail":
