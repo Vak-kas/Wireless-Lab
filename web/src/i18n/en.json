@@ -181,5 +181,21 @@
   "settings.doctor.item": "",
   "settings.doctor.state": "",
   "settings.doctor.detail": "",
-  "settings.doctor.fix": ""
+  "settings.doctor.fix": "",
+  "phone.title": "",
+  "phone.lead": "",
+  "phone.read": "",
+  "phone.registered": "",
+  "phone.freq": "",
+  "phone.cell_id": "",
+  "phone.match": "",
+  "phone.mismatch": "",
+  "phone.delta": "",
+  "phone.follow": "",
+  "phone.need_device": "",
+  "phone.raw": "",
+  "phone.status.no_adb": "",
+  "phone.status.no_device": "",
+  "phone.status.unparsed": "",
+  "phone.status.ok": ""
 }

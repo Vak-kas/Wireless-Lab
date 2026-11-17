@@ -5,6 +5,7 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
+import { PhoneTile } from "./PhoneTile";
 
 const DOCTOR_LEVEL = { ok: "ok", warn: "warn", missing: "error" } as const;
 
@@ -154,6 +155,8 @@ export function StartScreen() {
           ))}
         </div>
       </Tile>
+
+      <PhoneTile devices={devices} />
 
       <Tile tone="parchment">
         <TileHead title={t("start.recent.title")}>

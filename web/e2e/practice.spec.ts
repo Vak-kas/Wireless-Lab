@@ -108,3 +108,10 @@ test("좁은 화면에서도 가로로 넘치지 않는다", async ({ page }) =>
   expect(overflow).toBeLessThanOrEqual(0);
   await shot(page, "10-mobile-scan");
 });
+
+test("휴대폰 연동: 휴대폰이 없어도 이유를 알려 주고 화면은 계속 동작한다", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("phone-read").click();
+  await expect(page.getByTestId("phone-status").or(page.getByTestId("phone-cells"))).toBeVisible();
+  await page.locator("#phone").screenshot({ path: path.join(SHOTS, "11-phone.png") });
+});
