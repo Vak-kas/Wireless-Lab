@@ -1,5 +1,5 @@
 {
-  "_comment": "연습용 합성 시나리오. 값은 전부 시험용이며 실제 사업자·위성과 무관하다. MATLAB 합성기(pipeline/golden/<id>/cfg.json)와 같은 값을 쓴다.",
+  "_comment": "연습용 합성 시나리오. 값은 전부 시험용이며 실제 사업자·위성과 무관하다. MATLAB 합성기(pipeline/golden/<id>/cfg.json)와 같은 값을 쓴다. pdcch-ConfigSIB1의 searchSpaceZero는 2(O = 2)로 잡아, SIB1의 슬롯이 SSB가 있는 슬롯 0과 겹치지 않게 한다. weak-n256의 seed 2는 '스캔·SSB는 되고 MIB는 CRC 실패'가 나오는 값이다.",
   "scenarios": [
     {
       "id": "ntn-leo-n256",
@@ -19,9 +19,10 @@
         "sfn": 412,
         "k_ssb": 4,
         "dmrs_typea_pos": 2,
-        "pdcch_config_sib1": 16
+        "pdcch_config_sib1": 18
       },
-      "ntn": true
+      "ntn": true,
+      "seed": 1
     },
     {
       "id": "terrestrial-n78",
@@ -40,10 +41,11 @@
         "sfn": 836,
         "k_ssb": 0,
         "dmrs_typea_pos": 2,
-        "pdcch_config_sib1": 32
+        "pdcch_config_sib1": 34
       },
       "ntn": false,
-      "ra": true
+      "ra": true,
+      "seed": 1
     },
     {
       "id": "weak-n256",
@@ -62,9 +64,10 @@
         "sfn": 412,
         "k_ssb": 4,
         "dmrs_typea_pos": 2,
-        "pdcch_config_sib1": 16
+        "pdcch_config_sib1": 18
       },
-      "ntn": true
+      "ntn": true,
+      "seed": 2
     }
   ]
 }
