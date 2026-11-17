@@ -1887,6 +1887,12 @@
     "message": "This base station points to the notice in a way that is not supported yet (a control region other than CORESET0).",
     "fix": "Check the search space settings under pdcch-ConfigCommon in the SIB1 tree (expert view)."
    }
+  ],
+  "NOT_ALLOWED": [
+   {
+    "message": "This feature is not allowed for this input.",
+    "fix": "Testbed-only features work on synthetic practice signals and on files marked as testbed recordings."
+   }
   ]
  }
 }
