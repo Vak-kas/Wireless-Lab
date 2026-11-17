@@ -96,3 +96,54 @@ def test_survey_and_probe_use_receive_calls_only():
     banned = re.compile(r"SOAPY_SDR_TX|writeStream|tx_stream|\.transmit\(|\bsend_iq\b", re.I)
     for name in ("survey.py", "devices.py"):
         assert not banned.search((Path(survey.__file__).parent / name).read_text(encoding="utf-8"))
+
+
+def test_spectrum_view_of_simulated_device_matches_its_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(survey, "sessions_dir", lambda: tmp_path)
+    dev = simulated_id()
+    file = survey.describe(dev)["capture"]
+    out = survey.spectrum(dev)
+    assert out["fixed_tuning"] and out["center_hz"] == file["center_freq_hz"] and out["sample_rate_hz"] == file["sample_rate_hz"]
+    n = survey.VIEW_POINTS
+    assert len(out["freq_hz"]) == len(out["mean_db"]) == len(out["max_db"]) == n
+    assert abs(out["freq_hz"][0] - (file["center_freq_hz"] - file["sample_rate_hz"] / 2 + out["bin_hz"] / 2)) < 1
+    assert abs((out["freq_hz"][-1] - out["freq_hz"][0]) - (file["sample_rate_hz"] - out["bin_hz"])) < 1
+    assert all(mx >= mean - 0.01 for mx, mean in zip(out["max_db"], out["mean_db"], strict=True))
+    # 점들의 세기를 다 더하면 전체 세기
+    assert abs(10 * np.log10(sum(10 ** (v / 10) for v in out["mean_db"])) - out["total_dbfs"]) < 0.1
+    fall = out["waterfall"]
+    assert len(fall["values"]) == fall["rows"] and all(len(r) == fall["cols"] for r in fall["values"])
+    flat = [v for r in fall["values"] for v in r]
+    assert min(flat) == 0 and max(flat) == 1
+
+
+def test_spectrum_view_checks_what_a_real_device_can_do(monkeypatch):
+    dev = {"id": "driver=x", "driver": "x", "freq_min_hz": 70e6, "freq_max_hz": 6e9, "max_sample_rate_hz": 56e6}
+    monkeypatch.setattr(devices, "find_device", lambda _id: dev)
+    for kw, word in (({}, "넣어"), ({"center_hz": 7e9, "bandwidth_hz": 20e6}, "주파수"), ({"center_hz": 2.4e9, "bandwidth_hz": 80e6}, "최대 56"),
+                     ({"center_hz": 2.4e9, "bandwidth_hz": 1e3}, "이상")):
+        with pytest.raises(survey.SurveyError, match=word):
+            survey.spectrum("driver=x", **kw)
+
+
+def test_spectrum_view_of_a_tuned_device_reports_what_the_device_actually_used(tmp_path, monkeypatch):
+    """실제 장비 경로: 요청한 값이 아니라 장비가 실제로 맞춘 가운데 주파수·샘플레이트로 축을 만든다."""
+    from nrtrail import sigmf
+    monkeypatch.setattr(survey, "sessions_dir", lambda: tmp_path)
+    dev = {"id": "driver=x", "driver": "x", "freq_min_hz": 70e6, "freq_max_hz": 6e9, "max_sample_rate_hz": 56e6}
+    monkeypatch.setattr(devices, "find_device", lambda _id: dev)
+    asked = []
+    TONE = 5e6 + RATE / survey.VIEW_POINTS / 2   # 그림의 한 점 한가운데에 오도록(경계에 걸치면 두 점으로 갈린다)
+
+    def fake_capture(_dev_id, req, out_meta):
+        asked.append((req.center_freq_hz, req.sample_rate_hz, req.gain_db))
+        sigmf.write_capture(out_meta, tone_plus_noise(TONE, 0.1), sample_rate_hz=RATE, center_freq_hz=2.4371e9, source="device")
+        return sigmf.read_meta(out_meta)
+
+    monkeypatch.setattr(devices, "capture", fake_capture)
+    out = survey.spectrum("driver=x", center_hz=2.437e9, bandwidth_hz=20e6, gain_db=30)
+    assert asked == [(2.437e9, 20e6, 30)]
+    assert out["center_hz"] == 2.4371e9 and not out["fixed_tuning"]
+    best = out["freq_hz"][int(np.argmax(out["mean_db"]))]
+    assert abs(best - (2.4371e9 + TONE)) <= out["bin_hz"] / 2 + 1
+    assert abs(max(out["mean_db"]) - (-20.0)) < 0.5

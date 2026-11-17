@@ -73,6 +73,7 @@ export const httpApi: Api = {
   phoneCells: () => call("/phone/cells"),
   surveyDevice: (id) => call(`/survey/device?id=${encodeURIComponent(id)}`),
   surveyRun: (req) => call("/survey/run", "POST", req),
+  surveySpectrum: (req) => call("/survey/spectrum", "POST", req),
   oaiStatus: () => call("/testbed/oai"),
   oaiRecord: (seconds) => call("/testbed/oai/record", "POST", { seconds }),
   oaiProgress: () => call("/testbed/oai/progress"),

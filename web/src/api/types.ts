@@ -103,6 +103,24 @@ export interface SurveyDevice {
   capture?: { center_freq_hz: number; sample_rate_hz: number; duration_s: number } | null;
 }
 
+export interface SpectrumView {
+  device: string;
+  fixed_tuning: boolean;
+  /** 장비가 실제로 맞춘 값 (요청한 값과 조금 다를 수 있다) */
+  center_hz: number;
+  sample_rate_hz: number;
+  bin_hz: number;
+  dwell_s: number;
+  freq_hz: number[];
+  mean_db: number[];
+  max_db: number[];
+  total_dbfs: number;
+  peak_dbfs: number;
+  clipped: boolean;
+  /** values[주파수 칸][시간 칸] = 0~1 */
+  waterfall: { rows: number; cols: number; values: number[][]; col_ms: number; floor_db: number; ceil_db: number };
+}
+
 export interface SurveyRequest {
   device: string;
   plan: string;
@@ -203,6 +221,7 @@ export interface OaiRecording {
 export interface Api {
   surveyDevice(id: string): Promise<SurveyDevice>;
   surveyRun(req: SurveyRequest): Promise<SurveyResult>;
+  surveySpectrum(req: { device: string; center_hz?: number; bandwidth_hz?: number; gain_db?: number }): Promise<SpectrumView>;
   oaiStatus(): Promise<OaiStatus>;
   oaiRecord(seconds: number): Promise<OaiRecording>;
   /** 기록이 지금 어느 단계인지 (그림에 표시) */

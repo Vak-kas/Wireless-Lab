@@ -5,6 +5,7 @@ import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
 
 type Stat = "median_dbfs" | "mean_dbfs";
 /** 기준: 채널 이름 → 그때의 중앙값·평균. 어느 값을 보고 있든 같은 종류끼리 비교한다. */
@@ -125,6 +126,7 @@ export function SpectrumScreen() {
   const [busy, setBusy] = useState(false);
   const [repeat, setRepeat] = useState(false);
   const running = useRef(false);
+  const viewer = useRef<SpectrumViewHandle>(null);
 
   useEffect(() => {
     void api.devices().then(
@@ -243,6 +245,8 @@ export function SpectrumScreen() {
         )}
       </Tile>
 
+      {info && <SpectrumView key={info.device.id} info={info} gain={gain} ref={viewer} />}
+
       {result && (
         <Tile tone="parchment">
           <TileHead
@@ -275,7 +279,7 @@ export function SpectrumScreen() {
               <caption className="sr-only">{t("spectrum.chart.label")}</caption>
               <thead>
                 <tr>
-                  {["name", "center", "median", "mean", "peak", ...(baseline ? ["rise"] : [])].map((c) => (
+                  {["name", "center", "median", "mean", "peak", ...(baseline ? ["rise"] : []), ...(real ? ["look"] : [])].map((c) => (
                     <th key={c} scope="col" className={`t-caption-strong ${c === "name" ? "" : "right"}`}>
                       {t(`spectrum.col.${c}`)}
                     </th>
@@ -303,6 +307,13 @@ export function SpectrumScreen() {
                         </td>
                       )}
                       {baseline && <td className="right">{rise !== undefined ? `${rise >= 0 ? "+" : ""}${(rise === 0 ? 0 : rise).toFixed(1)}` : "—"}</td>}
+                      {real && (
+                        <td className="right">
+                          <Button variant="link" onClick={() => viewer.current?.look(r.center_hz, r.width_hz)} data-testid={`survey-look-${r.name}`}>
+                            {t("spectrum.look")}
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

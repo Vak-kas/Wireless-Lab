@@ -200,6 +200,25 @@ export const mockApi: Api = {
     plans: [{ id: "capture", available: true, channels: 0 }],
     capture: { center_freq_hz: 2e9, sample_rate_hz: 15.36e6, duration_s: 0.1 },
   }),
+  surveySpectrum: async (req) => {
+    const n = 256;
+    const mean = Array.from({ length: n }, (_, i) => -80 + (i > 90 && i < 170 ? 28 : 0) + Math.random() * 2);
+    return {
+      device: req.device,
+      fixed_tuning: true,
+      center_hz: 2e9,
+      sample_rate_hz: 15.36e6,
+      bin_hz: 60e3,
+      dwell_s: 0.02,
+      freq_hz: Array.from({ length: n }, (_, i) => 2e9 - 7.68e6 + (i + 0.5) * 60e3),
+      mean_db: mean,
+      max_db: mean.map((v) => v + 6),
+      total_dbfs: -30,
+      peak_dbfs: -12,
+      clipped: false,
+      waterfall: { rows: 64, cols: 20, values: Array.from({ length: 64 }, (_, r) => Array.from({ length: 20 }, () => (r > 22 && r < 42 ? 0.9 : 0.1))), col_ms: 1, floor_db: -90, ceil_db: -40 },
+    };
+  },
   surveyRun: async (req) => ({
     device: req.device,
     plan: req.plan,

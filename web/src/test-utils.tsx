@@ -79,6 +79,7 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     oaiRecord: no,
     surveyDevice: no,
     surveyRun: no,
+    surveySpectrum: no,
     oaiProgress: async () => ({ phase: "idle" }),
     ntn: no,
     trackStart: no,

@@ -33,6 +33,10 @@ MAX_CHANNELS = 64
 MIN_COVERAGE = 0.9        # 채널 폭의 이만큼이 받은 대역 안에 있어야 잰 것으로 친다
 CLIP_DBFS = -1.0
 EPS = 1e-12
+VIEW_POINTS = 256         # 스펙트럼 그림의 가로 점 수
+FALL_ROWS = 64            # 워터폴의 주파수 칸 수
+FALL_COLS = 40            # 워터폴의 시간 칸 수(최대)
+MIN_BANDWIDTH_HZ = 200e3
 
 WIFI_5G = [*range(36, 65, 4), *range(100, 145, 4), *range(149, 166, 4)]
 PLANS: dict[str, dict[str, Any]] = {
@@ -184,3 +188,59 @@ def describe(dev_id: str) -> dict[str, Any]:
     else:
         out["reported"] = devices.probe(dev_id)
     return out
+
+
+def spectrum(dev_id: str, *, center_hz: float | None = None, bandwidth_hz: float | None = None, gain_db: float | None = None) -> dict[str, Any]:
+    """가운데 주파수와 대역폭을 정해 그 대역의 주파수별 세기를 본다(평균, 최대, 시간에 따른 변화).
+
+    대역폭 = 받는 샘플레이트다(복소 표본이라 샘플레이트만큼의 폭이 보인다). 모의 장비는 파일의 대역 그대로다.
+    """
+    try:
+        dev = devices.find_device(dev_id)
+    except devices.DeviceError as e:
+        raise SurveyError("장비를 찾을 수 없습니다.") from e
+    sim = dev["driver"] == "simulated"
+    if not sim:
+        if not center_hz or not bandwidth_hz:
+            raise SurveyError("가운데 주파수와 대역폭을 넣어 주세요.")
+        if bandwidth_hz < MIN_BANDWIDTH_HZ:
+            raise SurveyError(f"대역폭은 {MIN_BANDWIDTH_HZ / 1e6:g} MHz 이상이어야 합니다.")
+        problems = devices.check_request(dev, center_hz, bandwidth_hz)
+        if "FREQ_OUT_OF_RANGE" in problems:
+            raise SurveyError(f"이 장비가 받을 수 있는 주파수는 {dev['freq_min_hz'] / 1e6:g} ~ {dev['freq_max_hz'] / 1e6:g} MHz 입니다.")
+        if "RATE_TOO_HIGH" in problems:
+            raise SurveyError(f"이 장비로 한 번에 볼 수 있는 대역폭은 최대 {dev['max_sample_rate_hz'] / 1e6:g} MHz 입니다.")
+    work = sessions_dir() / "survey"
+    work.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=work) as tmp:
+        try:
+            cap = devices.capture(dev_id, devices.CaptureRequest(center_hz or 0.0, bandwidth_hz or 0.0, DWELL_S, gain_db),
+                                  Path(tmp) / "view.sigmf-meta")
+        except devices.DeviceError as e:
+            raise SurveyError(f"장비에서 받지 못했습니다: {e}") from e
+        iq = np.asarray(cap.read(0, min(cap.num_samples, MAX_SAMPLES)))
+    rate, center = cap.sample_rate_hz, cap.center_freq_hz
+    spectra = block_spectra(iq, rate)                                   # 구간 × NFFT
+    group = NFFT // VIEW_POINTS
+    grouped = spectra.reshape(len(spectra), VIEW_POINTS, group).sum(axis=2)   # 점 하나 = rate / VIEW_POINTS 폭의 세기
+    step = rate / VIEW_POINTS
+    freqs = center - rate / 2 + step * (np.arange(VIEW_POINTS) + 0.5)
+    peak = _peak_dbfs(iq)
+    # 워터폴: 주파수 칸 × 시간 칸, 가장 약한 칸을 0, 가장 센 칸을 1 로
+    cols = min(FALL_COLS, len(spectra))
+    per_col = len(spectra) // cols
+    fall = spectra[: cols * per_col].reshape(cols, per_col, FALL_ROWS, NFFT // FALL_ROWS).sum(axis=3).mean(axis=1)   # 시간 × 주파수
+    fall_db = 10 * np.log10(fall + EPS)
+    lo, hi = float(fall_db.min()), float(fall_db.max())
+    norm = (fall_db - lo) / max(hi - lo, 1e-9)
+    return {
+        "device": dev_id, "unit": "dBFS", "fixed_tuning": sim, "gain_db": gain_db,
+        "center_hz": center, "sample_rate_hz": rate, "bin_hz": step, "dwell_s": DWELL_S,
+        "freq_hz": [round(float(f), 1) for f in freqs],
+        "mean_db": [db(float(v)) for v in grouped.mean(axis=0)],
+        "max_db": [db(float(v)) for v in grouped.max(axis=0)],
+        "total_dbfs": db(float(spectra.sum(axis=1).mean())), "peak_dbfs": peak, "clipped": peak > CLIP_DBFS,
+        "waterfall": {"rows": FALL_ROWS, "cols": cols, "values": [[round(float(v), 3) for v in row] for row in norm.T],
+                      "col_ms": round(1e3 * per_col * max(1, round(BLOCK_S * rate / NFFT)) * NFFT / rate, 3),
+                      "floor_db": round(lo, 1), "ceil_db": round(hi, 1)},
+    }

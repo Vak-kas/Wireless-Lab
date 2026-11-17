@@ -1013,3 +1013,17 @@ details.fold > .fold-body {
   justify-content: center;
   margin-bottom: var(--space-lg);
 }
+.view-controls {
+  display: grid;
+  gap: var(--space-md);
+  text-align: left;
+  max-width: 560px;
+  margin: 0 auto var(--space-lg);
+}
+.view-facts {
+  margin-bottom: var(--space-lg);
+  text-align: left;
+}
+#spectrum-view .card + .card {
+  margin-top: var(--space-lg);
+}

@@ -65,3 +65,47 @@ test("기준을 저장한 뒤 다시 재면 기준 대비 얼마나 올랐는지
   await userEvent.click(screen.getByTestId("survey-run"));
   await waitFor(() => expect(within(screen.getByTestId("survey-table")).getByText("+11.5")).toBeInTheDocument());
 });
+
+const VIEW = {
+  device: "driver=uhd",
+  fixed_tuning: false,
+  center_hz: 5.18e9,
+  sample_rate_hz: 20e6,
+  bin_hz: 78125,
+  dwell_s: 0.02,
+  freq_hz: [5.17e9, 5.18e9, 5.19e9],
+  mean_db: [-80, -40, -80],
+  max_db: [-70, -30, -70],
+  total_dbfs: -39.9,
+  peak_dbfs: -12.3,
+  clipped: false,
+  waterfall: { rows: 2, cols: 2, values: [[0, 1], [1, 0]], col_ms: 10, floor_db: -90, ceil_db: -40 },
+};
+
+test("가운데 주파수와 대역폭을 넣고 보면 그 대역의 그림과 실제로 맞춘 값이 나온다", async () => {
+  const a = api([[]]);
+  a.surveySpectrum = vi.fn(async () => VIEW);
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("view-run"));
+  expect(await screen.findByText("가운데 주파수와 대역폭을 숫자로 넣어 주세요.")).toBeInTheDocument();
+  expect(a.surveySpectrum).not.toHaveBeenCalled();
+  await userEvent.type(screen.getByTestId("view-center"), "5180");
+  await userEvent.type(screen.getByTestId("view-width"), "20");
+  await userEvent.click(screen.getByTestId("view-run"));
+  expect(a.surveySpectrum).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 5180e6, bandwidth_hz: 20e6, gain_db: undefined });
+  const facts = await screen.findByTestId("view-facts");
+  expect(within(facts).getByText("5180 MHz")).toBeInTheDocument();
+  expect(within(facts).getByText("-39.9 dBFS")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "주파수별 세기" })).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "시간에 따른 변화" })).toBeInTheDocument();
+});
+
+test("채널 표에서 들여다보기를 누르면 그 채널의 주파수와 폭으로 바로 본다", async () => {
+  const a = api([[ch("ch36", -70)]]);
+  a.surveySpectrum = vi.fn(async () => VIEW);
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("survey-run"));
+  await userEvent.click(await screen.findByTestId("survey-look-ch36"));
+  await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 5180e6, bandwidth_hz: 20e6 })));
+  expect(screen.getByTestId("view-center")).toHaveValue("5180");
+});
