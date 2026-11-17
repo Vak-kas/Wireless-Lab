@@ -22,11 +22,11 @@
    },
    "values": {
     "n_cells": {
-     "label": "",
-     "unit": ""
+     "label": "Base stations found",
+     "unit": "site(s)"
     },
     "best_freq": {
-     "label": "",
+     "label": "Frequency of the strongest one",
      "unit": "",
      "term": ""
     },
@@ -36,61 +36,61 @@
      "term": ""
     },
     "best_pci": {
-     "label": "",
+     "label": "Cell ID (PCI)",
      "unit": "",
      "term": ""
     },
     "best_pnr": {
-     "label": "",
+     "label": "Peak to noise",
      "unit": ""
     },
     "best_cfo": {
-     "label": "",
+     "label": "Frequency offset (estimate)",
      "unit": "",
      "term": ""
     }
    },
    "derivations": {
     "gscn": {
-     "title": ""
+     "title": "From GSCN to the SSB frequency"
     },
     "pci": {
-     "title": ""
+     "title": "Cell ID (PCI) calculation"
     }
    },
    "plots": {
     "spectrum": {
-     "title": "",
-     "caption": "",
-     "x": "",
-     "y": ""
+     "title": "Signal strength by frequency",
+     "caption": "Base station signals are where the curve rises. Vertical lines mark the positions an SSB may occupy (GSCN).",
+     "x": "Frequency",
+     "y": "Strength"
     },
     "cells": {
-     "title": "",
-     "caption": ""
+     "title": "Base stations found",
+     "caption": "Pick the base station to follow."
     }
    },
    "columns": {
     "gscn": "",
-    "freq_mhz": "",
+    "freq_mhz": "Centre frequency",
     "ssb_scs_khz": "",
     "pci": "",
-    "pnr_db": "",
-    "cfo_hz": "",
-    "rel_power_db": "",
-    "n_ssb": ""
+    "pnr_db": "Peak/noise",
+    "cfo_hz": "Estimated CFO",
+    "rel_power_db": "Relative strength",
+    "n_ssb": "SSBs"
    },
    "annotations": {
-    "candidate": "",
-    "detected": ""
+    "candidate": "SSB candidate position",
+    "detected": "Base station found"
    },
    "diagnostics": {
     "NO_CELL": [
      {
-      "message": "",
-      "fix": "",
+      "message": "The signal may be too weak to see.",
+      "fix": "Raise the receive gain and scan again.",
       "action": {
-       "label": "",
+       "label": "Retry with gain +10 dB",
        "kind": "",
        "params": {
         "gain_delta_db": 10
@@ -98,10 +98,10 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "The capture may have been too short and missed the SSB.",
+      "fix": "SSBs usually come every 20 ms. Try receiving for longer.",
       "action": {
-       "label": "",
+       "label": "Retry with double the capture time",
        "kind": "",
        "params": {
         "duration_scale": 2
@@ -109,10 +109,10 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "There may be no base station in this band, or the antenna may not suit it.",
+      "fix": "Check the antenna connection and the band, or pick another band.",
       "action": {
-       "label": "",
+       "label": "Choose the band again",
        "kind": "",
        "target": ""
       }
@@ -120,10 +120,10 @@
     ],
     "NO_CANDIDATE": [
      {
-      "message": "",
-      "fix": "",
+      "message": "There is no position inside the received band where an SSB could sit.",
+      "fix": "Change the centre frequency or sample rate to widen the band.",
       "action": {
-       "label": "",
+       "label": "Choose the input again",
        "kind": "",
        "target": ""
       }
@@ -131,10 +131,10 @@
     ],
     "CAPTURE_TOO_SHORT": [
      {
-      "message": "",
-      "fix": "",
+      "message": "The received signal is too short.",
+      "fix": "At least 40 ms is needed so that no SSB is missed.",
       "action": {
-       "label": "",
+       "label": "Retry with double the capture time",
        "kind": "",
        "params": {
         "duration_scale": 2
@@ -145,8 +145,8 @@
     "RSSI_ONLY_DEVICE": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "This device's bandwidth is too narrow; only the spectrum view is supported.",
+      "fix": "Decoding an SSB needs an SDR with more bandwidth."
      }
     ]
    }
@@ -174,110 +174,110 @@
    },
    "values": {
     "pci": {
-     "label": "",
+     "label": "Cell ID (PCI)",
      "unit": "",
      "term": ""
     },
     "nid1": {
-     "label": "",
+     "label": "N_ID1 (from SSS)",
      "unit": "",
      "term": ""
     },
     "nid2": {
-     "label": "",
+     "label": "N_ID2 (from PSS)",
      "unit": "",
      "term": ""
     },
     "ssb_index": {
-     "label": "",
+     "label": "SSB index",
      "unit": "",
      "term": ""
     },
     "timing_samples": {
-     "label": "",
-     "unit": ""
+     "label": "SSB start position",
+     "unit": "samples"
     },
     "timing_us": {
-     "label": "",
+     "label": "SSB start time",
      "unit": ""
     },
     "cfo_hz": {
-     "label": "",
+     "label": "Frequency offset (CFO)",
      "unit": "",
      "term": ""
     },
     "cfo_ppm": {
-     "label": "",
+     "label": "CFO (ratio)",
      "unit": "",
      "term": ""
     },
     "cfo_search": {
-     "label": "",
+     "label": "CFO search range",
      "unit": ""
     },
     "rsrp": {
-     "label": "",
+     "label": "Signal strength (SS-RSRP)",
      "unit": "",
      "term": "",
-     "note": ""
+     "note": "Shown relative to full scale (dBFS), not as absolute power (dBm), because there is no device calibration."
     },
     "sinr": {
-     "label": "",
+     "label": "Signal quality (SS-SINR)",
      "unit": "",
      "term": ""
     }
    },
    "derivations": {
     "pci": {
-     "title": ""
+     "title": "Cell ID (PCI) calculation"
     },
     "timing_us": {
-     "title": ""
+     "title": "Sample position to time"
     },
     "cfo_total": {
-     "title": ""
+     "title": "Adding the coarse and fine estimates"
     },
     "cfo_ppm": {
-     "title": ""
+     "title": "CFO in ppm"
     },
     "ssb_index": {
-     "title": ""
+     "title": "Reading the SSB index from the DM-RS"
     }
    },
    "plots": {
     "correlation": {
-     "title": "",
-     "caption": "",
-     "x": "",
-     "y": ""
+     "title": "PSS correlation",
+     "caption": "The sharp peak is the moment the SSB starts. Only the matching one of the three PSS sequences rises high.",
+     "x": "Time",
+     "y": "Correlation magnitude"
     },
     "ssb_grid": {
-     "title": "",
-     "caption": "",
-     "x": "",
-     "y": ""
+     "title": "SSB resource grid",
+     "caption": "Darker cells are stronger. An SSB is 240 subcarriers × 4 symbols.",
+     "x": "OFDM symbol",
+     "y": "Subcarrier"
     },
     "constellation": {
-     "title": "",
-     "caption": "",
+     "title": "PBCH constellation",
+     "caption": "The more clearly the points gather into four clusters, the easier the notice is to read.",
      "x": "",
      "y": ""
     }
    },
    "annotations": {
-    "peak": "",
-    "PSS": "",
-    "SSS": "",
-    "PBCH": "",
-    "PBCH DM-RS": ""
+    "peak": "SSB start",
+    "PSS": "Primary sync signal. Aligns time and gives N_ID2.",
+    "SSS": "Secondary sync signal. Gives N_ID1 and so fixes the cell ID.",
+    "PBCH": "The channel that carries the basic notice (MIB).",
+    "PBCH DM-RS": "Reference signal for reading the PBCH. It also tells the SSB index."
    },
    "diagnostics": {
     "NO_SSB": [
      {
-      "message": "",
-      "fix": "",
+      "message": "The signal may be so weak that the sync signal is buried in noise.",
+      "fix": "Raise the receive gain or move the antenna.",
       "action": {
-       "label": "",
+       "label": "Retry with gain +10 dB",
        "kind": "",
        "params": {
         "gain_delta_db": 10
@@ -285,10 +285,10 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "The frequency offset may be larger than the search range (satellites, devices with a poor clock).",
+      "fix": "Widen the CFO search range.",
       "action": {
-       "label": "",
+       "label": "Retry with double the search range",
        "kind": "",
        "params": {
         "cfo_search_scale": 2
@@ -296,10 +296,10 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "There may be no base station on the chosen frequency.",
+      "fix": "Go back to the scan and pick another base station.",
       "action": {
-       "label": "",
+       "label": "Back to scan",
        "kind": "",
        "target": ""
       }
@@ -308,10 +308,10 @@
     "LOW_SNR": [
      {
       "level": "",
-      "message": "",
-      "fix": "",
+      "message": "Synchronised, but the signal quality is low. Reading may fail in the next step.",
+      "fix": "Raise the gain or move the antenna.",
       "action": {
-       "label": "",
+       "label": "Retry with gain +10 dB",
        "kind": "",
        "params": {
         "gain_delta_db": 10
@@ -322,24 +322,24 @@
     "RSRP_UNCALIBRATED": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "Signal strength is an uncalibrated value (dBFS).",
+      "fix": "If you need absolute power (dBm), enter the device calibration in Settings."
      }
     ],
     "WIDE_CFO_SEARCH": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "This is a satellite (NTN) band, so the CFO search range was widened to allow for Doppler.",
+      "fix": "The search range can be changed in Settings."
      }
     ],
     "DMRS_AMBIGUOUS": [
      {
       "level": "",
-      "message": "",
-      "fix": "",
+      "message": "The decision on which SSB this is was a close call. The SSB index may be wrong.",
+      "fix": "Improve the signal quality and synchronise again.",
       "action": {
-       "label": "",
+       "label": "Synchronise to SSB again",
        "kind": "",
        "params": {}
       }
@@ -367,31 +367,31 @@
    },
    "values": {
     "sfn": {
-     "label": "",
+     "label": "System frame number (SFN)",
      "unit": "",
      "term": ""
     },
     "half_frame": {
-     "label": "",
+     "label": "Half frame",
      "unit": "",
      "term": ""
     },
     "ssb_index": {
-     "label": "",
+     "label": "SSB index",
      "unit": "",
      "term": ""
     },
     "k_ssb": {
      "label": "",
-     "unit": "",
+     "unit": "Subcarrier",
      "term": ""
     },
     "sib1_present": {
-     "label": "",
+     "label": "SIB1 pointer on this SSB",
      "unit": ""
     },
     "scs_common": {
-     "label": "",
+     "label": "Common subcarrier spacing",
      "unit": "",
      "term": ""
     },
@@ -414,111 +414,111 @@
      "term": ""
     },
     "cell_barred": {
-     "label": "",
+     "label": "Access allowed",
      "unit": ""
     },
     "intra_freq": {
-     "label": "",
+     "label": "Intra-frequency reselection",
      "unit": ""
     },
     "frame_start": {
-     "label": "",
-     "unit": ""
+     "label": "Frame start position",
+     "unit": "samples"
     },
     "coreset0_rbs": {
-     "label": "",
+     "label": "CORESET0 width",
      "unit": "",
      "term": ""
     },
     "coreset0_symbols": {
-     "label": "",
-     "unit": "",
+     "label": "CORESET0 length",
+     "unit": "symbols",
      "term": ""
     },
     "coreset0_offset": {
-     "label": "",
+     "label": "CORESET0 offset",
      "unit": "",
      "term": ""
     },
     "coreset0_bw": {
-     "label": "",
+     "label": "CORESET0 bandwidth",
      "unit": "",
      "term": ""
     },
     "monitor_slot": {
-     "label": "",
+     "label": "Slots to look for the SIB1 pointer",
      "unit": "",
      "term": ""
     },
     "monitor_symbol": {
-     "label": "",
+     "label": "Starting symbol",
      "unit": "",
      "term": ""
     },
     "point_a": {
-     "label": "",
+     "label": "Point A frequency",
      "unit": "",
      "term": ""
     }
    },
    "derivations": {
     "sfn": {
-     "title": ""
+     "title": "Full SFN"
     },
     "ssb_index": {
-     "title": ""
+     "title": "Full SSB index"
     },
     "k_ssb": {
-     "title": ""
+     "title": "k_SSB and whether SIB1 is present"
     },
     "pdcch_config": {
-     "title": ""
+     "title": "Splitting pdcch-ConfigSIB1"
     },
     "frame_start": {
-     "title": ""
+     "title": "Frame start position"
     },
     "coreset0": {
-     "title": ""
+     "title": "CORESET0 table lookup"
     },
     "coreset0_bw": {
-     "title": ""
+     "title": "Bandwidth needed to receive CORESET0"
     },
     "monitor": {
-     "title": ""
+     "title": "Type0-PDCCH monitoring occasions"
     },
     "point_a": {
-     "title": ""
+     "title": "Point A frequency"
     }
    },
    "plots": {
     "payload": {
-     "title": "",
-     "caption": ""
+     "title": "What the MIB says",
+     "caption": "The 24-bit notice split into its fields."
     },
     "frame": {
-     "title": "",
-     "caption": "",
-     "x": "",
+     "title": "Where the SSB sits in the frame",
+     "caption": "The frame start is worked out backwards from the SSB index and the placement rule (Case).",
+     "x": "Time",
      "y": ""
     }
    },
    "columns": {
-    "field": "",
-    "bits": "",
-    "raw": "",
-    "meaning": ""
+    "field": "Field",
+    "bits": "Bits",
+    "raw": "Raw value",
+    "meaning": "Meaning"
    },
    "annotations": {
-    "ssb": "",
-    "frame_start": ""
+    "ssb": "The SSB we locked onto",
+    "frame_start": "Frame start"
    },
    "diagnostics": {
     "PBCH_CRC_FAIL": [
      {
-      "message": "",
-      "fix": "",
+      "message": "Low signal quality corrupted the notice.",
+      "fix": "Raise the gain or move the antenna, then start again from SSB sync.",
       "action": {
-       "label": "",
+       "label": "Redo from SSB with gain +10 dB",
        "kind": "",
        "target": "",
        "params": {
@@ -527,20 +527,20 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "The synchronisation may be slightly off.",
+      "fix": "Run SSB sync again to realign time and frequency.",
       "action": {
-       "label": "",
+       "label": "Synchronise to SSB again",
        "kind": "",
        "target": "",
        "params": {}
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "The signal may overlap with another base station's.",
+      "fix": "Go back to the scan and pick another base station.",
       "action": {
-       "label": "",
+       "label": "Back to scan",
        "kind": "",
        "target": ""
       }
@@ -549,10 +549,10 @@
     "NO_SIB1_HERE": [
      {
       "level": "",
-      "message": "",
-      "fix": "",
+      "message": "This SSB has no SIB1 pointer attached.",
+      "fix": "The k_SSB value says 'look on another frequency'. Pick another SSB in the scan.",
       "action": {
-       "label": "",
+       "label": "Back to scan",
        "kind": "",
        "target": ""
       }
@@ -561,15 +561,15 @@
     "CELL_BARRED": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "This base station currently bars devices from accessing it (cellBarred).",
+      "fix": "Reading the broadcast information is not affected."
      }
     ],
     "DEVICE_BW_TOO_NARROW": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "SIB1 is hard to receive with this device: CORESET0 is wider than the device's maximum sample rate.",
+      "fix": "Use an SDR with more bandwidth, or continue with a stored file."
      }
     ]
    }
@@ -596,39 +596,39 @@
     "sib1.asn1": "Interpreting the contents"
    },
    "groups": {
-    "identity": "",
-    "frequency": "",
-    "rach": "",
-    "ssb": "",
-    "si": "",
-    "ntn": "",
-    "dci": ""
+    "identity": "Network and cell",
+    "frequency": "Frequency and bandwidth",
+    "rach": "Access attempt (RACH) settings",
+    "ssb": "SSB and timing",
+    "si": "Schedule of further notices",
+    "ntn": "Satellite (NTN) related",
+    "dci": "Control information (DCI 1_0)"
    },
    "values": {
     "plmn": {
-     "label": "",
+     "label": "Network (PLMN)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "tac": {
-     "label": "",
+     "label": "Area code (TAC)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "cell_id": {
-     "label": "",
+     "label": "Cell ID",
      "unit": "",
      "group": ""
     },
     "q_rxlevmin": {
-     "label": "",
+     "label": "Minimum receive level (q-RxLevMin)",
      "unit": "",
      "group": ""
     },
     "band": {
-     "label": "",
+     "label": "Band",
      "unit": "",
      "group": ""
     },
@@ -639,17 +639,17 @@
      "group": ""
     },
     "carrier_bw": {
-     "label": "",
+     "label": "Carrier bandwidth",
      "unit": "",
      "group": ""
     },
     "carrier_bw_mhz": {
-     "label": "",
+     "label": "Carrier bandwidth (occupied)",
      "unit": "",
      "group": ""
     },
     "initial_bwp": {
-     "label": "",
+     "label": "Initial BWP",
      "unit": "",
      "term": "",
      "group": ""
@@ -682,7 +682,7 @@
     },
     "ra_window": {
      "label": "",
-     "unit": "",
+     "unit": "slots",
      "group": ""
     },
     "msg1_scs": {
@@ -696,7 +696,7 @@
      "group": ""
     },
     "ssb_period": {
-     "label": "",
+     "label": "SSB period",
      "unit": "",
      "group": ""
     },
@@ -707,29 +707,29 @@
      "group": ""
     },
     "tdd": {
-     "label": "",
+     "label": "TDD pattern",
      "unit": "",
      "group": ""
     },
     "si_window": {
-     "label": "",
-     "unit": "",
+     "label": "SI window length",
+     "unit": "slots",
      "term": "",
      "group": ""
     },
     "si_list": {
-     "label": "",
+     "label": "Further notices being broadcast",
      "unit": "",
      "group": ""
     },
     "has_sib19": {
-     "label": "",
+     "label": "Satellite information (SIB19)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "sib19_window_start": {
-     "label": "",
+     "label": "SIB19 window start",
      "unit": "",
      "term": "",
      "group": ""
@@ -740,27 +740,27 @@
      "group": ""
     },
     "dci_al": {
-     "label": "",
+     "label": "Aggregation level",
      "unit": "",
      "group": ""
     },
     "dci_riv": {
-     "label": "",
+     "label": "Frequency resource assignment (RIV)",
      "unit": "",
      "group": ""
     },
     "dci_rb": {
-     "label": "",
+     "label": "PDSCH position",
      "unit": "",
      "group": ""
     },
     "dci_tdra": {
-     "label": "",
+     "label": "Time resource assignment index",
      "unit": "",
      "group": ""
     },
     "dci_symbols": {
-     "label": "",
+     "label": "PDSCH symbols",
      "unit": "",
      "group": ""
     },
@@ -775,122 +775,122 @@
      "group": ""
     },
     "dci_si_indicator": {
-     "label": "",
+     "label": "SI indicator",
      "unit": "",
      "group": ""
     },
     "tbs": {
-     "label": "",
+     "label": "Transport block size (TBS)",
      "unit": "",
      "group": ""
     },
     "point_a": {
-     "label": "",
+     "label": "Point A frequency (downlink)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "ul_point_a": {
-     "label": "",
+     "label": "Point A frequency (uplink)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "duplex": {
-     "label": "",
+     "label": "Duplex spacing (downlink − uplink)",
      "unit": "",
      "group": ""
     },
     "prach_format": {
-     "label": "",
+     "label": "Preamble format",
      "unit": "",
      "term": "",
      "group": ""
     },
     "prach_when": {
-     "label": "",
+     "label": "PRACH occasions (time)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "dci_tdra_row": {
-     "label": "",
+     "label": "PDSCH symbols (from the table)",
      "unit": "",
      "group": ""
     }
    },
    "derivations": {
     "riv": {
-     "title": ""
+     "title": "Decoding the RIV (frequency resource position)"
     },
     "tdra": {
-     "title": ""
+     "title": "Time resource table lookup"
     },
     "tbs": {
-     "title": ""
+     "title": "Transport block size (TBS) calculation"
     },
     "carrier_bw_mhz": {
-     "title": ""
+     "title": "Number of RBs to bandwidth"
     },
     "initial_bwp": {
-     "title": ""
+     "title": "Decoding locationAndBandwidth"
     },
     "si_window": {
-     "title": ""
+     "title": "Start of the SI window that carries SIB19"
     },
     "prach": {
-     "title": ""
+     "title": "PRACH occasions (time)"
     },
     "q_rxlevmin": {
-     "title": ""
+     "title": "q-RxLevMin conversion"
     },
     "n_ta_offset": {
-     "title": ""
+     "title": "N_TA,offset value"
     },
     "point_a": {
-     "title": ""
+     "title": "Point A frequency"
     },
     "ul_freq": {
-     "title": ""
+     "title": "Uplink frequency and duplex spacing"
     }
    },
    "plots": {
     "coreset_grid": {
-     "title": "",
-     "caption": "",
-     "x": "",
-     "y": ""
+     "title": "Where SIB1 sits",
+     "caption": "CORESET0 in the first symbols carries the control signal saying 'look there'; the SIB1 body follows.",
+     "x": "OFDM symbol",
+     "y": "Resource block (RB)"
     },
     "constellation": {
-     "title": "",
-     "caption": "",
+     "title": "PDSCH constellation",
+     "caption": "The signal points of the SIB1 body.",
      "x": "",
      "y": ""
     },
     "si_schedule": {
-     "title": "",
-     "caption": ""
+     "title": "Schedule of further notices",
+     "caption": "Which SIBs are broadcast, and how often."
     }
    },
    "columns": {
-    "sib": "",
-    "period": "",
-    "window": "",
-    "status": ""
+    "sib": "Notice",
+    "period": "Period",
+    "window": "Window position",
+    "status": "Broadcast"
    },
    "annotations": {
-    "CORESET0": "",
-    "PDCCH": "",
-    "PDSCH": "",
-    "PDSCH DM-RS": ""
+    "CORESET0": "The region that carries the control signal pointing to SIB1.",
+    "PDCCH": "The control signal that was found.",
+    "PDSCH": "The region that carries the SIB1 body.",
+    "PDSCH DM-RS": "Reference signal for reading the body."
    },
    "diagnostics": {
     "NO_PDCCH": [
      {
-      "message": "",
-      "fix": "",
+      "message": "The received band may not cover all of CORESET0.",
+      "fix": "Raise the sample rate to receive a wider band.",
       "action": {
-       "label": "",
+       "label": "Retry with a wider band",
        "kind": "",
        "params": {
         "widen": true
@@ -898,10 +898,10 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "Low signal quality may have hidden the control signal.",
+      "fix": "Raise the gain or move the antenna.",
       "action": {
-       "label": "",
+       "label": "Retry with gain +10 dB",
        "kind": "",
        "params": {
         "gain_delta_db": 10
@@ -909,10 +909,10 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "The frame timing may be off.",
+      "fix": "Run the MIB step again.",
       "action": {
-       "label": "",
+       "label": "Redo from MIB",
        "kind": "",
        "target": "",
        "params": {}
@@ -921,10 +921,10 @@
     ],
     "PDSCH_CRC_FAIL": [
      {
-      "message": "",
-      "fix": "",
+      "message": "The control signal was found but the body has errors.",
+      "fix": "Raise the gain, or receive longer and try the next transmission.",
       "action": {
-       "label": "",
+       "label": "Retry with gain +10 dB",
        "kind": "",
        "params": {
         "gain_delta_db": 10
@@ -934,17 +934,17 @@
     ],
     "ASN1_FAIL": [
      {
-      "message": "",
-      "fix": ""
+      "message": "The body was received but its contents could not be interpreted.",
+      "fix": "Check the received bytes in the expert view. The standard release may not match."
      }
     ],
     "NO_SIB19": [
      {
       "level": "",
-      "message": "",
-      "fix": "",
+      "message": "This base station does not broadcast SIB19. It appears to be a terrestrial base station, not a satellite.",
+      "fix": "Pick a base station in a satellite band (n255, n256) to go on to the next step.",
       "action": {
-       "label": "",
+       "label": "Back to scan",
        "kind": "",
        "target": ""
       }
@@ -974,78 +974,78 @@
     "si.asn1": "Interpreting the contents"
    },
    "groups": {
-    "time": "",
-    "orbit": "",
-    "delay": "",
-    "other": ""
+    "time": "Reference time and validity",
+    "orbit": "Satellite position and velocity",
+    "delay": "Delay compensation",
+    "other": "Other settings"
    },
    "values": {
     "received_sibs": {
-     "label": "",
+     "label": "Notices received",
      "unit": "",
      "group": ""
     },
     "epoch_sfn": {
-     "label": "",
+     "label": "Reference time (SFN)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "epoch_subframe": {
-     "label": "",
+     "label": "Reference time (subframe)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "validity": {
-     "label": "",
+     "label": "Validity time",
      "unit": "",
      "term": "",
      "group": ""
     },
     "pos_x": {
-     "label": "",
+     "label": "Satellite position X",
      "unit": "",
      "term": "",
      "group": ""
     },
     "pos_y": {
-     "label": "",
+     "label": "Satellite position Y",
      "unit": "",
      "term": "",
      "group": ""
     },
     "pos_z": {
-     "label": "",
+     "label": "Satellite position Z",
      "unit": "",
      "term": "",
      "group": ""
     },
     "vel_x": {
-     "label": "",
+     "label": "Satellite velocity X",
      "unit": "",
      "term": "",
      "group": ""
     },
     "vel_y": {
-     "label": "",
+     "label": "Satellite velocity Y",
      "unit": "",
      "term": "",
      "group": ""
     },
     "vel_z": {
-     "label": "",
+     "label": "Satellite velocity Z",
      "unit": "",
      "term": "",
      "group": ""
     },
     "altitude": {
-     "label": "",
+     "label": "Satellite altitude",
      "unit": "",
      "group": ""
     },
     "speed": {
-     "label": "",
+     "label": "Satellite speed",
      "unit": "",
      "group": ""
     },
@@ -1061,107 +1061,107 @@
      "group": ""
     },
     "ta_common": {
-     "label": "",
+     "label": "Common TA (ta-Common)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "ta_drift": {
-     "label": "",
+     "label": "Common TA rate",
      "unit": "",
      "term": "",
      "group": ""
     },
     "ta_drift_variant": {
-     "label": "",
+     "label": "Rate of change of the common TA rate",
      "unit": "",
      "term": "",
      "group": ""
     },
     "polarization": {
-     "label": "",
+     "label": "Downlink polarisation",
      "unit": "",
      "group": ""
     },
     "ref_location": {
-     "label": "",
+     "label": "Reference location",
      "unit": "",
      "group": ""
     },
     "distance_thresh": {
-     "label": "",
+     "label": "Distance threshold",
      "unit": "",
      "group": ""
     },
     "t_service": {
-     "label": "",
+     "label": "Service end time",
      "unit": "",
      "group": ""
     },
     "n_neighbours": {
-     "label": "",
-     "unit": "",
+     "label": "Neighbour NTN cells",
+     "unit": "cell(s)",
      "group": ""
     }
    },
    "derivations": {
     "pos": {
-     "title": ""
+     "title": "Satellite position unit conversion"
     },
     "vel": {
-     "title": ""
+     "title": "Satellite velocity unit conversion"
     },
     "altitude": {
-     "title": ""
+     "title": "Satellite altitude"
     },
     "speed": {
-     "title": ""
+     "title": "Satellite speed"
     },
     "ta_common": {
-     "title": ""
+     "title": "ta-Common unit conversion"
     },
     "ta_drift": {
-     "title": ""
+     "title": "ta-CommonDrift unit conversion"
     },
     "ta_drift_variant": {
-     "title": ""
+     "title": "ta-CommonDriftVariant unit conversion"
     },
     "validity": {
-     "title": ""
+     "title": "Validity time"
     },
     "k_offset": {
-     "title": ""
+     "title": "K_offset as time"
     }
    },
    "plots": {
     "si_windows": {
-     "title": "",
-     "caption": "",
-     "x": "",
+     "title": "Time windows in which SIB19 was awaited",
+     "caption": "SIB19 was found inside the window computed from SIB1's schedule.",
+     "x": "Time",
      "y": ""
     },
     "fields": {
-     "title": "",
-     "caption": ""
+     "title": "What SIB19 says",
+     "caption": "Raw values and the physical quantities in the standard's units."
     }
    },
    "columns": {
-    "field": "",
-    "raw": "",
-    "physical": "",
-    "unit": ""
+    "field": "Field",
+    "raw": "Raw value",
+    "physical": "Physical value",
+    "unit": "Unit"
    },
    "annotations": {
-    "window": "",
-    "found": ""
+    "window": "SI window",
+    "found": "SIB19 received"
    },
    "diagnostics": {
     "NOT_SCHEDULED": [
      {
-      "message": "",
-      "fix": "",
+      "message": "This base station does not broadcast SIB19. It appears to be a terrestrial base station, not a satellite.",
+      "fix": "Scan again in a satellite band (n255, n256).",
       "action": {
-       "label": "",
+       "label": "Back to scan",
        "kind": "",
        "target": ""
       }
@@ -1169,10 +1169,10 @@
     ],
     "SI_TIMEOUT": [
      {
-      "message": "",
-      "fix": "",
+      "message": "The captured span does not contain SIB19's window.",
+      "fix": "Receive for at least one SI period.",
       "action": {
-       "label": "",
+       "label": "Retry receiving for one SI period",
        "kind": "",
        "params": {
         "cover_si_period": true
@@ -1180,10 +1180,10 @@
       }
      },
      {
-      "message": "",
-      "fix": "",
+      "message": "The satellite may have moved on and the signal weakened.",
+      "fix": "Run again from SSB sync.",
       "action": {
-       "label": "",
+       "label": "Redo from SSB",
        "kind": "",
        "target": "",
        "params": {}
@@ -1192,10 +1192,10 @@
     ],
     "PDSCH_CRC_FAIL": [
      {
-      "message": "",
-      "fix": "",
+      "message": "The control signal was found but the body has errors.",
+      "fix": "Try the transmission in the next period.",
       "action": {
-       "label": "",
+       "label": "Retry",
        "kind": "",
        "params": {}
       }
@@ -1203,8 +1203,8 @@
     ],
     "ASN1_FAIL": [
      {
-      "message": "",
-      "fix": ""
+      "message": "The body was received but its contents could not be interpreted.",
+      "fix": "Check the received bytes in the expert view."
      }
     ]
    }
@@ -1216,7 +1216,7 @@
    "title": "Satellite calculations",
    "question": "Where is the satellite, and how late does the signal arrive?",
    "intro": "Uses the satellite position in SIB19 and your location to work out distance, delay and Doppler.",
-   "analogy": "",
+   "analogy": "Just as thunder arrives after the lightning, a satellite's signal arrives late by the distance. That delay is calculated and compensated in advance.",
    "button": "Recalculate",
    "locked_reason": "SIB19 gives the satellite position; read it first.",
    "summary": {
@@ -1227,123 +1227,123 @@
    },
    "progress": {},
    "groups": {
-    "time": "",
-    "geometry": "",
-    "delay": "",
-    "doppler": "",
-    "rate": ""
+    "time": "Reference time and validity",
+    "geometry": "Satellite position",
+    "delay": "Delay and timing advance (TA)",
+    "doppler": "Doppler",
+    "rate": "Rates of change"
    },
    "values": {
     "dt": {
-     "label": "",
+     "label": "Time since the reference time",
      "unit": "",
      "term": "",
      "group": ""
     },
     "validity_left": {
-     "label": "",
+     "label": "Validity time left",
      "unit": "",
      "term": "",
      "group": ""
     },
     "sat_lat": {
-     "label": "",
+     "label": "Sub-satellite point (latitude)",
      "unit": "",
      "group": ""
     },
     "sat_lon": {
-     "label": "",
+     "label": "Sub-satellite point (longitude)",
      "unit": "",
      "group": ""
     },
     "altitude": {
-     "label": "",
+     "label": "Satellite altitude",
      "unit": "",
      "group": ""
     },
     "speed": {
-     "label": "",
+     "label": "Satellite speed",
      "unit": "",
      "group": ""
     },
     "range": {
-     "label": "",
+     "label": "Distance to the satellite",
      "unit": "",
      "group": ""
     },
     "elevation": {
-     "label": "",
+     "label": "Elevation",
      "unit": "",
      "term": "",
      "group": ""
     },
     "azimuth": {
-     "label": "",
+     "label": "Azimuth",
      "unit": "",
      "term": "",
      "group": ""
     },
     "service_delay": {
-     "label": "",
+     "label": "Service link delay (one way)",
      "unit": "",
      "group": ""
     },
     "ta_ue": {
-     "label": "",
+     "label": "UE-specific TA (N_TA,adj^UE)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "common_delay": {
-     "label": "",
+     "label": "Common delay (one way)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "ta_common": {
-     "label": "",
+     "label": "Common TA (N_TA,adj^common)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "ta_total": {
-     "label": "",
+     "label": "Total TA (T_TA)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "k_offset_ok": {
-     "label": "",
+     "label": "Does K_offset cover the TA?",
      "unit": "",
      "term": "",
      "group": ""
     },
     "doppler_pred": {
-     "label": "",
+     "label": "Doppler (predicted from the orbit)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "cfo_meas": {
-     "label": "",
+     "label": "Measured frequency offset (CFO)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "doppler_residual": {
-     "label": "",
+     "label": "Difference (measured − predicted)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "ta_rate": {
-     "label": "",
+     "label": "TA rate",
      "unit": "",
      "term": "",
      "group": ""
     },
     "doppler_rate": {
-     "label": "",
+     "label": "Doppler rate",
      "unit": "",
      "term": "",
      "group": ""
@@ -1351,115 +1351,115 @@
    },
    "derivations": {
     "dt": {
-     "title": ""
+     "title": "Difference between the reference time (epochTime) and now"
     },
     "validity_left": {
-     "title": ""
+     "title": "Validity time left"
     },
     "propagate": {
-     "title": ""
+     "title": "Moving the satellite position to the present"
     },
     "altitude": {
-     "title": ""
+     "title": "Satellite altitude and speed"
     },
     "range": {
-     "title": ""
+     "title": "Device–satellite distance"
     },
     "angles": {
-     "title": ""
+     "title": "Elevation and azimuth"
     },
     "service_delay": {
-     "title": ""
+     "title": "Service link delay"
     },
     "ta_ue": {
-     "title": ""
+     "title": "UE-specific TA"
     },
     "common_delay": {
-     "title": ""
+     "title": "Common delay (the polynomial in TS 38.213 4.2)"
     },
     "ta_common": {
-     "title": ""
+     "title": "Common TA"
     },
     "ta_total": {
-     "title": ""
+     "title": "Total TA"
     },
     "k_offset_ok": {
-     "title": ""
+     "title": "K_offset check"
     },
     "doppler_pred": {
-     "title": ""
+     "title": "Service link Doppler"
     },
     "doppler_residual": {
-     "title": ""
+     "title": "Difference between measured and predicted"
     },
     "ta_rate": {
-     "title": ""
+     "title": "TA rate"
     },
     "doppler_rate": {
-     "title": ""
+     "title": "Doppler rate"
     }
    },
    "plots": {
     "sky": {
-     "title": "",
-     "caption": ""
+     "title": "Sky map",
+     "caption": "The centre is overhead, the outer circle is the horizon. The line is the satellite's path during the validity time."
     },
     "delays": {
-     "title": "",
-     "caption": "",
+     "title": "What the delay is made of",
+     "caption": "The time (one way) the signal takes from the device via the satellite to the reference point.",
      "x": "",
-     "y": ""
+     "y": "Delay"
     },
     "ta_curve": {
-     "title": "",
-     "caption": "",
-     "x": "",
-     "y": ""
+     "title": "TA forecast",
+     "caption": "How the TA will change over the validity time ahead.",
+     "x": "From now",
+     "y": "Total TA"
     },
     "doppler_curve": {
-     "title": "",
-     "caption": "",
-     "x": "",
-     "y": ""
+     "title": "Doppler forecast",
+     "caption": "The dot is the CFO measured now. Far from the line means an anomaly.",
+     "x": "From now",
+     "y": "Doppler"
     }
    },
    "columns": {},
    "annotations": {
-    "now": "",
-    "satellite": "",
-    "track": "",
-    "service": "",
-    "common": "",
-    "measured": ""
+    "now": "Now",
+    "satellite": "Satellite",
+    "track": "Expected path",
+    "service": "Device ↔ satellite",
+    "common": "Satellite ↔ reference point",
+    "measured": "Measured CFO"
    },
    "diagnostics": {
     "NO_EPHEMERIS": [
      {
-      "message": "",
-      "fix": ""
+      "message": "SIB19 has no satellite position, or it is in a format that is not supported.",
+      "fix": "Check ephemerisInfo in the expert view of the SIB19 step."
      }
     ],
     "DOPPLER_MISMATCH": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "The Doppler predicted from the orbit differs a lot from the measured frequency offset.",
+      "fix": "Check that your location setting is right. If it is, the broadcast orbit may differ from the real satellite. Receiver clock error can also cause this."
      }
     ],
     "ORBIT_UNPHYSICAL": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "The broadcast orbit has an altitude or speed that is physically impossible.",
+      "fix": "Compare with the circular-orbit speed at this altitude. The values may have been tampered with or broadcast wrongly."
      }
     ],
     "EPOCH_OUT_OF_RANGE": [
      {
       "level": "",
-      "message": "",
-      "fix": "",
+      "message": "The reference time of the satellite information is outside its validity time.",
+      "fix": "Receive SIB19 again to refresh the values.",
       "action": {
-       "label": "",
+       "label": "Read SIB19 again",
        "kind": "",
        "target": "",
        "params": {}
@@ -1469,45 +1469,45 @@
     "EPOCH_IN_FUTURE": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "The reference time is slightly ahead of now. The standard allows this; it is normal.",
+      "fix": "Nothing needs to be done."
      }
     ],
     "TA_COMMON_IMPLAUSIBLE": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "The common TA is outside the range of delays possible for a satellite at this altitude.",
+      "fix": "Compare ta-Common with the orbit altitude."
      }
     ],
     "K_OFFSET_TOO_SMALL": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "cellSpecificKoffset is smaller than the calculated TA.",
+      "fix": "A device could not transmit in time with this value. The broadcast value may be wrong."
      }
     ],
     "BELOW_HORIZON": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "The calculation puts the satellite below the horizon. No signal should be receivable from this location.",
+      "fix": "Check that your location setting is right. If it is, the broadcast orbit differs from reality."
      }
     ],
     "SIB19_JUMP": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "Between consecutive SIB19s a value jumped in a way orbital motion does not explain.",
+      "fix": "Check the change history on the Tracking screen."
      }
     ],
     "LOCATION_DEFAULT": [
      {
       "level": "",
-      "message": "",
-      "fix": "",
+      "message": "Your location is still the default.",
+      "fix": "Enter your real location in Settings for accurate results.",
       "action": {
-       "label": "",
+       "label": "Open Settings",
        "kind": "",
        "target": ""
       }
@@ -1530,50 +1530,50 @@
    "groups": {},
    "values": {
     "cfo_hz": {
-     "label": "",
+     "label": "Measured CFO",
      "unit": ""
     },
     "timing_drift_samples": {
-     "label": "",
-     "unit": ""
+     "label": "Timing change",
+     "unit": "samples"
     },
     "rsrp_dbfs": {
-     "label": "",
+     "label": "Signal strength (SS-RSRP)",
      "unit": ""
     },
     "sinr_db": {
-     "label": "",
+     "label": "Signal quality (SS-SINR)",
      "unit": ""
     },
     "doppler_pred_hz": {
-     "label": "",
+     "label": "Doppler (predicted from the orbit)",
      "unit": ""
     },
     "doppler_residual_hz": {
-     "label": "",
+     "label": "Measured − predicted",
      "unit": ""
     },
     "ta_total_ms": {
-     "label": "",
+     "label": "Total TA",
      "unit": ""
     },
     "range_km": {
-     "label": "",
+     "label": "Distance to the satellite",
      "unit": ""
     },
     "elevation_deg": {
-     "label": "",
+     "label": "Elevation",
      "unit": ""
     },
     "validity_left_s": {
-     "label": "",
+     "label": "Validity time left",
      "unit": ""
     }
    },
    "fields": {
     "epoch_sfn": "",
-    "epoch_subframe": "",
-    "validity_s": "",
+    "epoch_subframe": "epochTime subframe",
+    "validity_s": "Validity time",
     "k_offset": "",
     "ta_common": "",
     "ta_drift": "",
@@ -1593,8 +1593,8 @@
     "REPLAY_NOTE": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "A stored signal is being re-read, so the measurements are the same every time. Only the values calculated from the orbit change with time.",
+      "fix": "Receive live with a device to see real changes."
      }
     ]
    }
@@ -1617,32 +1617,32 @@
    "annotations": {},
    "diagnostics": {},
    "text": {
-    "created": "",
-    "source": "",
-    "engine": "",
-    "status_ok": "",
-    "status_partial": "",
-    "status_fail": "",
-    "values": "",
-    "derivations": "",
-    "inputs": "",
-    "steps": "",
-    "result": "",
-    "diagnostics": "",
-    "expert": "",
-    "not_run": "",
-    "refs": "",
-    "footer": "",
-    "print": "",
-    "kind_synthetic": "",
-    "kind_file": "",
-    "kind_device": "",
-    "track": "",
-    "changes": "",
-    "before": "",
-    "after": "",
-    "time": "",
-    "field": ""
+    "created": "Created",
+    "source": "Input",
+    "engine": "Engine",
+    "status_ok": "OK",
+    "status_partial": "Caution",
+    "status_fail": "Failed",
+    "values": "Key values",
+    "derivations": "Calculation steps",
+    "inputs": "Input",
+    "steps": "Working",
+    "result": "Result",
+    "diagnostics": "Notes",
+    "expert": "Expert summary",
+    "not_run": "Not run",
+    "refs": "Standard clauses",
+    "footer": "Report produced by nrtrail, a receive-only tool. Values are the broadcast information received and what was calculated from it.",
+    "print": "Print / save as PDF",
+    "kind_synthetic": "Synthetic practice signal",
+    "kind_file": "Stored file",
+    "kind_device": "Device capture",
+    "track": "Tracking record",
+    "changes": "SIB19 change history",
+    "before": "Previous value",
+    "after": "New value",
+    "time": "Time",
+    "field": "Field"
    }
   },
   {
@@ -1650,7 +1650,7 @@
    "title": "Random access observation",
    "question": "How does the base station answer an access attempt?",
    "intro": "Reads the base station's response (RAR) to an access attempt and the contention resolution message, from a testbed recording or a synthetic practice signal.",
-   "analogy": "",
+   "analogy": "A note answering whoever knocked: 'guest number so-and-so, please speak this much earlier'.",
    "button": "Read RA response",
    "locked_reason": "SIB1's RACH configuration is needed to find the response.",
    "not_allowed": "This feature is for testbeds only. It works on synthetic practice signals and on files marked as testbed recordings, and stays closed for live device input.",
@@ -1661,16 +1661,16 @@
     "fail_expert": "{reason}"
    },
    "progress": {
-    "ra.read": "",
-    "ra.pdcch": "",
-    "ra.pdsch": "",
-    "ra.done": ""
+    "ra.read": "Reading the span where the response would be",
+    "ra.pdcch": "Looking for the control signal announcing the response",
+    "ra.pdsch": "Decoding the response body",
+    "ra.done": "Interpreting the contents"
    },
    "groups": {
-    "rnti": "",
-    "rar": "",
-    "grant": "",
-    "msg4": ""
+    "rnti": "The number used to find the response",
+    "rar": "What the response (RAR) says",
+    "grant": "Uplink grant",
+    "msg4": "Contention resolution (Msg4)"
    },
    "values": {
     "ra_rnti": {
@@ -1680,32 +1680,32 @@
      "group": ""
     },
     "s_id": {
-     "label": "",
+     "label": "s_id (first PRACH symbol)",
      "unit": "",
      "group": ""
     },
     "t_id": {
-     "label": "",
+     "label": "t_id (PRACH slot)",
      "unit": "",
      "group": ""
     },
     "f_id": {
-     "label": "",
+     "label": "f_id (index in frequency)",
      "unit": "",
      "group": ""
     },
     "rapid": {
-     "label": "",
+     "label": "Preamble index (RAPID)",
      "unit": "",
      "group": ""
     },
     "backoff": {
-     "label": "",
+     "label": "Backoff indicator",
      "unit": "",
      "group": ""
     },
     "ta_command": {
-     "label": "",
+     "label": "TA command (T_A)",
      "unit": "",
      "term": "",
      "group": ""
@@ -1717,13 +1717,13 @@
      "group": ""
     },
     "ta_us": {
-     "label": "",
+     "label": "TA (time)",
      "unit": "",
      "term": "",
      "group": ""
     },
     "distance": {
-     "label": "",
+     "label": "Distance equivalent",
      "unit": "",
      "group": ""
     },
@@ -1733,17 +1733,17 @@
      "group": ""
     },
     "grant_hopping": {
-     "label": "",
+     "label": "Frequency hopping",
      "unit": "",
      "group": ""
     },
     "grant_freq": {
-     "label": "",
+     "label": "PUSCH frequency resource",
      "unit": "",
      "group": ""
     },
     "grant_time": {
-     "label": "",
+     "label": "PUSCH time resource",
      "unit": "",
      "group": ""
     },
@@ -1758,82 +1758,82 @@
      "group": ""
     },
     "grant_csi": {
-     "label": "",
+     "label": "CSI request",
      "unit": "",
      "group": ""
     },
     "contention_id": {
-     "label": "",
+     "label": "Contention resolution identity",
      "unit": "",
      "group": ""
     },
     "msg4_rrc": {
-     "label": "",
+     "label": "RRC message that came with it",
      "unit": "",
      "group": ""
     }
    },
    "derivations": {
     "ra_rnti": {
-     "title": ""
+     "title": "RA-RNTI calculation"
     },
     "n_ta": {
-     "title": ""
+     "title": "TA command to N_TA"
     },
     "ta_us": {
-     "title": ""
+     "title": "N_TA to time"
     },
     "distance": {
-     "title": ""
+     "title": "TA to distance"
     },
     "grant": {
-     "title": ""
+     "title": "Splitting the 27-bit uplink grant"
     }
    },
    "plots": {
     "coreset_grid": {
-     "title": "",
-     "caption": "",
-     "x": "",
-     "y": ""
+     "title": "Where the response sits",
+     "caption": "Positions of the control signal and the response body.",
+     "x": "OFDM symbol",
+     "y": "Resource block (RB)"
     }
    },
    "columns": {},
    "annotations": {
-    "CORESET0": "",
-    "PDCCH": "",
-    "PDSCH": "",
-    "PDSCH DM-RS": ""
+    "CORESET0": "The region that carries the control signal.",
+    "PDCCH": "The control signal that was found.",
+    "PDSCH": "The region that carries the response body.",
+    "PDSCH DM-RS": "Reference signal for reading the body."
    },
    "diagnostics": {
     "NO_RAR": [
      {
-      "message": "",
-      "fix": ""
+      "message": "There is no access response in this span.",
+      "fix": "Check that the recording covers an access attempt. The response only appears within ra-ResponseWindow after the preamble."
      },
      {
-      "message": "",
-      "fix": ""
+      "message": "The RA-RNTI may be different (another PRACH occasion).",
+      "fix": "Check that s_id, t_id and f_id in the expert view match the occasion the preamble was actually sent in."
      }
     ],
     "NO_MSG4": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "The response (RAR) was read, but there is no contention resolution message (Msg4) in this span.",
+      "fix": "A longer recording may be needed."
      }
     ],
     "NO_PRACH_CONFIG": [
      {
-      "message": "",
-      "fix": ""
+      "message": "SIB1 has no RACH configuration, so the number for finding the response cannot be calculated.",
+      "fix": "Check the RACH settings card in the SIB1 step."
      }
     ],
     "UPLINK_NOT_OBSERVED": [
      {
       "level": "",
-      "message": "",
-      "fix": ""
+      "message": "The uplink (preamble, Msg3) is not observed. Only downlink responses are read.",
+      "fix": "Uplink detection is defined as an interface only."
      }
     ]
    }
@@ -1842,10 +1842,10 @@
  "common_diagnostics": {
   "INTERNAL": [
    {
-    "message": "",
-    "fix": "",
+    "message": "An unexpected error occurred during processing.",
+    "fix": "Try again. If it keeps happening, check the environment check on the Settings screen and the error text in the expert view.",
     "action": {
-     "label": "",
+     "label": "Retry",
      "kind": "",
      "params": {}
     }
@@ -1853,10 +1853,10 @@
   ],
   "ENGINE_UNAVAILABLE": [
    {
-    "message": "",
-    "fix": "",
+    "message": "The engine (MATLAB) needed for this input is not available.",
+    "fix": "Check the MATLAB status on the Settings screen. Practice mode works without MATLAB.",
     "action": {
-     "label": "",
+     "label": "Open the check screen",
      "kind": "",
      "target": ""
     }
@@ -1864,10 +1864,10 @@
   ],
   "CAPTURE_FAILED": [
    {
-    "message": "",
-    "fix": "",
+    "message": "No signal was received from the device.",
+    "fix": "Check the device connection and settings (frequency, sample rate).",
     "action": {
-     "label": "",
+     "label": "Retry",
      "kind": "",
      "params": {}
     }
