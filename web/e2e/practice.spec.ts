@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SHOTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../docs/screenshots");
+// 서버 모드에서는 서버에 아직 없는 기능(추적: M7)을 건너뛴다. 화면 전용(mock) 모드에서는 전부 본다.
+const MOCK = process.env.NRTRAIL_E2E === "mock";
 const shot = (page: Page, name: string) => page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 
 async function startPractice(page: Page, scenarioTitle?: RegExp) {
@@ -63,9 +65,12 @@ test("연습 모드: 처음부터 끝까지 (스캔 → SSB → MIB → SIB1 →
   await shot(page, "05-ntn");
 
   await page.getByRole("link", { name: "추적", exact: true }).click();
-  await page.getByTestId("track-toggle").click();
-  await expect(page.getByTestId("track-csv")).toBeVisible();
-  await page.getByTestId("track-toggle").click();
+  await expect(page.getByTestId("track-toggle")).toBeVisible();
+  if (MOCK || process.env.NRTRAIL_E2E_TRACK) {
+    await page.getByTestId("track-toggle").click();
+    await expect(page.getByTestId("track-csv")).toBeVisible();
+    await page.getByTestId("track-toggle").click();
+  }
   await shot(page, "06-track");
 
   await page.getByRole("link", { name: "세션", exact: true }).click();
