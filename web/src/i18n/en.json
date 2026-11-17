@@ -204,5 +204,14 @@
   "track.changes.anomaly": "not explained by the orbit",
   "device.stage.ok": "OK",
   "device.stage.limited": "limited",
-  "device.stage.no": "no"
+  "device.stage.no": "no",
+  "oai.title": "Record from the OAI satellite simulator",
+  "oai.desc": "Receives a fresh signal from the OAI NTN base-station simulator running on this computer and opens it. A software signal; nothing is transmitted over the air.",
+  "oai.length": "Length",
+  "oai.seconds": "{s} s",
+  "oai.button": "Record and open",
+  "oai.busy": "Recording… (about a minute if the base station has to start)",
+  "oai.running": "Base station running",
+  "oai.stopped": "Base station off · it is started briefly and stopped again",
+  "oai.hint": "On the satellite screen use latitude {lat}, longitude {lon} (directly below the simulated satellite)."
 }

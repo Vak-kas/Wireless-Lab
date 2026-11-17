@@ -204,5 +204,14 @@
   "track.changes.anomaly": "궤도로 설명 안 됨",
   "device.stage.ok": "가능",
   "device.stage.limited": "제한적",
-  "device.stage.no": "불가"
+  "device.stage.no": "불가",
+  "oai.title": "OAI 위성 시뮬레이터에서 새로 기록",
+  "oai.desc": "이 컴퓨터에서 도는 OAI NTN 기지국 시뮬레이터의 신호를 새로 받아 바로 엽니다. 전파를 내보내지 않는 소프트웨어 신호입니다.",
+  "oai.length": "기록 길이",
+  "oai.seconds": "{s}초",
+  "oai.button": "새로 기록해서 열기",
+  "oai.busy": "기록하는 중… (기지국을 켜야 하면 1분쯤 걸립니다)",
+  "oai.running": "기지국 실행 중",
+  "oai.stopped": "기지국 꺼짐 · 누르면 잠깐 켰다가 끕니다",
+  "oai.hint": "위성 계산 화면에서는 위도 {lat}, 경도 {lon} 을 넣으세요(가상 위성 바로 아래)."
 }

@@ -71,4 +71,6 @@ export const httpApi: Api = {
   record: (id, on) => call(`/sessions/${id}/record`, "POST", { on }),
   reportUrl: (id) => `/api/sessions/${id}/report.html`,
   phoneCells: () => call("/phone/cells"),
+  oaiStatus: () => call("/testbed/oai"),
+  oaiRecord: (seconds) => call("/testbed/oai/record", "POST", { seconds }),
 };

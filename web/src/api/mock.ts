@@ -190,6 +190,10 @@ export const mockApi: Api = {
   },
   trackData: async (id) => need(id).track,
   trackChanges: async (id) => fixture(`${need(id).session.source.scenario ?? "ntn-leo-n256"}/track-changes.json`) ?? [],
+  oaiStatus: async () => ({ available: false, ready: false, running: false, reason: "" }),
+  oaiRecord: async () => {
+    throw new Error("mock");
+  },
   trackCsvUrl: () => "#",
   async record(id, on) {
     const m = need(id);

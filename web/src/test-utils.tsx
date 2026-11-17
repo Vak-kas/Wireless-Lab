@@ -75,6 +75,8 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
       listener = fn;
       return () => (listener = null);
     },
+    oaiStatus: async () => ({ available: false, ready: false, running: false, reason: "" }),
+    oaiRecord: no,
     ntn: no,
     trackStart: no,
     trackStop: no,

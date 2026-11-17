@@ -56,6 +56,15 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         return await asyncio.to_thread(read_phone)
 
     try:
+        from . import testbed_oai
+    except ImportError:
+        @app.get("/api/testbed/oai")
+        def oai_unavailable() -> dict[str, Any]:
+            return {"available": False, "ready": False, "running": False, "reason": ""}
+    else:
+        testbed_oai.register(app)
+
+    try:
         from . import report
     except ImportError:
         pass

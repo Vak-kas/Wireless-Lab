@@ -5,6 +5,7 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
+import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
 
 const DOCTOR_LEVEL = { ok: "ok", warn: "warn", missing: "error" } as const;
@@ -109,6 +110,8 @@ export function StartScreen() {
               </Button>
             </div>
           </div>
+
+          <OaiCard />
 
           <div className="card" data-testid="source-device">
             <h3 className="t-tagline">{t("start.device.title")}</h3>

@@ -131,7 +131,30 @@ export interface PhoneReport {
   limits: string[];
 }
 
+export interface OaiStatus {
+  /** 테스트베드 파일이 있는가 (없으면 화면에 구역 자체를 보이지 않는다) */
+  available: boolean;
+  /** 지금 기록할 수 있는가. 아니면 reason 에 이유 */
+  ready: boolean;
+  running: boolean;
+  reason: string;
+  band?: string;
+  location?: { lat: number; lon: number };
+  max_seconds?: number;
+}
+
+export interface OaiRecording {
+  meta_path: string;
+  seconds: number;
+  num_samples: number;
+  size_mb: number;
+  band: string;
+  location: { lat: number; lon: number };
+}
+
 export interface Api {
+  oaiStatus(): Promise<OaiStatus>;
+  oaiRecord(seconds: number): Promise<OaiRecording>;
   pipeline(): Promise<PipelineDef>;
   glossary(): Promise<Glossary>;
   scenarios(): Promise<Scenario[]>;
