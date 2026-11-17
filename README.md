@@ -31,7 +31,7 @@ venv/bin/python tools/dev.py --built     # http://127.0.0.1:8765
 
 | 운영체제 | 실행 파일 |
 |---|---|
-| macOS | `nrtrail.app` (처음 한 번 폴더 접근 허용을 묻습니다) 또는 `nrtrail.command` |
+| macOS | `nrtrail.app` 또는 `nrtrail.command` (터미널 창이 함께 열립니다. 처음 한 번 폴더 접근 허용을 물을 수 있습니다) |
 | Windows | `nrtrail.bat` |
 | Linux | `./nrtrail.sh` |
 
