@@ -3,7 +3,7 @@
 근거
 - 공통 지연 다항식: TS 38.213 4.2 (원문 대조함, specs/38213-j50)
     Delay_common(t) = TA_Common/2 + TA_CommonDrift/2*(t - t_epoch) + TA_CommonDriftVariant/2*(t - t_epoch)^2
-- 전체 TA: T_TA = (N_TA + N_TA,offset + N_TA,adj^common + N_TA,adj^UE) * Tc — TS 38.211 4.3.1 (원문 미대조)
+- 전체 TA: T_TA = (N_TA + N_TA,offset + N_TA,adj^common + N_TA,adj^UE) * Tc — TS 38.211 4.3.1 (원문 대조함, specs/38211-j50)
 - Tc = 1/(480000*4096) s — TS 38.211 4.1
 - 좌표와 상수: WGS-84, 지구 중력 상수와 자전 각속도는 IERS/WGS-84 값.
 궤도 전파는 짧은 구간(수십 초)용 이체 문제 수치 적분(RK4)이다. J2 등 섭동은 넣지 않는다.
@@ -154,3 +154,32 @@ def horizon_range(radius_m: float) -> float:
 
 def orbital_period_s(radius_m: float) -> float:
     return 2 * pi * sqrt(radius_m ** 3 / MU)
+
+
+def inertial_speed(pos: Vec, vel_ecef: Vec) -> float:
+    """관성계에서 본 속력 |v_ECEF + ω×r|. 궤도가 물리적으로 그럴듯한지(원궤도 속력과 비교) 볼 때 쓴다."""
+    return norm(_add(vel_ecef, _omega_cross(pos)))
+
+
+def kepler_to_ecef(a_m: float, ecc: float, arg_periapsis: float, lon_asc_node: float, inclination: float,
+                   mean_anomaly: float) -> tuple[Vec, Vec]:
+    """케플러 궤도 요소 -> 기준 시각의 ECEF 위치·속도. 각도는 라디안.
+
+    승교점 경도는 기준 시각의 ECEF 기준으로 본다(그 순간 ECEF와 겹치는 관성계에서 궤도를 풀고, 속도만 ECEF로 옮긴다).
+    """
+    e_anom = mean_anomaly
+    for _ in range(30):  # 케플러 방정식 M = E - e sin E 를 뉴턴법으로
+        e_anom -= (e_anom - ecc * sin(e_anom) - mean_anomaly) / (1 - ecc * cos(e_anom))
+    nu = 2 * atan2(sqrt(1 + ecc) * sin(e_anom / 2), sqrt(1 - ecc) * cos(e_anom / 2))
+    r = a_m * (1 - ecc * cos(e_anom))
+    p = a_m * (1 - ecc ** 2)
+    rp = (r * cos(nu), r * sin(nu), 0.0)                                   # 근점 좌표계
+    vp = (-sqrt(MU / p) * sin(nu), sqrt(MU / p) * (ecc + cos(nu)), 0.0)
+
+    def to_frame(v: Vec) -> Vec:  # Rz(Ω) Rx(i) Rz(ω)
+        x, y, z = _rot_z(v, arg_periapsis)
+        y, z = y * cos(inclination) - z * sin(inclination), y * sin(inclination) + z * cos(inclination)
+        return _rot_z((x, y, z), lon_asc_node)
+
+    pos, vel_i = to_frame(rp), to_frame(vp)
+    return pos, _sub(vel_i, _omega_cross(pos))

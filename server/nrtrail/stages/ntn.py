@@ -79,11 +79,11 @@ def assemble(stage: StageDef, *, sib19: dict[str, Any], n_ta_offset: int | None,
                        f"r(t) = ({', '.join(fmt(x / 1e3, 8) for x in pos)}) km", f"v(t) = ({', '.join(fmt(x / 1e3, 6) for x in vel)}) km/s"],
                       round(ntn.norm(pos) / 1e3, 3), "km", "TR 38.821 6.1")
     s_lat, s_lon, s_alt = ntn.ecef_to_geodetic(pos)
-    speed = ntn.norm(vel)
+    speed = ntn.inertial_speed(pos, vel)  # 관성계 속력. 정지 위성은 ECEF 속도가 0이어도 약 3.07 km/s로 돈다
     radius = ntn.norm(pos)
     v_circ = ntn.circular_speed(radius)
-    d_alt = b.derive("altitude", r"h = \text{WGS-84 ellipsoidal height of } \mathbf{r},\quad v_{circ} = \sqrt{\mu / |\mathbf{r}|}",
-                     [inp("|r|", round(radius / 1e3, 3), "ntn.propagate", "km"), inp("|v|", round(speed / 1e3, 4), "ntn.propagate", "km/s")],
+    d_alt = b.derive("altitude", r"h = \text{WGS-84 ellipsoidal height of } \mathbf{r},\quad |\mathbf{v}_{inertial}| = |\mathbf{v}_{ECEF} + \boldsymbol{\omega}_E \times \mathbf{r}|,\quad v_{circ} = \sqrt{\mu / |\mathbf{r}|}",
+                     [inp("|r|", round(radius / 1e3, 3), "ntn.propagate", "km"), inp("|v_inertial|", round(speed / 1e3, 4), "ntn.propagate", "km/s")],
                      [f"h = {fmt(s_alt / 1e3, 6)} km (lat {fmt(s_lat, 5)}°, lon {fmt(s_lon, 6)}°)",
                       f"v_circ = √(μ/|r|) = {fmt(v_circ / 1e3, 5)} km/s, |v| = {fmt(speed / 1e3, 5)} km/s"], round(s_alt / 1e3, 1), "km", "TR 38.821 4.1")
     b.derived("sat_lat", round(s_lat, 3), d_alt)

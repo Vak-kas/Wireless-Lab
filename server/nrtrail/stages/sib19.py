@@ -7,6 +7,7 @@ from typing import Any
 
 from ..asn1 import rrc
 from ..contracts_gen import StageResult
+from ..nr import ntn as ntn_math
 from ..pipeline import StageDef
 from ..result import ResultBuilder, fmt, inp
 from .base import Ctx, Plot, PlotColumn, PlotTable
@@ -17,6 +18,12 @@ VEL_UNIT_MPS = 0.06
 TA_COMMON_UNIT_US = 4.072e-3
 TA_DRIFT_UNIT_US_S = 0.2e-3
 TA_DRIFT_VARIANT_UNIT_US_S2 = 0.2e-4
+# 궤도 요소 형식(Orbital-r17)의 단위. TS 38.331 6.3.2 EphemerisInfo 필드 설명 (원문 미대조. ASN.1 값 범위와는 맞음:
+# 33비트 x 4.249e-3 m = 36500 km -> 장반경 6500~43000 km, 28비트 x 2.341e-8 rad = 2π, 20비트 x 1.431e-8 = 0.015)
+ORBIT_A0_M = 6_500_000.0
+ORBIT_A_UNIT_M = 4.249e-3
+ORBIT_E_UNIT = 1.431e-8
+ORBIT_ANGLE_UNIT = 2.341e-8
 EARTH_RADIUS_KM = 6371.0  # 평균 반지름. 정밀한 고도(타원체 기준)는 NTN 계산 화면에서 구한다.
 REF = "TS 38.331 6.3.2 NTN-Config"
 P = "SIB19.ntn-Config-r17"
@@ -111,9 +118,30 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
         summary = {"altitude_km": fmt(round(alt), 4), "speed_kms": fmt(speed, 3)}
         b.next_inputs["ephemeris"] = {"format": "positionVelocity", "pos_m": [p * POS_UNIT_M for p in pos], "vel_mps": [v * VEL_UNIT_MPS for v in vel]}
     elif kind == "orbital-r17":
-        b.next_inputs["ephemeris"] = {"format": "orbital", "raw": eph}
-        for key, v in eph.items():
-            row(key, v, "", "")
+        phys = {"a_m": ORBIT_A0_M + eph["semiMajorAxis-r17"] * ORBIT_A_UNIT_M, "ecc": eph["eccentricity-r17"] * ORBIT_E_UNIT,
+                "arg_periapsis": eph["periapsis-r17"] * ORBIT_ANGLE_UNIT, "lon_asc_node": eph["longitude-r17"] * ORBIT_ANGLE_UNIT,
+                "inclination": eph["inclination-r17"] * ORBIT_ANGLE_UNIT, "mean_anomaly": eph["meanAnomaly-r17"] * ORBIT_ANGLE_UNIT}
+        units = {"a_m": ("km", 1e-3), "ecc": ("", 1.0), "arg_periapsis": ("°", 57.29577951308232), "lon_asc_node": ("°", 57.29577951308232),
+                 "inclination": ("°", 57.29577951308232), "mean_anomaly": ("°", 57.29577951308232)}
+        for (field, rawv), (key, value) in zip(eph.items(), phys.items(), strict=True):
+            row(field, rawv, round(value * units[key][1], 6), units[key][0])
+        pos_m, vel_mps = ntn_math.kepler_to_ecef(**phys)
+        alt = phys["a_m"] / 1e3 - EARTH_RADIUS_KM
+        d_alt = b.derive("altitude", r"a = 6500\,\mathrm{km} + \mathrm{semiMajorAxis} \times 4.249 \times 10^{-3}\,\mathrm{m},\quad h \approx a - R_E",
+                         [inp("semiMajorAxis", eph["semiMajorAxis-r17"], f"{P}.ephemerisInfo-r17.orbital-r17.semiMajorAxis-r17"),
+                          inp("R_E", EARTH_RADIUS_KM, "mean Earth radius", "km")],
+                         [f"a = 6500 km + {eph['semiMajorAxis-r17']} × 4.249e-3 m = {fmt(phys['a_m'] / 1e3, 8)} km",
+                          f"h ≈ {fmt(phys['a_m'] / 1e3, 8)} − {EARTH_RADIUS_KM} = {fmt(alt, 6)} km"], round(alt, 1), "km", REF)
+        speed = ntn_math.inertial_speed(pos_m, vel_mps) / 1e3
+        d_spd = b.derive("speed", r"v = \sqrt{\mu \left(\frac{2}{r} - \frac{1}{a}\right)}",
+                         [inp("a", round(phys["a_m"] / 1e3, 3), "SIB19 semiMajorAxis", "km"), inp("e", round(phys["ecc"], 8), "SIB19 eccentricity"),
+                          inp("M", round(phys["mean_anomaly"], 6), "SIB19 meanAnomaly", "rad")],
+                         [f"r = {fmt(ntn_math.norm(pos_m) / 1e3, 8)} km", f"v = {fmt(speed, 5)} km/s"], round(speed, 3), "km/s", "TR 38.821 6.1")
+        b.derived("altitude", round(alt, 1), d_alt, primary=True)
+        b.derived("speed", round(speed, 3), d_spd, primary=True)
+        summary = {"altitude_km": fmt(round(alt), 5), "speed_kms": fmt(speed, 3)}
+        # 뒤 단계(NTN 계산)는 위치·속도 벡터로 통일해 쓴다
+        b.next_inputs["ephemeris"] = {"format": "positionVelocity", "pos_m": list(pos_m), "vel_mps": list(vel_mps), "from": "orbital"}
 
     k_off = ntn.get("cellSpecificKoffset-r17")
     if k_off is not None:
