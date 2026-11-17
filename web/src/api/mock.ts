@@ -195,6 +195,23 @@ export const mockApi: Api = {
     throw new Error("mock");
   },
   oaiProgress: async () => ({ phase: "idle" }),
+  surveyDevice: async (id) => ({
+    device: { id, label: id, driver: "simulated" },
+    plans: [{ id: "capture", available: true, channels: 0 }],
+    capture: { center_freq_hz: 2e9, sample_rate_hz: 15.36e6, duration_s: 0.1 },
+  }),
+  surveyRun: async (req) => ({
+    device: req.device,
+    plan: req.plan,
+    unit: "dBFS",
+    dwell_s: 0.02,
+    fixed_tuning: true,
+    channels: Array.from({ length: 16 }, (_, i) => {
+      const center = 2e9 - 7.2e6 + i * 0.96e6;
+      const p = -70 + (i > 4 && i < 11 ? 30 : 0) + Math.random();
+      return { name: (center / 1e6).toFixed(2), center_hz: center, width_hz: 0.96e6, coverage: 1, measured: true, mean_dbfs: p, median_dbfs: p - 0.2, peak_dbfs: -18, clipped: false };
+    }),
+  }),
   trackCsvUrl: () => "#",
   async record(id, on) {
     const m = need(id);

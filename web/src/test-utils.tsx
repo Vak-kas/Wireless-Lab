@@ -77,6 +77,8 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     },
     oaiStatus: async () => ({ available: false, ready: false, running: false, reason: "" }),
     oaiRecord: no,
+    surveyDevice: no,
+    surveyRun: no,
     oaiProgress: async () => ({ phase: "idle" }),
     ntn: no,
     trackStart: no,

@@ -149,7 +149,10 @@ export function StartScreen() {
                     onClick={() => void begin(() => start({ kind: "device", device, device_label: devices.find((d) => d.id === device)?.label }))}
                   >
                     {t("start.device.button")}
-                  </Button>
+                  </Button>{" "}
+                  <a href={href("spectrum")} data-testid="start-spectrum">
+                    {t("start.device.spectrum")}
+                  </a>
                 </div>
               </>
             )}

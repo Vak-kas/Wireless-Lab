@@ -178,3 +178,35 @@ def _capture_soapy(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Ca
     sigmf.write_meta(out_meta, sample_rate_hz=rate, center_freq_hz=centre, datatype="cf32_le", source="device",
                      extra={"nrtrail:device": dev_id, "nrtrail:gain_db": req.gain_db})
     return sigmf.read_meta(out_meta)
+
+
+def probe(dev_id: str) -> dict[str, Any]:
+    """장비가 직접 알려 주는 값(하드웨어 정보, 안테나, 이득·샘플레이트·주파수 범위, 클럭 원천). 수신 쪽만 묻는다.
+    하나라도 못 읽으면 그 항목만 빠진다. 실제 장비로는 검증하지 못했다."""
+    if dev_id.startswith(SIM_PREFIX) or not soapy_available():
+        return {}
+    soapy = importlib.import_module("SoapySDR")
+    rx = soapy.SOAPY_SDR_RX  # 수신 방향만 쓴다
+    try:
+        dev = soapy.Device(dict(kv.split("=", 1) for kv in dev_id.split(",") if "=" in kv))
+    except Exception as e:  # noqa: BLE001 — 드라이버마다 오류 종류가 다르다
+        return {"error": str(e)}
+    out: dict[str, Any] = {}
+
+    def put(key: str, fn: Any) -> None:
+        try:
+            out[key] = fn()
+        except Exception:  # noqa: BLE001, S110 — 못 읽는 항목은 건너뛴다
+            pass
+
+    put("hardware", lambda: {str(k): str(v) for k, v in dict(dev.getHardwareInfo()).items()})
+    put("hardware_key", lambda: str(dev.getHardwareKey()))
+    put("rx_channels", lambda: int(dev.getNumChannels(rx)))
+    put("antennas", lambda: [str(a) for a in dev.listAntennas(rx, 0)])
+    put("gain_range_db", lambda: [float(dev.getGainRange(rx, 0).minimum()), float(dev.getGainRange(rx, 0).maximum())])
+    put("sample_rate_range_hz", lambda: [min(float(r.minimum()) for r in dev.getSampleRateRange(rx, 0)),
+                                         max(float(r.maximum()) for r in dev.getSampleRateRange(rx, 0))])
+    put("freq_range_hz", lambda: [min(float(r.minimum()) for r in dev.getFrequencyRange(rx, 0)),
+                                  max(float(r.maximum()) for r in dev.getFrequencyRange(rx, 0))])
+    put("clock_sources", lambda: [str(c) for c in dev.listClockSources()])
+    return out

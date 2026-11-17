@@ -66,6 +66,52 @@ export interface DeviceInfo {
   capability?: string;
 }
 
+export interface SurveyChannel {
+  name: string;
+  center_hz: number;
+  width_hz: number;
+  /** 채널 폭 가운데 받은 대역 안에 들어온 비율 */
+  coverage: number;
+  measured: boolean;
+  mean_dbfs?: number;
+  median_dbfs?: number;
+  peak_dbfs?: number;
+  clipped?: boolean;
+}
+
+export interface SurveyResult {
+  device: string;
+  plan: string;
+  unit: string;
+  dwell_s: number;
+  channels: SurveyChannel[];
+  fixed_tuning: boolean;
+}
+
+export interface SurveyDevice {
+  device: DeviceInfo;
+  plans: { id: string; available: boolean; channels: number }[];
+  /** 장비가 직접 알려 준 값 (실제 장비일 때만) */
+  reported?: {
+    antennas?: string[];
+    gain_range_db?: number[];
+    sample_rate_range_hz?: number[];
+    freq_range_hz?: number[];
+    clock_sources?: string[];
+    error?: string;
+  };
+  capture?: { center_freq_hz: number; sample_rate_hz: number; duration_s: number } | null;
+}
+
+export interface SurveyRequest {
+  device: string;
+  plan: string;
+  gain_db?: number;
+  center_hz?: number;
+  span_hz?: number;
+  step_hz?: number;
+}
+
 export interface Settings {
   location: { lat: number; lon: number; alt_m: number };
   cfo_search_hz: number;
@@ -155,6 +201,8 @@ export interface OaiRecording {
 }
 
 export interface Api {
+  surveyDevice(id: string): Promise<SurveyDevice>;
+  surveyRun(req: SurveyRequest): Promise<SurveyResult>;
   oaiStatus(): Promise<OaiStatus>;
   oaiRecord(seconds: number): Promise<OaiRecording>;
   /** 기록이 지금 어느 단계인지 (그림에 표시) */

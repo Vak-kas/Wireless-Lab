@@ -6,6 +6,7 @@ import { go, useRoute } from "./router";
 import { SessionsScreen, SettingsScreen } from "./screens/AdminScreens";
 import { FollowScreen, ScanScreen } from "./screens/FollowScreens";
 import { NtnScreen, TrackScreen } from "./screens/NtnTrackScreens";
+import { SpectrumScreen } from "./screens/SpectrumScreen";
 import { StartScreen } from "./screens/StartScreen";
 import { StoreProvider, useStore } from "./state/store";
 
@@ -39,6 +40,7 @@ function Screens() {
             {route.screen === "follow" && <FollowScreen />}
             {route.screen === "ntn" && <NtnScreen />}
             {route.screen === "track" && <TrackScreen />}
+            {route.screen === "spectrum" && <SpectrumScreen />}
             {route.screen === "sessions" && <SessionsScreen />}
             {route.screen === "settings" && <SettingsScreen />}
           </>

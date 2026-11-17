@@ -32,6 +32,15 @@ class RecordBody(BaseModel):
     on: bool
 
 
+class SurveyBody(BaseModel):
+    device: str
+    plan: str
+    gain_db: float | None = None
+    center_hz: float | None = None
+    span_hz: float | None = None
+    step_hz: float | None = None
+
+
 def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, session: Callable[[str], Session]) -> None:
     @app.post("/api/sessions/{sid}/ntn")
     def post_ntn(sid: str, body: NtnBody) -> dict[str, Any]:
@@ -54,6 +63,28 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         except ImportError:
             raise HTTPException(501, "휴대폰 연동은 아직 구현되지 않았습니다 (M9).") from None
         return await asyncio.to_thread(read_phone)
+
+    survey_lock = asyncio.Lock()
+
+    @app.get("/api/survey/device")
+    async def survey_device(id: str) -> dict[str, Any]:  # noqa: A002 — 주소의 ?id= 와 이름을 맞춘다
+        from . import survey
+        try:
+            return await asyncio.to_thread(survey.describe, id)
+        except survey.SurveyError as e:
+            raise HTTPException(404, str(e)) from e
+
+    @app.post("/api/survey/run")
+    async def survey_run(body: SurveyBody) -> dict[str, Any]:
+        from . import survey
+        if survey_lock.locked():
+            raise HTTPException(409, "이미 재는 중입니다.")
+        async with survey_lock:
+            try:
+                return await asyncio.to_thread(survey.run, body.device, body.plan, gain_db=body.gain_db, center_hz=body.center_hz,
+                                               span_hz=body.span_hz, step_hz=body.step_hz)
+            except survey.SurveyError as e:
+                raise HTTPException(400, str(e)) from e
 
     try:
         from . import testbed_oai
