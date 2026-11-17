@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Scalar } from "../api";
-import { Chain, NextStageButton, SubNav, Tile, TileHead } from "../components/layout";
+import { Chain, NextStageButton, RecordButton, SubNav, Tile, TileHead } from "../components/layout";
 import { StageSection } from "../components/StageSection";
 import { Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
@@ -77,7 +77,15 @@ export function FollowScreen() {
 
   return (
     <>
-      <SubNav title={t("nav.follow")} action={<NextStageButton />}>
+      <SubNav
+        title={t("nav.follow")}
+        action={
+          <>
+            <RecordButton />
+            <NextStageButton />
+          </>
+        }
+      >
         <Chain />
       </SubNav>
       {!scan || scan.status === "fail" ? (

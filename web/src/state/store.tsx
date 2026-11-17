@@ -31,6 +31,8 @@ export interface Store {
   selectCell(cell: { gscn: number; pci: number }): Promise<void>;
   setSession(s: Session): void;
   clearError(): void;
+  /** 화면 아래 띠에 오류 문구를 띄운다. */
+  fail(message: string): void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -183,6 +185,7 @@ export function StoreProvider({ children, api = defaultApi }: { children: ReactN
       },
       setSession,
       clearError: () => setError(null),
+      fail: (message) => setError(message),
     };
   }, [api, pipeline, glossary, ready, lang, session, results, job, error, attach]);
 

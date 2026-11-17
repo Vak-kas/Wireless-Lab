@@ -197,5 +197,7 @@
   "phone.status.no_adb": "adb was not found. Install Android platform-tools to use this.",
   "phone.status.no_device": "No phone connected. Turn on USB debugging, connect the phone and read again.",
   "phone.status.unparsed": "The phone's output could not be understood. See the raw text below.",
-  "phone.status.ok": "Read."
+  "phone.status.ok": "Read.",
+  "record.start": "Record IQ",
+  "record.stop": "● Recording · stop"
 }

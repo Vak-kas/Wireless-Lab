@@ -190,3 +190,21 @@ export function TileHead({ eyebrow, title, lead, children }: { eyebrow?: ReactNo
     </div>
   );
 }
+
+/** IQ 기록 켜기/끄기. 장비로 받을 때만 뜻이 있어 장비 세션에서만 보인다. */
+export function RecordButton() {
+  const { api, session, setSession, fail } = useStore();
+  if (!session || session.source.kind !== "device") return null;
+  const toggle = async () => {
+    try {
+      setSession(await api.record(session.id, !session.recording));
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    }
+  };
+  return (
+    <Button variant="utility" onClick={() => void toggle()} aria-pressed={session.recording ?? false} data-testid="record-toggle">
+      {session.recording ? t("record.stop") : t("record.start")}
+    </Button>
+  );
+}
