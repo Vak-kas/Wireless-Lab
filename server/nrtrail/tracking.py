@@ -26,7 +26,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
-from . import sigmf
+from . import acquire, sigmf
 from .nr import ntn as ntn_math
 from .pipeline import Pipeline
 from .runner import RunState, run_stage
@@ -221,6 +221,12 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         s = session(sid)
         if sid not in trackers:
             trackers[sid] = Tracker(s, pipeline, app.state.engines[s.engine])
+            if acquire.is_device(s):
+                def hook(state: RunState, index: int, s: Session = s) -> None:
+                    acquire.acquire(s, index)
+                    state.capture = s.state.capture
+
+                trackers[sid].capture_hook = hook
         return trackers[sid]
 
     @app.get("/api/sessions/{sid}/track/timeseries")

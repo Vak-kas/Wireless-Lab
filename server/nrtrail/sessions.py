@@ -167,8 +167,22 @@ def _capture_for(source: dict[str, Any]) -> tuple[dict[str, Any], str | None, st
                  "meta": str(cap.meta_path), "data": str(cap.data_path), "num_samples": cap.num_samples},
                 None, source.get("band"), testbed)
     if kind == "device":
-        return ({"center_freq_hz": source.get("center_freq_hz"), "sample_rate_hz": source.get("sample_rate_hz"),
-                 "source_kind": "device", "device": source.get("device")}, None, source.get("band"), False)
+        from . import devices
+
+        try:
+            dev = devices.find_device(str(source.get("device")))
+        except devices.DeviceError as e:
+            raise SessionError("고른 장비를 찾을 수 없습니다. 연결을 확인하세요.") from e
+        scenario = dev["id"][len(devices.SIM_PREFIX):] if dev["driver"] == "simulated" else None
+        centre, rate = source.get("center_freq_hz"), source.get("sample_rate_hz")
+        if scenario:  # 모의 장비는 파일의 주파수·샘플레이트를 따른다
+            sim = sigmf.read_meta(GOLDEN / scenario / "capture.sigmf-meta")
+            centre, rate = sim.center_freq_hz, sim.sample_rate_hz
+        if not centre or not rate:
+            raise SessionError("중심 주파수와 샘플레이트를 정해야 합니다.")
+        return ({"center_freq_hz": float(centre), "sample_rate_hz": float(rate), "source_kind": "device", "device": dev["id"],
+                 "max_sample_rate_hz": dev["max_sample_rate_hz"], "clock_ppm": dev["clock_ppm"], "device_stages": dev["stages"],
+                 "device_note": dev["note"]}, scenario, source.get("band"), False)
     raise SessionError("입력 소스 종류가 올바르지 않습니다.")
 
 

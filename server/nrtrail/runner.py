@@ -72,6 +72,7 @@ def build_params(stage: str, state: RunState, user: dict[str, Any]) -> dict[str,
                 "detect_threshold_db": state.settings.get("detect_threshold_db", 8)} | user
     if stage == "ssb":
         search = state.settings.get("cfo_search_ntn_hz", 50_000) if cell.get("ntn") else state.settings.get("cfo_search_hz", 15_000)
+        search += float(cap.get("clock_ppm") or 0) * 1e-6 * float(cell["ss_ref_hz"])  # 장비 클럭 오차만큼 넓힌다 (SPEC 16절)
         scale = float(user.get("cfo_search_scale", 1))
         return {"ss_ref_hz": cell["ss_ref_hz"], "ssb_scs_khz": cell["ssb_scs_khz"], "pattern": cell["pattern"], "lmax": cell["lmax"],
                 "cfo_search_hz": search * scale, "pci_hint": cell.get("pci")} | user

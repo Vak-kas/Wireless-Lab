@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from . import acquire
 from . import doctor as doctor_mod
 from .engines.base import Engine
 from .engines.mock import MockEngine
@@ -137,10 +138,8 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
 
     @app.get("/api/devices")
     async def devices() -> list[dict[str, Any]]:
-        try:
-            from .devices import list_devices
-        except ImportError:
-            return []
+        from .devices import list_devices
+
         return await asyncio.to_thread(list_devices)
 
     @app.get("/api/settings")
@@ -223,10 +222,20 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
         hub.publish(s.id, base | {"type": "job.started", "ts": time.time()})
         t0 = time.time()
         try:
-            result = await asyncio.to_thread(run_stage, engine_map[s.engine], pipeline, stage, s.state, params, progress)
-            s.record_result(stage, pipeline)
+            chain = [stage]
+            if acquire.is_device(s) and (stage == "scan" or acquire.wants_recapture(params)):
+                # 새로 받으면 타이밍이 달라지므로 스캔부터 이 단계까지 이어서 다시 돌린다
+                acquire.apply_hints(s, params)
+                await asyncio.to_thread(acquire.acquire, s)
+                chain = pipeline.order[: pipeline.order.index(stage) + 1]
+            for st in chain:
+                result = await asyncio.to_thread(run_stage, engine_map[s.engine], pipeline, st, s.state,
+                                                 params if st == stage else {}, progress)
+                s.record_result(st, pipeline)
+                if result.status == "fail":
+                    break
             payload = result.model_dump(mode="json", exclude_none=True)
-            payload["meta"] = {"engine": s.engine, "run_index": s.runs[stage], "duration_ms": round((time.time() - t0) * 1000, 1),
+            payload["meta"] = {"engine": s.engine, "run_index": s.runs.get(result.stage, 0), "duration_ms": round((time.time() - t0) * 1000, 1),
                                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
             s.job = None
             hub.publish(s.id, base | {"type": "job.finished", "ts": time.time(), "progress": 1.0, "result": payload})
@@ -251,6 +260,8 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
             raise HTTPException(403, "이 입력 소스에서는 허용되지 않는 단계입니다.") from None
         except StageLocked:
             raise HTTPException(409, "앞 단계를 먼저 끝내야 합니다.") from None
+        if (s.state.capture.get("device_stages") or {}).get(stage) == "no":
+            raise HTTPException(403, s.state.capture.get("device_note") or "이 장비로는 할 수 없는 단계입니다.")
         job_id = uuid.uuid4().hex[:8]
         s.job = (job_id, stage)
         task = asyncio.create_task(run_job(s, job_id, stage, body.params))

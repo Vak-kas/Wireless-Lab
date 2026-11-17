@@ -55,6 +55,8 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
                     y=PlotAxis(label=b.plot_text("spectrum", "y"), unit="dB"),
                     series=[PlotSeries(name="PSD", x=xs, y=ys, role="primary", mode="line")], annotations=marks))
 
+    if (ctx.capture.get("device_stages") or {}).get("ssb") == "no":
+        b.diag("RSSI_ONLY_DEVICE", default_level="warn", detail=ctx.capture.get("device_note"))
     if not raw.get("ok") or not cells:
         b.diag(raw.get("error_code") or "NO_CELL", detail=raw.get("error_detail") or None)
         return b.build("fail", n_candidates=m.get("n_candidates", len(candidates)),
