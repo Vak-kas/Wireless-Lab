@@ -1,4 +1,4 @@
-"""화면 개발용 임시 데이터(NTN·추적)를 만든다. 서버가 같은 이름의 파일을 fixtures/ 로 내보내면 그쪽이 우선한다.
+"""화면 개발용 임시 데이터(추적)를 만든다. NTN 결과는 서버가 fixtures/ 로 내보내므로 여기서 쓰지 않는다. 서버가 같은 이름의 파일을 fixtures/ 로 내보내면 그쪽이 우선한다.
 
 사용: python3 web/src/mock/local/make_local.py   (표준 라이브러리만 사용)
 계산은 실제 식을 쓰지만(ECEF 기하, d/c, 2d/c, 시선 속도 도플러) 서버의 NTN 모듈(M6)이 정본이다.
@@ -146,7 +146,6 @@ def write(name, data):
 
 
 if __name__ == "__main__":
-    write("ntn-leo-n256/ntn.json", ntn())
     t, ch = track()
     write("ntn-leo-n256/track.json", t)
     write("ntn-leo-n256/track-changes.json", ch)

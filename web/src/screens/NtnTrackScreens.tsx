@@ -12,7 +12,8 @@ const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 
 /** 4. SIB19 / NTN: 위성 위치·TA·도플러 계산, 하늘 지도, 이상 징후 배지. */
 export function NtnScreen() {
-  const { api, session, results } = useStore();
+  const { api, session, results, pipeline } = useStore();
+  const view = pipeline.views?.find((v) => v.id === "ntn");
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
   const [alt, setAlt] = useState("");
@@ -94,7 +95,7 @@ export function NtnScreen() {
             </div>
           </Tile>
           <Tile tone="dark" id="ntn-result">
-            <TileHead eyebrow={t("ntn.eyebrow")} title={t("ntn.title")} lead={result?.summary_easy ?? (busy ? t("status.running") : error)}>
+            <TileHead eyebrow={view?.question ?? t("ntn.eyebrow")} title={view?.title ?? t("ntn.title")} lead={result?.summary_easy ?? (busy ? t("status.running") : error)}>
               {result && (
                 <span data-testid="ntn-anomalies">
                   {anomalies.length === 0 ? (
@@ -107,7 +108,16 @@ export function NtnScreen() {
             </TileHead>
             {result && (
               <>
-                <Diagnostics list={result.diagnostics} onAction={() => undefined} />
+                <Diagnostics
+                  list={result.diagnostics}
+                  onAction={(d) => {
+                    const target = d.action?.target;
+                    if (d.action?.kind === "rerun") void compute(num(lat), num(lon), num(alt));
+                    else if (target === "settings") go("settings");
+                    else if (target === "scan") go("scan", session.id);
+                    else if (target) go("follow", session.id);
+                  }}
+                />
                 {figures.length > 0 && <Figure plots={figures} />}
               </>
             )}
@@ -119,6 +129,7 @@ export function NtnScreen() {
               ))}
               <Values
                 values={result.values}
+                groups={view?.groups}
                 onShowDerivation={(id) => {
                   setHighlight(id);
                   const fold = document.getElementById("ntn-derivations") as HTMLDetailsElement | null;

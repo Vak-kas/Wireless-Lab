@@ -21,6 +21,8 @@ export interface StageDef {
 
 export interface PipelineDef {
   stages: StageDef[];
+  /** 사슬 밖의 화면(예: ntn)에 쓰는 문구와 값 묶음 이름 */
+  views?: StageDef[];
 }
 
 export type Glossary = Record<string, { name: string; short: string }>;
