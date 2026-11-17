@@ -155,7 +155,7 @@ def _capture_for(source: dict[str, Any]) -> tuple[dict[str, Any], str | None, st
         if meta.exists():  # MATLAB 엔진으로 같은 합성 파형을 실제 처리할 때 쓴다
             cap = sigmf.read_meta(meta)
             capture |= {"meta": str(cap.meta_path), "data": str(cap.data_path), "center_freq_hz": cap.center_freq_hz,
-                        "sample_rate_hz": cap.sample_rate_hz}
+                        "sample_rate_hz": cap.sample_rate_hz, "num_samples": cap.num_samples}
         return capture, sc["id"], sc.get("band"), False
     if kind == "file":
         try:

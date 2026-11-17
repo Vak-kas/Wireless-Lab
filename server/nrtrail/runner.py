@@ -10,7 +10,7 @@ from typing import Any
 
 from .contracts_gen import StageResult
 from .engines.base import Engine, Progress, failed
-from .nr import bands
+from .nr import bands, occasions, pdsch, sched
 from .pipeline import Pipeline
 from .stages import mib, scan, sib1, sib19, ssb
 from .stages.base import Ctx
@@ -77,7 +77,38 @@ def build_params(stage: str, state: RunState, user: dict[str, Any]) -> dict[str,
                 "cfo_search_hz": search * scale, "pci_hint": cell.get("pci")} | user
     if stage == "mib":
         return {"lmax": cell["lmax"]} | user
+    if stage in ("sib1", "sib19"):
+        return pdcch_params(stage, state) | user
     return dict(user)
+
+
+def pdcch_params(stage: str, state: RunState) -> dict[str, Any]:
+    """SIB1·SI 메시지 수신에 필요한 값을 표준 표에서 풀어 엔진에 넘긴다 (docs/engine-contract.md)."""
+    res = state.raws.get("mib", {}).get("resolved", {})
+    cs, mon = res.get("coreset0"), res.get("monitoring")
+    if not cs or not mon:
+        return {}
+    cap = state.capture
+    fs = float(cap["sample_rate_hz"])
+    n_samples = int(cap.get("num_samples") or 0.16 * fs)
+    occ = occasions.type0(res["frame_start_sample"], res["sfn_at_frame_start"], n_samples, fs, cs["scs_khz"],
+                          mon["slot"], mon["frame_parity"], mon["first_symbol"])
+    out: dict[str, Any] = {
+        "si_rnti": pdsch.SI_RNTI, "ncellid": res["ncellid"], "scs_khz": cs["scs_khz"], "dmrs_typea_pos": res["dmrs_typea_pos"],
+        "coreset0": {"n_rb": cs["n_rb"], "n_sym": cs["n_sym"], "low_hz": cs["low_hz"]},
+        "aggregation_levels": [4, 8, 16],
+        "tdra_table": [{"row": t.row, "mapping_type": t.mapping_type, "k0": t.k0, "s": t.s, "l": t.length}
+                       for t in pdsch.tdra_default_a(res["dmrs_typea_pos"])],
+        "mcs_table": [{"index": i, "qm": qm, "rate_x1024": r} for i, (qm, r) in enumerate(pdsch.MCS_TABLE_1)],
+    }
+    if stage == "sib1":
+        return out | {"si_indicator": 0, "occasions": occ}
+    win = state.results["sib1"].next_inputs.get("sib19_window") if "sib1" in state.results else None
+    if win:
+        w = sched.SiWindow(0, win["slot"], win["frame_offset"], win["period_frames"], win["window_slots"], win["slots_per_frame"])
+        occ = [o for o in occ if occasions.in_si_window(o, w)]
+        out["window"] = win
+    return out | {"si_indicator": 1, "occasions": occ}
 
 
 def precheck(stage: str, state: RunState) -> dict[str, Any] | None:

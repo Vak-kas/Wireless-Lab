@@ -125,7 +125,7 @@ def sib1_value(sc: dict[str, Any]) -> dict[str, Any]:
     n_rb = 25 if cell["ssb_scs_khz"] == 15 else 51
     return samples.sib1(band=int(sc["band"][1:]), scs=scs, carrier_rbs=n_rb, offset_to_point_a=2 if cell["ssb_scs_khz"] == 15 else 4,
                         loc_and_bw=sched.riv_encode(0, n_rb, 275), ntn=sc["ntn"],
-                        ssb_positions=0b11000000)
+                        ssb_positions=0b10000000)
 
 
 def _pdsch(rng: np.random.Generator, sc: dict[str, Any], tb_hex: str, n_rb: int, n_sym_coreset: int) -> dict[str, Any]:

@@ -6,27 +6,63 @@
       "title": "위성 기지국 (저궤도, n256)",
       "description": "고도 600 km 위성이 내보내는 신호를 처음부터 끝(SIB19)까지 따라갑니다.",
       "recommended": true,
-      "band": "n256", "gscn": 5460, "center_freq_hz": 2184150000, "sample_rate_hz": 7680000, "duration_ms": 160,
-      "pci": 502, "snr_db": 15, "cfo_hz": 2310.5, "timing_offset_samples": 9216,
-      "mib": { "sfn": 412, "k_ssb": 4, "dmrs_typea_pos": 2, "pdcch_config_sib1": 16 },
+      "band": "n256",
+      "gscn": 5460,
+      "center_freq_hz": 2184150000,
+      "sample_rate_hz": 7680000,
+      "duration_ms": 160,
+      "pci": 502,
+      "snr_db": 15,
+      "cfo_hz": 3560.0,
+      "timing_offset_samples": 9216,
+      "mib": {
+        "sfn": 412,
+        "k_ssb": 4,
+        "dmrs_typea_pos": 2,
+        "pdcch_config_sib1": 16
+      },
       "ntn": true
     },
     {
       "id": "terrestrial-n78",
       "title": "지상 기지국 (n78, 3.5 GHz)",
       "description": "보통의 지상 5G 기지국입니다. SIB1까지 읽고, 위성 정보(SIB19)가 없다는 것을 확인합니다.",
-      "band": "n78", "gscn": 7852, "center_freq_hz": 3508320000, "sample_rate_hz": 15360000, "duration_ms": 160,
-      "pci": 101, "snr_db": 20, "cfo_hz": 184.0, "timing_offset_samples": 12288,
-      "mib": { "sfn": 836, "k_ssb": 0, "dmrs_typea_pos": 2, "pdcch_config_sib1": 32 },
+      "band": "n78",
+      "gscn": 7852,
+      "center_freq_hz": 3508320000,
+      "sample_rate_hz": 15360000,
+      "duration_ms": 160,
+      "pci": 101,
+      "snr_db": 20,
+      "cfo_hz": 184.0,
+      "timing_offset_samples": 12288,
+      "mib": {
+        "sfn": 836,
+        "k_ssb": 0,
+        "dmrs_typea_pos": 2,
+        "pdcch_config_sib1": 32
+      },
       "ntn": false
     },
     {
       "id": "weak-n256",
       "title": "약한 신호 (실패 연습)",
       "description": "신호가 약해 MIB 읽기에 실패하는 상황입니다. 실패했을 때 무엇을 해야 하는지 연습합니다.",
-      "band": "n256", "gscn": 5460, "center_freq_hz": 2184150000, "sample_rate_hz": 7680000, "duration_ms": 160,
-      "pci": 502, "snr_db": -7, "cfo_hz": 2310.5, "timing_offset_samples": 9216,
-      "mib": { "sfn": 412, "k_ssb": 4, "dmrs_typea_pos": 2, "pdcch_config_sib1": 16 },
+      "band": "n256",
+      "gscn": 5460,
+      "center_freq_hz": 2184150000,
+      "sample_rate_hz": 7680000,
+      "duration_ms": 160,
+      "pci": 502,
+      "snr_db": -7,
+      "cfo_hz": 3560.0,
+      "timing_offset_samples": 9216,
+      "mib": {
+        "sfn": 412,
+        "k_ssb": 4,
+        "dmrs_typea_pos": 2,
+        "pdcch_config_sib1": 16
+      },
       "ntn": true
     }
   ]

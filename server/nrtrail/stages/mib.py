@@ -100,7 +100,8 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
               raw=mib["intraFreqReselection"])
     b.derived("frame_start", round(frame_start, 1), d_frame)
 
-    resolved: dict[str, Any] = {"sfn": sfn, "half_frame": hrf, "ssb_index": ssb_index, "k_ssb": k, "sib1_present": present,
+    frames_before = round((ssb_m["timing_offset_samples"] - off - frame_start) / frame_len)
+    resolved: dict[str, Any] = {"sfn_at_frame_start": (sfn - frames_before) % 1024, "ncellid": ssb_m["pci"], "sfn": sfn, "half_frame": hrf, "ssb_index": ssb_index, "k_ssb": k, "sib1_present": present,
                                 "scs_common_khz": scs_c, "dmrs_typea_pos": dmrs_pos, "frame_start_sample": frame_start,
                                 "lmax": l_max, "ssb_symbol": sym}
     status = "ok"
