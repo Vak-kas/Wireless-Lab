@@ -86,3 +86,26 @@ def test_scan_candidates_fit_in_capture():
     assert 5460 in [x["gscn"] for x in c] and all(x["pattern"] == "A" for x in c)
     assert all(abs(x["ss_ref_hz"] - 2_184_150_000) + 1.8e6 <= 0.45 * 7.68e6 for x in c)
     assert bands.cell_info(3_508_320_000, 7852, 30, "C")["lmax"] == 8
+
+
+def test_sliv_roundtrip_and_known_values():
+    assert sched.sliv_decode(53) == (2, 12) and sched.sliv_decode(67) == (2, 11) and sched.sliv_decode(40) == (1, 13)
+    for s in range(14):
+        for length in range(1, 15 - s):
+            assert sched.sliv_decode(sched.sliv_encode(s, length)) == (s, length)
+
+
+def test_configured_search_space_occasions():
+    from nrtrail.nr import occasions
+
+    rule = occasions.parse_search_space({"searchSpaceId": 3, "controlResourceSetId": 0, "monitoringSlotPeriodicityAndOffset": {"sl1": None},
+                                         "monitoringSymbolsWithinSlot": "8000", "nrofCandidates": {"aggregationLevel4": "n2", "aggregationLevel8": "n0"}})
+    assert rule == {"id": 3, "coreset_id": 0, "period_slots": 1, "offset_slots": 0, "duration_slots": 1, "first_symbols": [0], "candidates": {4: 2}}
+    occ = occasions.search_space(100.0, 458, 7680 * 25, 7.68e6, 15, rule)       # 매 슬롯
+    assert [(o["sfn"], o["slot"]) for o in occ[:3]] == [(458, 0), (458, 1), (458, 2)] and occ[1]["start_sample"] == 7780.0
+    every5 = occasions.parse_search_space({"monitoringSlotPeriodicityAndOffset": {"sl5": 2}, "duration": 2, "monitoringSymbolsWithinSlot": "8100"})
+    assert every5["first_symbols"] == [0, 7]
+    occ = occasions.search_space(0.0, 0, 7680 * 20, 7.68e6, 15, every5)
+    assert sorted({o["slot"] for o in occ if o["sfn"] == 0}) == [2, 3, 7, 8] and len(occ) == 16
+    w = sched.SiWindow(10, 0, 1, 16, 10, 10)
+    assert occasions.in_si_window({"sfn": 465, "slot": 9}, w) and not occasions.in_si_window({"sfn": 466, "slot": 0}, w)

@@ -33,6 +33,25 @@
           "params": {}
         }
       }
+    ],
+    "NO_OCCASION": [
+      {
+        "message": "받은 구간 안에 이 안내문이 방송될 시점이 들어 있지 않습니다.",
+        "fix": "방송 주기만큼 더 길게 받아야 합니다. 저장 파일이라면 더 긴 녹화가 필요합니다.",
+        "action": {
+          "label": "더 길게 받아 다시 시도",
+          "kind": "rerun",
+          "params": {
+            "cover_si_period": true
+          }
+        }
+      }
+    ],
+    "UNSUPPORTED_SEARCH_SPACE": [
+      {
+        "message": "이 기지국은 아직 지원하지 않는 방식(CORESET0가 아닌 제어 영역)으로 이 안내문의 위치를 알려 줍니다.",
+        "fix": "전문가 정보의 SIB1 트리에서 pdcch-ConfigCommon의 탐색 공간 설정을 확인하세요."
+      }
     ]
   },
   "stages": [

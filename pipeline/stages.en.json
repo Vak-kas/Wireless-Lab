@@ -1872,6 +1872,21 @@
      "params": {}
     }
    }
+  ],
+  "NO_OCCASION": [
+   {
+    "message": "The received span does not contain a moment at which this notice is broadcast.",
+    "fix": "Receive for at least one broadcast period. For a stored file, a longer recording is needed.",
+    "action": {
+     "label": "Receive longer and retry"
+    }
+   }
+  ],
+  "UNSUPPORTED_SEARCH_SPACE": [
+   {
+    "message": "This base station points to the notice in a way that is not supported yet (a control region other than CORESET0).",
+    "fix": "Check the search space settings under pdcch-ConfigCommon in the SIB1 tree (expert view)."
+   }
   ]
  }
 }

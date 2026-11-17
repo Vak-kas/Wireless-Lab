@@ -6,7 +6,7 @@ from typing import Any
 
 from ..asn1 import rrc
 from ..contracts_gen import PlotGrid, StageResult
-from ..nr import pdsch, raster, sched
+from ..nr import occasions, pdsch, raster, sched
 from ..pipeline import StageDef
 from ..result import ResultBuilder, fmt, inp
 from .base import Ctx, Plot, PlotAnnotation, PlotAxis, PlotColumn, PlotSeries, PlotTable
@@ -122,6 +122,7 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
                          [f"{fmt(crb_low / 1e6, 10)} MHz − {fdl['offsetToPointA']} × 180 kHz = {fmt(pa / 1e6, 10)} MHz"],
                          round(pa / 1e6, 4), "MHz", "TS 38.211 4.4.4.2")
             b.derived("point_a", round(pa / 1e6, 4), d)
+            b.next_inputs["point_a_hz"] = pa
             ul_arfcn = rrc.find_path(scc, "uplinkConfigCommon", "frequencyInfoUL", "absoluteFrequencyPointA")
             if ul_arfcn is not None:
                 df, f_offs, n_offs = raster.arfcn_params(ul_arfcn)
@@ -264,6 +265,20 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
     else:
         summary = {"al": "-", "riv": "-", "rb_start": "-", "rb_len": "-", "mcs": "-", "tbs": len(tb_hex) * 4}
 
+    # 공통 탐색 공간: SI 메시지·RA 응답을 언제 들여다볼지 (0이면 SIB1과 같은 시점)
+    pcc = rrc.find_path(tree, "message", "c1", "systemInformationBlockType1", "servingCellConfigCommon", "downlinkConfigCommon",
+                        "initialDownlinkBWP", "pdcch-ConfigCommon", "setup") or {}
+    # SIB1이 준 PDSCH 시간 자원 목록. SI 메시지(Type0A)와 RA 응답(Type1)은 기본 표 A 대신 이것을 쓴다 (TS 38.214 표 5.1.2.1.1-1)
+    tdl = rrc.find_path(tree, "message", "c1", "systemInformationBlockType1", "servingCellConfigCommon", "downlinkConfigCommon",
+                        "initialDownlinkBWP", "pdsch-ConfigCommon", "setup", "pdsch-TimeDomainAllocationList") or []
+    rows = []
+    for i, item in enumerate(tdl):
+        sym, ln = sched.sliv_decode(item["startSymbolAndLength"])
+        rows.append({"row": i + 1, "mapping_type": "A" if item["mappingType"] == "typeA" else "B", "k0": item.get("k0", 0), "s": sym, "l": ln})
+    b.next_inputs["pdsch_tdra_list"] = rows
+    spaces = {str(x["searchSpaceId"]): occasions.parse_search_space(x) for x in pcc.get("commonSearchSpaceList", [])}
+    b.next_inputs["search_spaces"] = {"other_si": pcc.get("searchSpaceOtherSystemInformation", 0), "ra": pcc.get("ra-SearchSpace", 0),
+                                      "has_common_coreset": "commonControlResourceSet" in pcc, "list": spaces}
     b.tree("sib1", "BCCH-DL-SCH-Message (SIB1)", tree)
     raw["decoded"] = {"sib1": tree["message"]["c1"]["systemInformationBlockType1"], "hex": tb_hex, "si_messages": msgs}
     b.next_inputs |= {"has_sib19": has19, "si_messages": msgs, "si_window": win}

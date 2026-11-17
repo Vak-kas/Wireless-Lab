@@ -118,6 +118,9 @@ def test_sib1_decoded_by_matlab_equals_what_python_encoded(sid):
     raw = json.loads(path.read_text(encoding="utf-8"))
     cfg = json.loads((GOLDEN / sid / "cfg.json").read_text(encoding="utf-8"))
     assert raw["ok"] and raw["bits"]["tb_hex"] == cfg["sib1"]["tb_hex"]
+    latest = json.loads((PIPELINE / "testgen" / f"{sid}.cfg.json").read_text(encoding="utf-8"))
+    if cfg["sib1"]["tb_hex"] != latest["sib1"]["tb_hex"]:
+        pytest.skip("골든이 최신 cfg(pipeline/testgen)로 다시 만들어지지 않았다: matlab -batch \"nrtrail.testgen.makeGolden\" 필요")
     m = raw["measurements"]
     assert (m["dci"]["riv"], m["dci"]["mcs"], m["rb_len"], m["sym_start"], m["sym_len"], m["tbs"], m["n_dmrs_per_prb"]) == (
         cfg["sib1"]["dci"]["riv"], cfg["sib1"]["dci"]["mcs"], cfg["sib1"]["rb_len"], cfg["sib1"]["sym_start"], cfg["sib1"]["sym_len"],

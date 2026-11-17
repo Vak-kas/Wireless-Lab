@@ -81,3 +81,17 @@ def prach_config(index: int, paired: bool) -> dict[str, Any]:
 def point_a_hz(crb_ssb_low_hz: float, offset_to_point_a: int) -> float:
     """Point A = (SSB와 겹치는 가장 낮은 RB의 부반송파 0) - offsetToPointA x 12 x 15 kHz (FR1). TS 38.211 4.4.4.2 (원문 대조함)."""
     return crb_ssb_low_hz - offset_to_point_a * 12 * 15_000
+
+
+def sliv_decode(sliv: int) -> tuple[int, int]:
+    """startSymbolAndLength(SLIV) -> (S, L). (L-1) <= 7 이면 SLIV = 14(L-1)+S, 아니면 14(14-L+1)+(13-S), 단 S+L <= 14.
+    TS 38.214 5.1.2.1 (원문 미대조. OAI gNB가 보낸 SI 메시지를 이 풀이로 복호해 확인함)."""
+    a, b = divmod(sliv, 14)
+    s, length = b, a + 1
+    if s + length > 14:
+        s, length = 13 - b, 14 - a + 1
+    return s, length
+
+
+def sliv_encode(s: int, length: int) -> int:
+    return 14 * (length - 1) + s if length - 1 <= 7 else 14 * (14 - length + 1) + (13 - s)

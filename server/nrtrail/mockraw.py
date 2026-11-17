@@ -124,7 +124,7 @@ def sib1_value(sc: dict[str, Any]) -> dict[str, Any]:
     cell = _cell(sc)
     scs_khz = cell["ssb_scs_khz"]
     n_rb = 25 if scs_khz == 15 else 51
-    offset = 2 if scs_khz == 15 else 4
+    offset = 5 if scs_khz == 15 else 8   # offsetToPointA (15 kHz RB 단위). CORESET0의 RB 0이 CRB 0이 아니게 잡는다(DM-RS 기준점 시험)
     ul = None
     if cell["paired"]:  # FDD: 상향 Point A를 하향보다 190 MHz 아래에 둔다 (n256의 듀플렉스 간격)
         m = sc["mib"]

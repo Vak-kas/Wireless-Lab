@@ -48,3 +48,35 @@ def in_si_window(occ: dict[str, Any], w: SiWindow) -> bool:
     n = w.slots_per_frame
     pos = ((occ["sfn"] % w.period_frames) * n + occ["slot"] - (w.frame_offset * n + w.slot)) % (w.period_frames * n)
     return pos < w.window_slots
+
+
+def parse_search_space(ss: dict[str, Any]) -> dict[str, Any]:
+    """SearchSpace IE(JSON 트리) -> 감시 규칙. TS 38.213 10.1 (원문 대조함): 주기 k_s, 오프셋 o_s, 지속 T_s 슬롯,
+    monitoringSymbolsWithinSlot 비트맵(MSB = 심볼 0)이 슬롯 안의 첫 심볼들."""
+    (kind, offset), = (ss.get("monitoringSlotPeriodicityAndOffset") or {"sl1": None}).items()
+    bitmap = ss.get("monitoringSymbolsWithinSlot") or "8000"          # 14비트가 16진수로 온다(뒤 2비트는 채움)
+    bits = format(int(bitmap, 16), f"0{len(bitmap) * 4}b")[:14]
+    cand = {int(k.replace("aggregationLevel", "")): int(v[1:]) for k, v in (ss.get("nrofCandidates") or {}).items()}
+    return {"id": ss.get("searchSpaceId"), "coreset_id": ss.get("controlResourceSetId", 0), "period_slots": int(kind[2:]),
+            "offset_slots": int(offset or 0), "duration_slots": int(ss.get("duration") or 1),
+            "first_symbols": [i for i, b in enumerate(bits) if b == "1"], "candidates": {al: n for al, n in cand.items() if n > 0}}
+
+
+def search_space(frame_start_sample: float, sfn_at_frame_start: int, n_samples: int, sample_rate_hz: float, scs_khz: int,
+                 rule: dict[str, Any]) -> list[dict[str, Any]]:
+    """설정된 공통 탐색 공간의 감시 시점: (n_f * N_slot + n_s - o_s) mod k_s 가 0인 슬롯부터 T_s 슬롯. TS 38.213 10.1."""
+    frame_len = FRAME_S * sample_rate_hz
+    slot_len = slot_samples(scs_khz, sample_rate_hz)
+    n = round(frame_len / slot_len)
+    out: list[dict[str, Any]] = []
+    k = 0
+    while frame_start_sample + k * frame_len < n_samples:
+        sfn = (sfn_at_frame_start + k) % 1024
+        for slot in range(n):
+            if (sfn * n + slot - rule["offset_slots"]) % rule["period_slots"] >= rule["duration_slots"]:
+                continue
+            start = frame_start_sample + k * frame_len + slot * slot_len
+            if start >= 0 and start + slot_len <= n_samples:
+                out += [{"sfn": sfn, "slot": slot, "first_symbol": sym, "start_sample": round(start, 3)} for sym in rule["first_symbols"]]
+        k += 1
+    return out

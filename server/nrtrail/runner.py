@@ -82,8 +82,7 @@ def build_params(stage: str, state: RunState, user: dict[str, Any]) -> dict[str,
     if stage in ("sib1", "sib19"):
         return pdcch_params(stage, state) | user
     if stage == "ra":
-        out = pdcch_params("sib1", state)
-        out.pop("si_indicator", None)
+        out = pdcch_params("ra", state)
         prach = state.results["sib1"].next_inputs.get("prach")
         if prach:
             out["rnti_inputs"] = ra.rnti_inputs(prach, int(state.results["sib1"].next_inputs.get("msg1_scs_khz") or out.get("scs_khz", 15)))
@@ -112,7 +111,27 @@ def pdcch_params(stage: str, state: RunState) -> dict[str, Any]:
     }
     if stage == "sib1":
         return out | {"si_indicator": 0, "occasions": occ}
-    win = state.results["sib1"].next_inputs.get("sib19_window") if "sib1" in state.results else None
+    ni = state.results["sib1"].next_inputs if "sib1" in state.results else {}
+    # SIB1 본문만 DM-RS 기준점이 CORESET0의 가장 낮은 RB다. SI 메시지와 RA 응답의 PDSCH DM-RS는 CRB 0(Point A)이 기준이다
+    # (TS 38.211 7.4.1.1.2, 원문 대조함). CORESET0의 RB 0이 몇 번째 CRB인지 넘긴다.
+    if ni.get("point_a_hz") is not None:
+        out["pdsch_crb_offset_rb"] = round((cs["low_hz"] - ni["point_a_hz"]) / (12 * cs["scs_khz"] * 1000))
+    if ni.get("pdsch_tdra_list"):
+        # SIB1(Type0)만 항상 기본 표 A. SI 메시지와 RA 응답은 pdsch-ConfigCommon의 목록이 있으면 그것을 쓴다
+        out["tdra_table"] = ni["pdsch_tdra_list"]
+        out["tdra_source"] = "pdsch-ConfigCommon"
+    spaces = ni.get("search_spaces") or {}
+    ss_id = int(spaces.get("ra" if stage == "ra" else "other_si") or 0)
+    if ss_id:
+        # SIB1이 따로 정해 준 공통 탐색 공간 (searchSpaceOtherSystemInformation / ra-SearchSpace). TS 38.213 10.1
+        rule = (spaces.get("list") or {}).get(str(ss_id))
+        if rule is None or rule["coreset_id"] != 0:
+            return out | {"occasions": [], "unsupported": "search space uses a CORESET other than CORESET0" if rule else "search space not found"}
+        occ = occasions.search_space(res["frame_start_sample"], res["sfn_at_frame_start"], n_samples, fs, cs["scs_khz"], rule)
+        out |= {"search_space": rule, "aggregation_levels": sorted(rule["candidates"]) or out["aggregation_levels"], "candidates": rule["candidates"]}
+    if stage == "ra":
+        return out | {"occasions": occ}
+    win = ni.get("sib19_window")
     if win:
         w = sched.SiWindow(0, win["slot"], win["frame_offset"], win["period_frames"], win["window_slots"], win["slots_per_frame"])
         occ = [o for o in occ if occasions.in_si_window(o, w)]
@@ -128,6 +147,16 @@ def precheck(stage: str, state: RunState) -> dict[str, Any] | None:
         ni = state.results["sib1"].next_inputs
         if not ni.get("has_sib19"):
             return failed(stage, "NOT_SCHEDULED")
+    return None
+
+
+def precheck_params(stage: str, params: dict[str, Any]) -> dict[str, Any] | None:
+    """입력을 만든 뒤에 답이 정해지는 경우: 볼 시점이 캡처 안에 없거나, 지원하지 않는 탐색 공간."""
+    if stage in ("sib1", "sib19", "ra") and "occasions" in params:
+        if params.get("unsupported"):
+            return failed(stage, "UNSUPPORTED_SEARCH_SPACE", params["unsupported"])
+        if not params["occasions"]:
+            return failed(stage, "NO_OCCASION")
     return None
 
 
@@ -149,7 +178,7 @@ def run_stage(engine: Engine, pipeline: Pipeline, stage_id: str, state: RunState
         select_cell(state, state.results["scan"].next_inputs["selected_gscn"])
 
     params = build_params(stage_id, state, user_params or {})
-    raw = precheck(stage_id, state)
+    raw = precheck(stage_id, state) or precheck_params(stage_id, params)
     if raw is None and stage_id == "ra":
         raw = run_ra(engine, state, params, progress)
     if raw is None:
