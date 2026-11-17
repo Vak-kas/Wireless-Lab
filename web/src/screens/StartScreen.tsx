@@ -11,7 +11,7 @@ const DOCTOR_LEVEL = { ok: "ok", warn: "warn", missing: "error" } as const;
 
 /** 1. 시작: 입력 소스 선택(연습 / 파일 / 장비), 장비 상태, 최근 세션. */
 export function StartScreen() {
-  const { api, start } = useStore();
+  const { api, start, stageDef } = useStore();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenario, setScenario] = useState<string>("");
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -124,9 +124,24 @@ export function StartScreen() {
                     </Chip>
                   ))}
                 </div>
+                {devices
+                  .filter((d) => d.id === device)
+                  .map((d) => (
+                    <div key={d.id} className="t-caption" data-testid="device-capability">
+                      <p className="muted">{d.note}</p>
+                      <div className="row">
+                        {Object.entries(d.stages ?? {}).map(([stage, level]) => (
+                          <Badge key={stage} level={level === "ok" ? "ok" : level === "limited" ? "warn" : "error"}>
+                            {stageDef(stage)?.label ?? stage} · {t(`device.stage.${level}`)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 <div>
                   <Button
                     variant="secondary"
+                    data-testid="start-device"
                     disabled={busy || !device}
                     onClick={() => void begin(() => start({ kind: "device", device, device_label: devices.find((d) => d.id === device)?.label }))}
                   >

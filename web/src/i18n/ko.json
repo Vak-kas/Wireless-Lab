@@ -199,5 +199,10 @@
   "phone.status.unparsed": "휴대폰이 보낸 내용을 해석하지 못했습니다. 아래 원문을 확인하세요.",
   "phone.status.ok": "읽었습니다.",
   "record.start": "IQ 기록 시작",
-  "record.stop": "● 기록 중 · 멈추기"
+  "record.stop": "● 기록 중 · 멈추기",
+  "track.replay": "같은 신호를 되풀이해 읽는 중이라 측정값은 그대로이고, 궤도로 계산한 값만 변합니다.",
+  "track.changes.anomaly": "궤도로 설명 안 됨",
+  "device.stage.ok": "가능",
+  "device.stage.limited": "제한적",
+  "device.stage.no": "불가"
 }

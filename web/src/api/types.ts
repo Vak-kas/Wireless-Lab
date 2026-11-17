@@ -8,11 +8,13 @@ export interface StageDef {
   requires: string[];
   label: string;
   title: string;
-  question?: string;
-  intro?: string;
-  analogy?: string;
-  button?: string;
-  locked_reason?: string;
+  question?: string | null;
+  intro?: string | null;
+  analogy?: string | null;
+  button?: string | null;
+  locked_reason?: string | null;
+  /** 이 입력 소스로는 쓸 수 없을 때 보여줄 문구 (테스트베드 전용 기능) */
+  not_allowed?: string | null;
   spec_refs?: string[];
   progress?: Record<string, string>;
   /** 값 묶음 키 → 소제목 */
@@ -60,6 +62,8 @@ export interface DeviceInfo {
   bits?: number;
   stages?: Record<string, "ok" | "limited" | "no">;
   note?: string;
+  clock_ppm?: number;
+  capability?: string;
 }
 
 export interface Settings {
@@ -89,6 +93,8 @@ export interface TrackChange {
   label: string;
   before: string;
   after: string;
+  /** 궤도 전파로 설명되지 않는 변화 */
+  anomaly?: boolean;
 }
 
 export interface TrackData {
@@ -96,6 +102,8 @@ export interface TrackData {
   interval_s: number;
   series: { key: string; label: string; unit: string }[];
   points: TrackPoint[];
+  /** 저장 파일·합성 신호를 되풀이해 읽는 중(측정값은 같고 궤도 계산값만 변함) */
+  replay?: boolean;
 }
 
 export interface PhoneCell {

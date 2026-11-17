@@ -156,7 +156,7 @@ export function StoreProvider({ children, api = defaultApi }: { children: ReactN
         if (sessionId.current === id) return;
         const s = await api.getSession(id);
         const pairs = await Promise.all(
-          [...pipeline.stages.map((d) => d.id)].map(async (stage) => [stage, await api.result(id, stage)] as const),
+          [...pipeline.stages.map((d) => d.id), ...(pipeline.views ?? []).filter((v) => v.id === "ra").map((v) => v.id)].map(async (stage) => [stage, await api.result(id, stage)] as const),
         );
         attach(s, Object.fromEntries(pairs.filter((p): p is readonly [string, StageResult] => p[1] !== null)));
       },

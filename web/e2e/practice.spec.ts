@@ -3,7 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SHOTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../docs/screenshots");
-// 서버 모드에서는 서버에 아직 없는 기능(추적: M7)을 건너뛴다. 화면 전용(mock) 모드에서는 전부 본다.
 const MOCK = process.env.NRTRAIL_E2E === "mock";
 const shot = (page: Page, name: string) => page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 
@@ -66,11 +65,9 @@ test("연습 모드: 처음부터 끝까지 (스캔 → SSB → MIB → SIB1 →
 
   await page.getByRole("link", { name: "추적", exact: true }).click();
   await expect(page.getByTestId("track-toggle")).toBeVisible();
-  if (MOCK || process.env.NRTRAIL_E2E_TRACK) {
-    await page.getByTestId("track-toggle").click();
-    await expect(page.getByTestId("track-csv")).toBeVisible();
-    await page.getByTestId("track-toggle").click();
-  }
+  await page.getByTestId("track-toggle").click();
+  await expect(page.getByTestId("track-csv")).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId("track-toggle").click();
   await shot(page, "06-track");
 
   await page.getByRole("link", { name: "세션", exact: true }).click();
@@ -125,4 +122,27 @@ test("언어: 영어로 바꾸면 화면 문구가 바뀌고, 다시 한국어�
   await page.getByRole("button", { name: "한국어" }).click();
   await page.getByTestId("settings-save").click();
   await expect(page.getByRole("link", { name: "시작", exact: true })).toBeVisible();
+});
+
+test("RA 관측(테스트베드 전용): SIB1 전에는 잠겨 있고, 읽은 뒤에는 기지국의 응답을 보여준다", async ({ page }) => {
+  await startPractice(page, /지상/);
+  await page.getByTestId("run-scan").click();
+  await expect(page.getByTestId("status-scan")).toHaveText("성공");
+  await page.getByTestId("follow-cell").click();
+  await expect(page.locator("#stage-ra")).toContainText("잠김");
+  for (const stage of ["ssb", "mib", "sib1"]) {
+    await page.getByTestId("next-stage").click();
+    await expect(page.getByTestId(`status-${stage}`)).toHaveText(/성공/);
+  }
+  await page.getByTestId("run-ra").click();
+  await expect(page.getByTestId("status-ra")).toHaveText(/성공/);
+  await expect(page.locator("#stage-ra .value-card").first()).toBeVisible();
+  await page.locator("#stage-ra").screenshot({ path: path.join(SHOTS, "12-ra.png") });
+});
+
+test("장비: 인식된 장비가 있으면 단계별로 무엇이 되는지 보여준다", async ({ page }) => {
+  test.skip(MOCK, "화면 전용 모드에는 장비 목록이 없다");
+  await page.goto("/");
+  await expect(page.getByTestId("device-capability")).toBeVisible();
+  await page.getByTestId("source-device").screenshot({ path: path.join(SHOTS, "13-device.png") });
 });

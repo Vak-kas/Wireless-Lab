@@ -20,11 +20,8 @@ import type {
 
 const files = import.meta.glob("../mock/fixtures/**/*.json", { eager: true, import: "default" }) as Record<string, unknown>;
 
-// 서버가 아직 내보내지 않는 것(NTN·추적)은 mock/local/ 의 임시 예시로 채운다. fixtures/ 에 같은 파일이 생기면 그쪽이 우선한다.
-const local = import.meta.glob("../mock/local/**/*.json", { eager: true, import: "default" }) as Record<string, unknown>;
-
 function fixture<T>(path: string): T | undefined {
-  return (files[`../mock/fixtures/${path}`] ?? local[`../mock/local/${path}`]) as T | undefined;
+  return files[`../mock/fixtures/${path}`] as T | undefined;
 }
 
 const STEP_MS = Number(import.meta.env.VITE_MOCK_STEP_MS ?? 350);
@@ -67,7 +64,7 @@ function stageStates(m: MockSession, running?: string): StageState[] {
       state,
       last_status: r?.status,
       runs: m.attempts[d.id] ?? 0,
-      locked_reason: state === "locked" ? d.locked_reason : undefined,
+      locked_reason: state === "locked" ? (d.locked_reason ?? undefined) : undefined,
     };
   });
 }
@@ -122,7 +119,7 @@ export const mockApi: Api = {
       results: {},
       listeners: new Set(),
       attempts: {},
-      track: { running: false, interval_s: 5, series: [], points: [] },
+      track: { running: false, interval_s: 5, series: [], points: [], replay: true },
     };
     m.session.stages = stageStates(m);
     sessions.set(id, m);
@@ -138,7 +135,7 @@ export const mockApi: Api = {
     m.attempts[stage] = (m.attempts[stage] ?? 0) + 1;
     // 이 단계를 다시 돌리면 뒤 단계 결과는 더 이상 맞지 않는다.
     const order = pipelineDef().stages.map((s) => s.id);
-    for (const later of order.slice(order.indexOf(stage))) delete m.results[later];
+    if (order.includes(stage)) for (const later of order.slice(order.indexOf(stage))) delete m.results[later];
     m.session = { ...m.session, stages: stageStates(m, stage) };
     void (async () => {
       emit(m, { type: "job.started", job_id, stage });
@@ -179,7 +176,7 @@ export const mockApi: Api = {
     const m = need(id);
     const data = fixture<TrackData>(`${m.session.source.scenario ?? "ntn-leo-n256"}/track.json`);
     const all = data?.points ?? [];
-    m.track = { running: true, interval_s, series: data?.series ?? [], points: all.slice(0, Math.min(3, all.length)) };
+    m.track = { running: true, interval_s, series: data?.series ?? [], points: all.slice(0, Math.min(3, all.length)), replay: true };
     m.session = { ...m.session, tracking: true };
     m.timer = setInterval(() => {
       if (m.track.points.length < all.length) m.track.points = all.slice(0, m.track.points.length + 1);

@@ -199,5 +199,10 @@
   "phone.status.unparsed": "The phone's output could not be understood. See the raw text below.",
   "phone.status.ok": "Read.",
   "record.start": "Record IQ",
-  "record.stop": "● Recording · stop"
+  "record.stop": "● Recording · stop",
+  "track.replay": "The same signal is being re-read, so measured values stay the same and only orbit-derived values change.",
+  "track.changes.anomaly": "not explained by the orbit",
+  "device.stage.ok": "OK",
+  "device.stage.limited": "limited",
+  "device.stage.no": "no"
 }

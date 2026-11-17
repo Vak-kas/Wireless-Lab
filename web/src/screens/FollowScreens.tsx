@@ -71,6 +71,10 @@ export function FollowScreen() {
   const { session, pipeline, results } = useStore();
   if (!session) return null;
   const stages = pipeline.stages.filter((s) => s.id !== "scan");
+  // 랜덤 액세스 관측은 테스트베드 전용: 연습용 합성 신호나 테스트베드로 표시한 파일에서만 열린다.
+  const ra = pipeline.views?.find((v) => v.id === "ra");
+  const raAllowed = session.source.kind === "synthetic" || (session.source.kind === "file" && session.source.testbed === true);
+  const sib1Done = results.sib1 !== undefined && results.sib1.status !== "fail";
   const scan = results.scan;
   const found = (scan?.next_inputs.cells as { gscn: number; pci: number }[] | undefined) ?? [];
   const cell = session.selected_cell ?? found.find((c) => c.gscn === scan?.next_inputs.selected_gscn) ?? found[0];
@@ -114,6 +118,14 @@ export function FollowScreen() {
           }
         />
       ))}
+      {ra && (
+        <StageSection
+          def={ra}
+          tone={TONES[stages.length % TONES.length] ?? "light"}
+          stateOverride={raAllowed && sib1Done ? "next" : "locked"}
+          lockedText={raAllowed ? (ra.locked_reason ?? "") : (ra.not_allowed ?? "")}
+        />
+      )}
       <div className="page-end" />
     </>
   );

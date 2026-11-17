@@ -20,6 +20,8 @@ export function StageSection({
   onSelectRow,
   extraAction,
   runParams,
+  stateOverride,
+  lockedText,
 }: {
   def: StageDef;
   tone: "light" | "parchment" | "dark";
@@ -28,11 +30,14 @@ export function StageSection({
   extraAction?: React.ReactNode;
   /** 실행 버튼을 누를 때 함께 보낼 값 (예: 스캔할 대역) */
   runParams?: Record<string, unknown>;
+  /** 사슬 밖의 단계(예: RA 관측)는 서버가 상태를 주지 않으므로 화면이 정한다 */
+  stateOverride?: "next" | "locked";
+  lockedText?: string;
 }) {
   const { session, results, job, run, stageState } = useStore();
   const [highlight, setHighlight] = useState<string | null>(null);
   const derivFold = useRef<HTMLDetailsElement>(null);
-  const state = stageState(def.id)?.state ?? "locked";
+  const state = stateOverride ?? stageState(def.id)?.state ?? "locked";
   const result = results[def.id];
   const running = job?.stage === def.id;
   const busy = job !== null;
@@ -57,7 +62,7 @@ export function StageSection({
         <TileHead eyebrow={def.question} title={def.title} lead={def.intro}>
           <span className="badge t-caption" data-level="info">
             <LockIcon />
-            {t("chain.state.locked")} · {stageState(def.id)?.locked_reason ?? def.locked_reason ?? ""}
+            {t("chain.state.locked")} · {lockedText ?? stageState(def.id)?.locked_reason ?? def.locked_reason ?? ""}
           </span>
         </TileHead>
       </Tile>

@@ -233,6 +233,7 @@ export function TrackScreen() {
             ))}
           </div>
           {data?.running && <Badge level="ok">{t("track.running", { n: data.points.length })}</Badge>}
+          {data?.replay && (data?.points.length ?? 0) > 0 && <Badge level="info">{t("track.replay")}</Badge>}
         </TileHead>
         {plots.length > 0 && (data?.points.length ?? 0) > 0 ? <Figure plots={plots} /> : <Empty>{t("track.empty")}</Empty>}
         {(data?.points.length ?? 0) > 0 && (
@@ -264,7 +265,9 @@ export function TrackScreen() {
                 {changes.map((c, i) => (
                   <tr key={i}>
                     <td className="right num">{c.t_s}</td>
-                    <td>{c.label}</td>
+                    <td>
+                      {c.label} {c.anomaly && <Badge level="warn">{t("track.changes.anomaly")}</Badge>}
+                    </td>
                     <td className="mono">{c.before}</td>
                     <td className="mono">{c.after}</td>
                   </tr>
