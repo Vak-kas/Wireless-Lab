@@ -142,6 +142,9 @@ test("RA 관측(테스트베드 전용): SIB1 전에는 잠겨 있고, 읽은 �
 
 test("장비: 인식된 장비가 있으면 단계별로 무엇이 되는지 보여준다", async ({ page }) => {
   test.skip(MOCK, "화면 전용 모드에는 장비 목록이 없다");
+  // 모의 장비는 합성 캡처(비공개 덧붙임)가 있을 때만 생긴다. SDR도 없으면 볼 것이 없다.
+  const devices = (await (await page.request.get("/api/devices")).json()) as unknown[];
+  test.skip(devices.length === 0, "인식된 장비가 없다");
   await page.goto("/");
   await expect(page.getByTestId("device-capability")).toBeVisible();
   await page.getByTestId("source-device").screenshot({ path: path.join(SHOTS, "13-device.png") });

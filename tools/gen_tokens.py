@@ -74,6 +74,10 @@ def render(tokens: dict) -> str:
 
 
 def main() -> int:
+    if not all(p.exists() for p in SOURCES):
+        # 공개판에는 디자인 문서(내부 문서)가 없다. 생성물 tokens.css 를 그대로 쓴다.
+        print("디자인 문서가 없어 토큰을 다시 만들지 않습니다(이미 생성된 tokens.css 사용).")
+        return 0 if OUT.exists() else 1
     css = render(load())
     if "--check" in sys.argv:
         if not OUT.exists() or OUT.read_text(encoding="utf-8") != css:
