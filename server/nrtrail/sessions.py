@@ -123,7 +123,7 @@ class Session:
         """run_stage 가 state 에 넣어 둔 결과를 디스크에 남기고, 무효가 된 뒤 단계의 현재 번호를 지운다."""
         n = self.runs.get(stage, 0) + 1
         self.runs[stage] = n
-        for later in pipeline.order[pipeline.order.index(stage):]:
+        for later in (pipeline.order[pipeline.order.index(stage):] if stage in pipeline.order else [stage]):
             self.current.pop(later, None)
         result = self.state.results[stage]
         self.current[stage] = n

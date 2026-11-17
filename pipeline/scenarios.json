@@ -42,7 +42,8 @@
         "dmrs_typea_pos": 2,
         "pdcch_config_sib1": 32
       },
-      "ntn": false
+      "ntn": false,
+      "ra": true
     },
     {
       "id": "weak-n256",

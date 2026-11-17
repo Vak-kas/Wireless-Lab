@@ -17,6 +17,7 @@ _lock = threading.Lock()
 MESSAGES = {
     "BCCH-BCH-Message": _D.BCCH_BCH_Message,
     "BCCH-DL-SCH-Message": _D.BCCH_DL_SCH_Message,
+    "DL-CCCH-Message": _D.DL_CCCH_Message,
     "SIB1": _D.SIB1,
     "SIB19-r17": _D.SIB19_r17,
 }

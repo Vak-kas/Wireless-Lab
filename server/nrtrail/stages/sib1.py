@@ -6,7 +6,7 @@ from typing import Any
 
 from ..asn1 import rrc
 from ..contracts_gen import PlotGrid, StageResult
-from ..nr import sched
+from ..nr import pdsch, raster, sched
 from ..pipeline import StageDef
 from ..result import ResultBuilder, fmt, inp
 from .base import Ctx, Plot, PlotAnnotation, PlotAxis, PlotColumn, PlotSeries, PlotTable
@@ -113,6 +113,27 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
                      [inp("N_RB", n_rb, f"{P}.…carrierBandwidth"), inp("Δf", scs, f"{P}.…subcarrierSpacing", "kHz")],
                      [f"{n_rb} × 12 × {scs} kHz = {fmt(bw)} MHz"], bw, "MHz", "TS 38.211 4.4.4.1")
         b.derived("carrier_bw_mhz", bw, d)
+        crb_low = (ctx.prior.get("mib", {}).get("resolved", {}).get("coreset0") or {}).get("crb_ssb_low_hz")
+        if crb_low is not None:
+            pa = sched.point_a_hz(crb_low, fdl["offsetToPointA"])
+            d = b.derive("point_a", r"f_{PointA} = f_{CRB_{SSB}} - \mathrm{offsetToPointA} \cdot 12 \cdot 15\,\mathrm{kHz}",
+                         [inp("f_CRB_SSB", crb_low, "mib: SS_REF − 120·SCS_SSB − k_SSB·15 kHz", "Hz"),
+                          inp("offsetToPointA", fdl["offsetToPointA"], f"{P}.…frequencyInfoDL.offsetToPointA", "RB")],
+                         [f"{fmt(crb_low / 1e6, 10)} MHz − {fdl['offsetToPointA']} × 180 kHz = {fmt(pa / 1e6, 10)} MHz"],
+                         round(pa / 1e6, 4), "MHz", "TS 38.211 4.4.4.2")
+            b.derived("point_a", round(pa / 1e6, 4), d)
+            ul_arfcn = rrc.find_path(scc, "uplinkConfigCommon", "frequencyInfoUL", "absoluteFrequencyPointA")
+            if ul_arfcn is not None:
+                df, f_offs, n_offs = raster.arfcn_params(ul_arfcn)
+                ul = raster.arfcn_to_freq(ul_arfcn)
+                d = b.derive("ul_freq", r"F_{REF} = F_{REF\text{-}Offs} + \Delta F_{Global}\,(N_{REF} - N_{REF\text{-}Offs}),\quad \Delta f_{duplex} = f_{PointA}^{DL} - f_{PointA}^{UL}",
+                             [inp("N_REF", ul_arfcn, f"{P}.…frequencyInfoUL.absoluteFrequencyPointA"), inp("ΔF_Global", df, "TS 38.104 Table 5.4.2.1-1", "Hz"),
+                              inp("F_REF-Offs", f_offs, "TS 38.104 Table 5.4.2.1-1", "Hz"), inp("N_REF-Offs", n_offs, "TS 38.104 Table 5.4.2.1-1"),
+                              inp("f_PointA^DL", round(pa / 1e6, 4), "sib1.point_a", "MHz")],
+                             [f"F_REF = {fmt(f_offs / 1e6)} MHz + {df / 1e3:g} kHz × ({ul_arfcn} − {n_offs}) = {fmt(ul / 1e6, 10)} MHz",
+                              f"{fmt(pa / 1e6, 10)} − {fmt(ul / 1e6, 10)} = {fmt((pa - ul) / 1e6, 8)} MHz"], round(ul / 1e6, 4), "MHz", "TS 38.104 5.4.2.1")
+                b.derived("ul_point_a", round(ul / 1e6, 4), d, raw=ul_arfcn)
+                b.derived("duplex", round((pa - ul) / 1e6, 4), d)
         lab = dl["initialDownlinkBWP"]["genericParameters"]["locationAndBandwidth"]
         start, length = sched.riv_decode(lab, 275)
         d = b.derive("initial_bwp", r"RIV = N(L-1) + RB_{start}\ \ (N = 275)",
@@ -133,8 +154,26 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
         kind, root = rach["prach-RootSequenceIndex"]
         b.decoded("root_seq", f"{root} ({kind})", f"{rp}.prach-RootSequenceIndex", raw=root)
         b.decoded("ra_window", int(gen["ra-ResponseWindow"][2:]), f"{rp}.rach-ConfigGeneric.ra-ResponseWindow", raw=gen["ra-ResponseWindow"])
+        try:
+            pr = sched.prach_config(gen["prach-ConfigurationIndex"], bool(ctx.cell.get("paired", True)))
+        except (IndexError, KeyError, OSError):
+            pr = None
+        if pr:
+            when = f"SFN mod {pr['x']} = {','.join(map(str, pr['y']))}, subframe {','.join(map(str, pr['subframes']))}, symbol {pr['start_symbol']}"
+            steps = [f"Table {pr['table']}, index {gen['prach-ConfigurationIndex']}: format {pr['format']}, x = {pr['x']}, y = {pr['y']}",
+                     f"subframes {pr['subframes']}, starting symbol {pr['start_symbol']}"]
+            if pr["occasions_per_slot"]:
+                steps.append(f"{pr['slots_per_subframe']} PRACH slot(s) per subframe, {pr['occasions_per_slot']} occasion(s) per slot, duration {pr['duration']} symbols")
+            d = b.derive("prach", r"n_{SFN} \bmod x = y",
+                         [inp("prach-ConfigurationIndex", gen["prach-ConfigurationIndex"], f"{rp}.rach-ConfigGeneric"),
+                          inp("spectrum", "paired" if ctx.cell.get("paired", True) else "unpaired", "band")],
+                         steps, when, "", f"TS 38.211 Table {pr['table']}")
+            b.derived("prach_format", pr["format"], d)
+            b.derived("prach_when", when, d)
+            b.next_inputs["prach"] = pr
         if "msg1-SubcarrierSpacing" in rach:
             b.decoded("msg1_scs", sched.SCS_KHZ[rach["msg1-SubcarrierSpacing"]], f"{rp}.msg1-SubcarrierSpacing", raw=rach["msg1-SubcarrierSpacing"])
+            b.next_inputs["msg1_scs_khz"] = sched.SCS_KHZ[rach["msg1-SubcarrierSpacing"]]
 
     # --- SSB, 타이밍 ---
     if scc:
@@ -201,12 +240,26 @@ def assemble(stage: StageDef, raw: dict[str, Any], ctx: Ctx) -> StageResult:
         b.decoded("dci_riv", dci["riv"], "DCI 1_0 frequency domain resource assignment")
         b.derived("dci_rb", f"{start} – {start + length - 1} ({length} RB)", d)
         b.decoded("dci_tdra", dci["tdra"], "DCI 1_0 time domain resource assignment")
-        if m.get("sym_len"):
-            b.measured("dci_symbols", f"{m['sym_start']} – {m['sym_start'] + m['sym_len'] - 1}")
+        dmrs_pos = int(mib_res.get("dmrs_typea_pos", 2))
+        row = pdsch.tdra_default_a(dmrs_pos)[dci["tdra"]]
+        d_td = b.derive("tdra", r"(\text{type}, K_0, S, L) = \mathrm{Table}(m + 1,\ \text{dmrs-TypeA-Position})",
+                        [inp("m", dci["tdra"], "DCI 1_0 time domain resource assignment"), inp("dmrs-TypeA-Position", dmrs_pos, "MIB")],
+                        [f"row {row.row}: mapping type {row.mapping_type}, K0 = {row.k0}, S = {row.s}, L = {row.length}",
+                         f"symbols {row.s} – {row.s + row.length - 1}"], row.length, "symbols", "TS 38.214 Table 5.1.2.1.1-2")
+        b.derived("dci_tdra_row", f"{row.s} – {row.s + row.length - 1} (type {row.mapping_type})", d_td)
         b.decoded("dci_mcs", dci["mcs"], "DCI 1_0 modulation and coding scheme")
         b.decoded("dci_rv", dci["rv"], "DCI 1_0 redundancy version")
         b.decoded("dci_si_indicator", dci["si_indicator"], "DCI 1_0 system information indicator")
-        b.measured("tbs", m.get("tbs"))
+        qm, rate = pdsch.MCS_TABLE_1[dci["mcs"]]
+        n_dmrs = int(m.get("n_dmrs_per_prb") or pdsch.dmrs_re_per_prb_type_a(dmrs_pos, row.s, row.length))
+        t = pdsch.tbs(length, row.length, n_dmrs, qm, rate)
+        d_tbs = b.derive("tbs", r"N_{RE} = \min(156, 12 N_{symb} - N_{DMRS} - N_{oh}) \cdot n_{PRB},\quad N_{info} = N_{RE} \cdot R \cdot Q_m \cdot \nu",
+                         [inp("n_PRB", length, "sib1.riv", "RB"), inp("N_symb", row.length, "sib1.tdra"), inp("N_DMRS", n_dmrs, "PDSCH DM-RS per PRB"),
+                          inp("Q_m", qm, f"MCS {dci['mcs']} (TS 38.214 Table 5.1.3.1-1)"), inp("R×1024", rate, f"MCS {dci['mcs']}")],
+                         t.steps, t.tbs, "bit", "TS 38.214 5.1.3.2")
+        b.derived("tbs", t.tbs, d_tbs, primary=False)
+        if m.get("tbs") is not None and int(m["tbs"]) != t.tbs:
+            b.diag("INTERNAL", default_level="warn", detail=f"TBS mismatch: engine {m['tbs']}, computed {t.tbs}")
         summary = {"al": m.get("al"), "riv": dci["riv"], "rb_start": start, "rb_len": length, "mcs": dci["mcs"], "tbs": m.get("tbs")}
     else:
         summary = {"al": "-", "riv": "-", "rb_start": "-", "rb_len": "-", "mcs": "-", "tbs": len(tb_hex) * 4}

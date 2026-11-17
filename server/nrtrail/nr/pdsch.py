@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import ceil, floor, log2
+from typing import Any
 
 SI_RNTI = 0xFFFF
 
@@ -61,7 +62,8 @@ class Tbs:
     steps: list[str]
 
 
-def tbs(n_prb: int, n_symbols: int, n_dmrs_per_prb: int, qm: int, rate_x1024: int, layers: int = 1, overhead: int = 0) -> Tbs:
+def tbs(n_prb: int, n_symbols: int, n_dmrs_per_prb: int, qm: int, rate_x1024: int, layers: int = 1, overhead: int = 0,
+        scaling: float = 1.0) -> Tbs:
     """전송 블록 크기. TS 38.214 5.1.3.2.
 
     n_dmrs_per_prb: 할당 구간에서 PRB 하나에 든 DM-RS RE 수(데이터 없는 CDM 그룹의 몫 포함).
@@ -69,7 +71,7 @@ def tbs(n_prb: int, n_symbols: int, n_dmrs_per_prb: int, qm: int, rate_x1024: in
     r = rate_x1024 / 1024
     n_re_prime = 12 * n_symbols - n_dmrs_per_prb - overhead
     n_re = min(156, n_re_prime) * n_prb
-    n_info = n_re * r * qm * layers
+    n_info = scaling * n_re * r * qm * layers  # scaling: RA-RNTI/P-RNTI의 TB scaling (TS 38.214 표 5.1.3.2-2), 그 외 1
     steps = [f"N'_RE = 12 × {n_symbols} − {n_dmrs_per_prb} − {overhead} = {n_re_prime}",
              f"N_RE = min(156, {n_re_prime}) × {n_prb} = {n_re}",
              f"N_info = {n_re} × {rate_x1024}/1024 × {qm} × {layers} = {n_info:.6g}"]
@@ -152,3 +154,33 @@ def dmrs_re_per_prb_type_a(dmrs_typea_pos: int, s: int, length: int) -> int:
     ld = s + length  # 매핑 A에서는 슬롯 시작부터 PDSCH 마지막 심볼까지
     n_sym = 1 if ld <= 7 else 2 if ld <= 9 else 3
     return 12 * n_sym
+
+
+# 합성 파형과 예시 데이터에 쓰는 기본 선택
+DEFAULT_MCS = 2      # QPSK, R = 193/1024. 낮은 SNR에서도 풀리도록 낮게 잡는다
+DEFAULT_TDRA = 0     # 기본 표 A의 1행: 슬롯 전체(S = dmrs-TypeA-Position)
+DEFAULT_AL = 8
+
+
+def allocate(payload_hex: str, n_rb: int, dmrs_pos: int, si_indicator: int) -> dict[str, Any]:
+    """페이로드가 들어가는 가장 좁은 RB 할당을 고르고 DCI 1_0과 채움(TBS 길이)까지 만든다. 합성기 cfg와 예시 raw가 같이 쓴다."""
+    from .sched import riv_encode
+
+    row = tdra_default_a(dmrs_pos)[DEFAULT_TDRA]
+    n_dmrs = dmrs_re_per_prb_type_a(dmrs_pos, row.s, row.length)
+    qm, rate = MCS_TABLE_1[DEFAULT_MCS]
+    bits = len(payload_hex) * 4
+    for length in range(1, n_rb + 1):
+        t = tbs(length, row.length, n_dmrs, qm, rate)
+        if t.tbs >= bits:
+            break
+    else:
+        raise ValueError(f"payload of {bits} bits does not fit in CORESET0 ({n_rb} RB)")
+    riv = riv_encode(0, length, n_rb)
+    return {
+        "tb_hex": payload_hex + "00" * ((t.tbs - bits) // 8), "payload_bytes": bits // 8, "tbs": t.tbs, "al": DEFAULT_AL,
+        "dci": {"bits": dci_1_0_si_build(n_rb, riv, DEFAULT_TDRA, 0, DEFAULT_MCS, 0, si_indicator),
+                "riv": riv, "tdra": DEFAULT_TDRA, "vrb_to_prb": 0, "mcs": DEFAULT_MCS, "rv": 0, "si_indicator": si_indicator},
+        "rb_start": 0, "rb_len": length, "sym_start": row.s, "sym_len": row.length, "mapping_type": row.mapping_type,
+        "qm": qm, "rate_x1024": rate, "n_dmrs_per_prb": n_dmrs,
+    }

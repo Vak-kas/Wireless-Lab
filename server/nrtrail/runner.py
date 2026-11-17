@@ -12,10 +12,11 @@ from .contracts_gen import StageResult
 from .engines.base import Engine, Progress, failed
 from .nr import bands, occasions, pdsch, sched
 from .pipeline import Pipeline
-from .stages import mib, scan, sib1, sib19, ssb
+from .stages import mib, ra, scan, sib1, sib19, ssb
 from .stages.base import Ctx
 
-ASSEMBLERS = {"scan": scan.assemble, "ssb": ssb.assemble, "mib": mib.assemble, "sib1": sib1.assemble, "sib19": sib19.assemble}
+ASSEMBLERS = {"scan": scan.assemble, "ssb": ssb.assemble, "mib": mib.assemble, "sib1": sib1.assemble, "sib19": sib19.assemble,
+              "ra": ra.assemble}
 
 # 방송 정보 단계. 실시간 장비 입력으로는 이것만 처리한다 (SPEC 2절).
 BROADCAST_STAGES = {"scan", "ssb", "mib", "sib1", "sib19"}
@@ -80,6 +81,13 @@ def build_params(stage: str, state: RunState, user: dict[str, Any]) -> dict[str,
         return {"lmax": cell["lmax"]} | user
     if stage in ("sib1", "sib19"):
         return pdcch_params(stage, state) | user
+    if stage == "ra":
+        out = pdcch_params("sib1", state)
+        out.pop("si_indicator", None)
+        prach = state.results["sib1"].next_inputs.get("prach")
+        if prach:
+            out["rnti_inputs"] = ra.rnti_inputs(prach, int(state.results["sib1"].next_inputs.get("msg1_scs_khz") or out.get("scs_khz", 15)))
+        return out | user
     return dict(user)
 
 
@@ -131,14 +139,19 @@ def run_stage(engine: Engine, pipeline: Pipeline, stage_id: str, state: RunState
         if not state.done(req):
             raise StageLocked(stage_id)
     # 이 단계를 다시 돌리면 뒤 단계의 결과는 더 이상 맞지 않는다.
-    for later in pipeline.order[pipeline.order.index(stage_id):]:
+    for later in (pipeline.order[pipeline.order.index(stage_id):] if stage_id in pipeline.order else [stage_id]):
         state.raws.pop(later, None)
         state.results.pop(later, None)
+    if stage_id in ("sib1", "mib", "ssb", "scan"):
+        state.raws.pop("ra", None)
+        state.results.pop("ra", None)
     if stage_id == "ssb" and not state.cell:
         select_cell(state, state.results["scan"].next_inputs["selected_gscn"])
 
     params = build_params(stage_id, state, user_params or {})
     raw = precheck(stage_id, state)
+    if raw is None and stage_id == "ra":
+        raw = run_ra(engine, state, params, progress)
     if raw is None:
         raw = engine.run_raw(stage_id, {"capture": {"meta": state.capture.get("meta"), "data": state.capture.get("data")},
                                         "params": params, "prior": state.raws, "scenario": state.scenario}, progress)
@@ -148,3 +161,25 @@ def run_stage(engine: Engine, pipeline: Pipeline, stage_id: str, state: RunState
     if result.status != "fail":
         state.raws[stage_id] = raw
     return result
+
+
+def run_ra(engine: Engine, state: RunState, params: dict[str, Any], progress: Progress) -> dict[str, Any]:
+    """RA 관측은 엔진을 두 번 부른다: RA-RNTI로 Msg2(RAR)를 찾고, 거기 적힌 TC-RNTI로 Msg4를 찾는다."""
+    from .nr import ra as ra_math
+
+    ids = params.get("rnti_inputs")
+    if not ids:
+        return {"stage": "ra", "ok": False, "error_code": "NO_PRACH_CONFIG", "msg2": {}, "msg4": {}}
+    base = {"capture": {"meta": state.capture.get("meta"), "data": state.capture.get("data")}, "prior": state.raws, "scenario": state.scenario}
+    msg2 = engine.run_raw("ra", base | {"params": params | {"rnti": ra_math.ra_rnti(**ids), "dci_format": "ra"}}, progress)
+    if "msg2" in msg2:   # 저장된 결과 재생(MockEngine)은 두 메시지를 한 파일에 담고 있다
+        return msg2
+    msg4: dict[str, Any] = {}
+    for hexstr in (msg2.get("bits") or {}).get("tb_hex_list") or []:
+        try:
+            tc = ra_math.parse_rar_pdu(bytes.fromhex(hexstr)).rars[0].tc_rnti
+        except (ValueError, IndexError):
+            continue
+        msg4 = engine.run_raw("ra", base | {"params": params | {"rnti": tc, "dci_format": "tc"}}, progress)
+        break
+    return {"stage": "ra", "ok": bool(msg2.get("ok")), "error_code": msg2.get("error_code", ""), "msg2": msg2, "msg4": msg4}

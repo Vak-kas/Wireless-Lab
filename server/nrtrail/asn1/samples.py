@@ -28,7 +28,7 @@ def mib(sfn_msb6: int, scs_common: str, k_ssb_lsb4: int, dmrs_pos: str, pdcch_co
 
 
 def sib1(*, band: int, scs: str, carrier_rbs: int, offset_to_point_a: int, loc_and_bw: int,
-         ntn: bool, ssb_positions: int, ssb_period: str = "ms20") -> dict[str, Any]:
+         ntn: bool, ssb_positions: int, ssb_period: str = "ms20", ul_point_a_arfcn: int | None = None) -> dict[str, Any]:
     """SIB1. ntn=True면 SIB19를 Rel-17 확장 스케줄 목록에 싣고 cellBarredNTN을 넣는다."""
     generic = {"locationAndBandwidth": loc_and_bw, "subcarrierSpacing": scs}
     rach_generic = {
@@ -85,6 +85,8 @@ def sib1(*, band: int, scs: str, carrier_rbs: int, offset_to_point_a: int, loc_a
         "ssb-PeriodicityServingCell": ssb_period,
         "ss-PBCH-BlockPower": 20,
     }
+    if ul_point_a_arfcn is not None:
+        serving["uplinkConfigCommon"]["frequencyInfoUL"]["absoluteFrequencyPointA"] = ul_point_a_arfcn  # type: ignore[index]
     msg: dict[str, Any] = {
         "cellSelectionInfo": {"q-RxLevMin": -62},
         "cellAccessRelatedInfo": {"plmn-IdentityInfoList": [{

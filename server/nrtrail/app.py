@@ -26,6 +26,8 @@ from .pipeline import load_glossary, load_pipeline
 from .runner import StageLocked, StageNotAllowed, run_stage, select_cell
 from .sessions import Session, SessionError, SessionStore, load_scenarios, load_settings, save_settings
 
+RUNNABLE_VIEWS = ("ra",)  # 사슬 밖에서 따로 실행하는 단계 (테스트베드 전용)
+
 
 class CreateSession(BaseModel):
     source: dict[str, Any]
@@ -246,7 +248,7 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
     @app.post("/api/sessions/{sid}/stages/{stage}/run")
     async def post_run(sid: str, stage: str, body: RunBody) -> dict[str, str]:
         s = session(sid)
-        if stage not in pipeline.order:
+        if stage not in pipeline.order and stage not in RUNNABLE_VIEWS:
             raise HTTPException(404, "없는 단계입니다.")
         if s.job:
             raise HTTPException(409, "이미 실행 중인 단계가 있습니다.")
@@ -257,7 +259,7 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
 
             check_allowed(stage, s.state)
         except StageNotAllowed:
-            raise HTTPException(403, "이 입력 소스에서는 허용되지 않는 단계입니다.") from None
+            raise HTTPException(403, pipeline.stage(stage).data.get("not_allowed") or "이 입력 소스에서는 허용되지 않는 단계입니다.") from None
         except StageLocked:
             raise HTTPException(409, "앞 단계를 먼저 끝내야 합니다.") from None
         if (s.state.capture.get("device_stages") or {}).get(stage) == "no":

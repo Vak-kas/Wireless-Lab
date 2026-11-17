@@ -90,7 +90,9 @@ def test_device_session_end_to_end_with_simulated_device(client, tmp_path):
 def test_live_device_input_stops_at_broadcast_information(client):
     """실시간 장비 입력으로는 방송 정보(SIB)까지만. 그 밖의 단계는 거절한다."""
     sid = client.post("/api/sessions", json={"source": {"kind": "device", "device": "simulated:ntn-leo-n256"}, "engine": "mock"}).json()["id"]
-    assert client.post(f"/api/sessions/{sid}/stages/ra/run", json={"params": {}}).status_code in (403, 404)
+    for stage in ("scan", "ssb", "mib", "sib1"):
+        run(client, sid, stage)
+    assert client.post(f"/api/sessions/{sid}/stages/ra/run", json={"params": {}}).status_code == 403
 
 
 def test_narrowband_device_is_limited_to_spectrum(client, monkeypatch):

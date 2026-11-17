@@ -8,7 +8,12 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from functools import lru_cache
+from typing import Any
+
+from ..paths import PIPELINE
 
 SI_PERIOD_FRAMES = {"rf8": 8, "rf16": 16, "rf32": 32, "rf64": 64, "rf128": 128, "rf256": 256, "rf512": 512}
 SI_WINDOW_SLOTS = {"s5": 5, "s10": 10, "s20": 20, "s40": 40, "s80": 80, "s160": 160, "s320": 320, "s640": 640, "s1280": 1280}
@@ -58,3 +63,21 @@ def si_window(order_or_position: int, window: str, period: str, slots_per_frame:
 
 def plmn_string(mcc: list[int], mnc: list[int]) -> str:
     return "".join(map(str, mcc)) + "-" + "".join(map(str, mnc))
+
+
+@lru_cache(maxsize=1)
+def prach_tables() -> dict[str, Any]:
+    data: dict[str, Any] = json.loads((PIPELINE / "tables" / "ts38211_prach.json").read_text(encoding="utf-8"))
+    return data
+
+
+def prach_config(index: int, paired: bool) -> dict[str, Any]:
+    """prach-ConfigurationIndex -> 시간 영역 PRACH 기회. TS 38.211 표 6.3.3.2-2(FR1 FDD/SUL), 6.3.3.2-3(FR1 TDD). 원문에서 추출한 표."""
+    key = "fr1_paired" if paired else "fr1_unpaired"
+    row: dict[str, Any] = prach_tables()[key][index]
+    return row | {"table": "6.3.3.2-2" if paired else "6.3.3.2-3"}
+
+
+def point_a_hz(crb_ssb_low_hz: float, offset_to_point_a: int) -> float:
+    """Point A = (SSB와 겹치는 가장 낮은 RB의 부반송파 0) - offsetToPointA x 12 x 15 kHz (FR1). TS 38.211 4.4.4.2 (원문 대조함)."""
+    return crb_ssb_low_hz - offset_to_point_a * 12 * 15_000

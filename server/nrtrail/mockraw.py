@@ -12,7 +12,8 @@ from typing import Any
 import numpy as np
 
 from .asn1 import samples
-from .nr import bands, raster, sched
+from .nr import bands, pdsch, raster, sched, type0
+from .nr import ra as ra_math
 from .nr import ssb as nrssb
 
 
@@ -121,35 +122,45 @@ def mib(sc: dict[str, Any]) -> dict[str, Any]:
 
 def sib1_value(sc: dict[str, Any]) -> dict[str, Any]:
     cell = _cell(sc)
-    scs = f"kHz{cell['ssb_scs_khz']}"
-    n_rb = 25 if cell["ssb_scs_khz"] == 15 else 51
-    return samples.sib1(band=int(sc["band"][1:]), scs=scs, carrier_rbs=n_rb, offset_to_point_a=2 if cell["ssb_scs_khz"] == 15 else 4,
-                        loc_and_bw=sched.riv_encode(0, n_rb, 275), ntn=sc["ntn"],
-                        ssb_positions=0b10000000)
+    scs_khz = cell["ssb_scs_khz"]
+    n_rb = 25 if scs_khz == 15 else 51
+    offset = 2 if scs_khz == 15 else 4
+    ul = None
+    if cell["paired"]:  # FDD: 상향 Point A를 하향보다 190 MHz 아래에 둔다 (n256의 듀플렉스 간격)
+        m = sc["mib"]
+        cs = type0.coreset0(m["pdcch_config_sib1"] >> 4, scs_khz, scs_khz, cell["min_bw_mhz"])
+        low = type0.crb_grid_from_ssb(cell["ss_ref_hz"], scs_khz, m["k_ssb"], cs.offset_rb, scs_khz)["crb_ssb_low_hz"]
+        ul = round((sched.point_a_hz(low, offset) - 190e6) / 5000)
+    return samples.sib1(band=int(sc["band"][1:]), scs=f"kHz{scs_khz}", carrier_rbs=n_rb, offset_to_point_a=offset,
+                        loc_and_bw=sched.riv_encode(0, n_rb, 275), ntn=sc["ntn"], ssb_positions=0b10000000, ul_point_a_arfcn=ul)
 
 
-def _pdsch(rng: np.random.Generator, sc: dict[str, Any], tb_hex: str, n_rb: int, n_sym_coreset: int) -> dict[str, Any]:
+def _pdsch(rng: np.random.Generator, sc: dict[str, Any], payload_hex: str, n_rb: int, n_sym_coreset: int, si_indicator: int) -> dict[str, Any]:
+    """PDCCH/PDSCH 복호 결과를 지어낸다. 자원 할당·DCI·TBS는 합성기 cfg와 같은 규칙(pdsch.allocate)으로 정해 서로 맞는다."""
     sigma = 10 ** (-sc["snr_db"] / 20) / np.sqrt(2)
-    length = min(n_rb, 12)
+    a = pdsch.allocate(payload_hex, n_rb, sc["mib"]["dmrs_typea_pos"], si_indicator)
+    length, s0, ln = a["rb_len"], a["sym_start"], a["sym_len"]
     grid = np.abs(rng.normal(0, 0.05 + 0.1 * sigma, (n_rb, 14)))
-    grid[:, :n_sym_coreset] += 0.18
-    grid[: n_rb // 2, :n_sym_coreset] = 0.8 + rng.normal(0, 0.05, (n_rb // 2, n_sym_coreset))
-    grid[:length, n_sym_coreset:] = 0.7 + rng.normal(0, 0.06, (length, 14 - n_sym_coreset))
-    grid[:length, 2] = 0.9
+    grid[:, :n_sym_coreset] = 0.8 + rng.normal(0, 0.05, (n_rb, n_sym_coreset))
+    grid[:length, s0:s0 + ln] = 0.7 + rng.normal(0, 0.06, (length, ln))
+    dmrs_syms = [s0, 7, 11] if s0 + ln > 12 else [s0]
+    for sym in dmrs_syms:
+        grid[:length, sym] = 0.9
     pts = (rng.choice([-1, 1], 300) + 1j * rng.choice([-1, 1], 300)) / np.sqrt(2) + rng.normal(0, sigma, 300) + 1j * rng.normal(0, sigma, 300)
+    dci = {k: v for k, v in a["dci"].items() if k != "bits"} | {"n_bits": len(a["dci"]["bits"])}
     return {
+        "tb_hex": a["tb_hex"], "dci_bits": a["dci"]["bits"],
         "measurements": {
-            "crc_ok": True, "al": 4, "cce_start": 0, "n_rb_coreset0": n_rb,
-            "dci": {"n_bits": 37 if n_rb == 24 else 39, "riv": sched.riv_encode(0, length, n_rb), "tdra": 0, "vrb_to_prb": 0,
-                    "mcs": 2, "rv": 0, "si_indicator": 0},
-            "rb_start": 0, "rb_len": length, "sym_start": 2, "sym_len": 12, "tbs": len(tb_hex) * 4, "sinr_db": round(sc["snr_db"] - 1.1, 1),
+            "crc_ok": True, "al": a["al"], "cce_start": 0, "n_rb_coreset0": n_rb, "dci": dci,
+            "rb_start": 0, "rb_len": length, "sym_start": s0, "sym_len": ln, "qm": a["qm"], "rate_x1024": a["rate_x1024"],
+            "n_dmrs_per_prb": a["n_dmrs_per_prb"], "tbs": a["tbs"], "sinr_db": round(sc["snr_db"] - 1.1, 1), "n_occasions_tried": 1,
         },
         "plots": {
             "coreset_grid": {"mag": [[round(float(np.clip(v, 0, 1)), 3) for v in row] for row in grid],
                              "regions": [{"name": "CORESET0", "rb0": 0, "rb1": n_rb - 1, "sym0": 0, "sym1": n_sym_coreset - 1},
-                                         {"name": "PDCCH", "rb0": 0, "rb1": n_rb // 2 - 1, "sym0": 0, "sym1": n_sym_coreset - 1},
-                                         {"name": "PDSCH", "rb0": 0, "rb1": length - 1, "sym0": 2, "sym1": 13},
-                                         {"name": "PDSCH DM-RS", "rb0": 0, "rb1": length - 1, "sym0": 2, "sym1": 2}]},
+                                         {"name": "PDCCH", "rb0": 0, "rb1": n_rb - 1, "sym0": 0, "sym1": n_sym_coreset - 1},
+                                         {"name": "PDSCH", "rb0": 0, "rb1": length - 1, "sym0": s0, "sym1": s0 + ln - 1}]
+                             + [{"name": "PDSCH DM-RS", "rb0": 0, "rb1": length - 1, "sym0": sym, "sym1": sym} for sym in dmrs_syms]},
             "constellation": {"re": [round(float(v), 3) for v in pts.real], "im": [round(float(v), 3) for v in pts.imag]},
         },
     }
@@ -157,11 +168,12 @@ def _pdsch(rng: np.random.Generator, sc: dict[str, Any], tb_hex: str, n_rb: int,
 
 def sib1(sc: dict[str, Any]) -> dict[str, Any]:
     rng = np.random.default_rng(sc["gscn"] + 3)
-    tb = samples.encode_hex("BCCH-DL-SCH-Message", samples.bcch_dl_sch_sib1(sib1_value(sc)))
-    body = _pdsch(rng, sc, tb, 24, 2)
-    body["measurements"] |= {"frame": sc["mib"]["sfn"], "slot": 0}
-    return {"stage": "sib1", "ok": True, "error_code": "", "error_detail": "", "bits": {"tb_hex": tb, "tb_bits": len(tb) * 4},
-            "soft": {}, **body}
+    payload = samples.encode_hex("BCCH-DL-SCH-Message", samples.bcch_dl_sch_sib1(sib1_value(sc)))
+    body = _pdsch(rng, sc, payload, 24, 2, 0)
+    tb = body.pop("tb_hex")
+    body["measurements"] |= {"sfn": sc["mib"]["sfn"], "slot": 0}
+    return {"stage": "sib1", "ok": True, "error_code": "", "error_detail": "",
+            "bits": {"tb_hex": tb, "tb_bits": len(tb) * 4, "dci_bits": body.pop("dci_bits")}, "soft": {}, **body}
 
 
 # 시험용 위성: 고도 600 km 원궤도, 한반도 상공. 위치는 1.3 m, 속도는 0.06 m/s 단위의 원시값.
@@ -173,14 +185,38 @@ def si(sc: dict[str, Any]) -> dict[str, Any]:
     if not sc["ntn"]:
         return {"stage": "sib19", "ok": False, "error_code": "NOT_SCHEDULED", "error_detail": "", "measurements": {}, "bits": {},
                 "soft": {}, "plots": {}}
-    tb = samples.encode_hex("BCCH-DL-SCH-Message", samples.bcch_dl_sch_si([("sib19-v1700", samples.sib19(**SIB19_SAMPLE))]))
-    tb += "00" * (36 - len(tb) // 2)  # 전송 블록 크기에 맞춘 채움
-    return {
-        "stage": "sib19", "ok": True, "error_code": "", "error_detail": "",
-        "measurements": {"windows": [{"sfn": 416, "slot": 0, "start_sample": 0, "found": True}],
-                         "messages": [{"crc_ok": True, "tbs": len(tb) * 4, "sfn": 416, "slot": 3}]},
-        "bits": {"tb_hex_list": [tb]}, "soft": {}, "plots": {},
-    }
+    rng = np.random.default_rng(sc["gscn"] + 4)
+    payload = samples.encode_hex("BCCH-DL-SCH-Message", samples.bcch_dl_sch_si([("sib19-v1700", samples.sib19(**SIB19_SAMPLE))]))
+    body = _pdsch(rng, sc, payload, 24, 2, 1)
+    tb = body.pop("tb_hex")
+    meas = body["measurements"] | {"sfn": 418, "slot": 1}
+    meas["messages"] = [{k: meas[k] for k in ("sfn", "slot", "crc_ok", "tbs", "al", "dci", "rb_start", "rb_len")}]
+    return {"stage": "sib19", "ok": True, "error_code": "", "error_detail": "", "measurements": meas,
+            "bits": {"tb_hex": tb, "tb_bits": len(tb) * 4, "dci_bits": body.pop("dci_bits"), "tb_hex_list": [tb]}, "soft": {},
+            "plots": body["plots"]}
 
 
-GENERATORS = {"scan": scan, "ssb": ssb, "mib": mib, "sib1": sib1, "sib19": si}
+# 시험용 RA 응답: 프리앰블 23번, TA 명령 77, TC-RNTI 0x4601, 경쟁 해소 식별자 6바이트 + RRCReject(waitTime 5)
+RA_SAMPLE: dict[str, Any] = {"rapid": 23, "ta_command": 77, "ul_grant": 0x0123456, "tc_rnti": 0x4601,
+                             "contention_id": "a1b2c3d4e5f6", "ccch_hex": "0880"}
+
+
+def ra_payloads() -> tuple[str, str]:
+    r = RA_SAMPLE
+    return (ra_math.build_rar_pdu(r["rapid"], r["ta_command"], r["ul_grant"], r["tc_rnti"]).hex(),
+            ra_math.build_msg4_pdu(bytes.fromhex(r["contention_id"]), bytes.fromhex(r["ccch_hex"])).hex())
+
+
+def ra(sc: dict[str, Any]) -> dict[str, Any]:
+    """RA 관측의 지어낸 결과. Msg2와 Msg4를 한 파일에 담는다(runner.run_ra 참고)."""
+    rng = np.random.default_rng(sc["gscn"] + 5)
+    out: dict[str, Any] = {"stage": "ra", "ok": True, "error_code": "", "error_detail": ""}
+    for key, payload in zip(("msg2", "msg4"), ra_payloads(), strict=True):
+        body = _pdsch(rng, sc, payload, 24, 2, 0)
+        tb = body.pop("tb_hex")
+        out[key] = {"ok": True, "error_code": "", "measurements": body["measurements"],
+                    "bits": {"tb_hex": tb, "dci_bits": body.pop("dci_bits"), "tb_hex_list": [tb]}, "plots": body["plots"]}
+    return out
+
+
+GENERATORS = {"scan": scan, "ssb": ssb, "mib": mib, "sib1": sib1, "sib19": si, "ra": ra}

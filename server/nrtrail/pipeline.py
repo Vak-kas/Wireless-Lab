@@ -9,7 +9,7 @@ from typing import Any
 from .paths import PIPELINE
 
 PUBLIC_KEYS = ("id", "requires", "label", "title", "question", "intro", "analogy", "button",
-               "locked_reason", "spec_refs", "progress", "groups")
+               "locked_reason", "not_allowed", "spec_refs", "progress", "groups")
 
 
 def _overlay(base: Any, over: Any) -> Any:

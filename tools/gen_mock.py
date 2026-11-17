@@ -50,6 +50,10 @@ def main() -> int:
                 break
             dump(FIXTURES / sc["id"] / f"{stage}.json", result.model_dump(mode="json", exclude_none=True))
             line.append(f"{stage}={result.status}")
+        if state.done("sib1"):
+            ra_result = run_stage(engine, pipeline, "ra", state)
+            dump(FIXTURES / sc["id"] / "ra.json", ra_result.model_dump(mode="json", exclude_none=True))
+            line.append(f"ra={ra_result.status}")
         if state.done("sib19"):
             loc = DEFAULT_SETTINGS["location"]
             state.settings = DEFAULT_SETTINGS
