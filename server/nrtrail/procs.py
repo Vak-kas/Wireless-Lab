@@ -52,8 +52,10 @@ def command_of(pid: int) -> str:
     """pid 의 명령줄(모르면 빈 문자열)."""
     try:
         if os.name == "nt":
-            return subprocess.run(["wmic", "process", "where", f"ProcessId={pid}", "get", "CommandLine"], capture_output=True, text=True,
-                                  timeout=10).stdout
+            # wmic 는 최신 Windows 에서 빠졌다. PowerShell 로 묻는다. (Windows 에서는 실행해 보지 못했다)
+            return subprocess.run(["powershell", "-NoProfile", "-Command",
+                                   f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}').CommandLine"],
+                                  capture_output=True, text=True, timeout=15).stdout
         return subprocess.run(["ps", "-o", "command=", "-p", str(pid)], capture_output=True, text=True, timeout=10).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return ""
