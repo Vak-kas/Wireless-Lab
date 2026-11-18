@@ -379,6 +379,8 @@ export interface Api {
   monitorStop(id: string): Promise<void>;
   deviceSearch(): Promise<DeviceSearch>;
   deviceRescan(): Promise<DeviceSearch>;
+  /** 장비 연결을 처음부터 다시 (MATLAB 을 닫았다가 새로 띄워 찾는다) */
+  deviceReset(): Promise<DeviceSearch>;
   txStatus(): Promise<TxStatus>;
   txStart(req: TxRequest): Promise<{ seconds: number; stopped: boolean; underruns: number }>;
   txStop(): Promise<{ stopping: boolean }>;

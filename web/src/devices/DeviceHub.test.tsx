@@ -21,6 +21,7 @@ function setup(first: DeviceInfo[], search: DeviceSearch = { backends: [] }) {
   api.devices = async () => list;
   api.deviceSearch = async () => search;
   api.deviceRescan = vi.fn(async () => search);
+  api.deviceReset = vi.fn(async () => search);
   lastApi = api;
   renderWithStore(
     <DeviceHub>
@@ -108,6 +109,8 @@ test("못 찾은 이유를 알려 주고(다른 프로그램이 쓰는 중, 오�
   expect(await screen.findByTestId("search-busy")).toHaveTextContent("B200 S1: Busy");
   await user.click(screen.getByTestId("search-rescan"));
   expect(lastApi.deviceRescan).toHaveBeenCalled();
+  await user.click(screen.getByTestId("search-reset")); // 그래도 안 되면 연결을 처음부터 다시
+  expect(lastApi.deviceReset).toHaveBeenCalled();
 });
 
 test("찾기가 실패하면 오류 내용을, 그냥 없으면 언제 확인했는지를 보여 준다", async () => {

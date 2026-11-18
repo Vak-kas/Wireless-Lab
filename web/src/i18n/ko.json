@@ -524,5 +524,7 @@
   "hub.search.error": "장비를 찾지 못했습니다: {message}",
   "hub.search.none": "연결된 장비가 없습니다 ({s}초 전에 확인). USB 케이블과 포트를 확인해 보세요.",
   "hub.search.unsupported": "연결된 장비가 없습니다.",
-  "hub.search.rescan": "다시 찾기"
+  "hub.search.rescan": "다시 찾기",
+  "hub.search.reset": "장비 연결 새로 고침",
+  "hub.search.reset_hint": "장비가 안 잡히거나 '사용 중'으로 나오면 누르세요. 장비와 이어 주는 프로그램(MATLAB)을 닫았다가 새로 띄워 다시 찾습니다. 20초쯤 걸립니다."
 }

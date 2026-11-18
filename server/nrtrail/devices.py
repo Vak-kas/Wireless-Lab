@@ -112,6 +112,16 @@ def rescan() -> None:
             pass
 
 
+def reset() -> None:
+    """장비 연결을 처음부터 다시 한다(뒤에서 돈다. 진행은 search_status 로 본다)."""
+    for backend in BACKENDS.values():
+        if hasattr(backend, "reset"):
+            try:
+                backend.reset()
+            except Exception:  # noqa: BLE001, S110 — 실패 이유는 search_status 에 남는다
+                pass
+
+
 def find_device(dev_id: str) -> dict[str, Any]:
     for d in list_devices():
         if d["id"] == dev_id:

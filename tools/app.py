@@ -30,6 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
+from nrtrail import procs  # noqa: E402
 from nrtrail.paths import ROOT, WEB, WEB_DIST, sessions_dir, venv_bin  # noqa: E402
 
 HOST = "127.0.0.1"
@@ -88,11 +89,9 @@ def write_state(state: dict[str, object]) -> None:
 
 def cleanup(server_pid: int | None, oai: bool, docker_started: bool) -> None:
     """서버, OAI 컨테이너, (이 실행기가 켰다면) Docker 를 끈다. 실행기와 뒷정리 프로세스가 같이 쓴다."""
-    if server_pid and alive(server_pid):
-        try:
-            os.kill(server_pid, signal.SIGTERM)  # Windows 에서는 TerminateProcess
-        except OSError:
-            pass
+    if server_pid:
+        for line in procs.stop_server(server_pid):       # 정상 종료를 청하고, 안 끝나면 강제로. 그 서버의 MATLAB 까지.
+            log("정리: " + line)
     docker = shutil.which("docker")
     if oai and docker:
         run_quiet([docker, "compose", "--profile", "leo", "--profile", "geo", "--profile", "leo-ue", "--profile", "geo-ue", "down"],
@@ -158,6 +157,8 @@ class Launcher:
             code, out = run_quiet([NPM, "run", "build"], cwd=WEB, timeout=600)
             if code != 0:
                 raise RuntimeError("화면 빌드 실패: " + out[-400:])
+        for line in procs.sweep():                        # 지난 실행이 남긴 서버·MATLAB 을 먼저 치운다
+            log("지난 실행의 남은 것 정리: " + line)
         self.port = free_port()
         self.server = subprocess.Popen([venv_bin("python"), "-m", "nrtrail", "--port", str(self.port)], cwd=ROOT)
         self.save_state()
@@ -222,13 +223,12 @@ class Launcher:
         self._stopped = True
         log("끄는 중…")
         self.save_state(stopped=True)
-        if self.server and self.server.poll() is None:
-            self.server.terminate()
+        cleanup(self.server.pid if self.server else None, self.oai_started, self.docker_started)
+        if self.server:
             try:
-                self.server.wait(timeout=10)
+                self.server.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                self.server.kill()
-        cleanup(None, self.oai_started, self.docker_started)
+                pass
         log("모두 껐습니다")
 
 

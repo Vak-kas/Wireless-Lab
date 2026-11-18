@@ -162,6 +162,13 @@ def create_app(engines: dict[str, Engine] | None = None, default_engine: str | N
         await asyncio.to_thread(rescan)
         return {"backends": search_status()}
 
+    @app.post("/api/devices/reset")
+    async def devices_reset() -> dict[str, Any]:
+        from .devices import reset, search_status
+
+        await asyncio.to_thread(reset)
+        return {"backends": search_status()}
+
     @app.get("/api/settings")
     def get_settings() -> dict[str, Any]:
         return load_settings()

@@ -20,6 +20,8 @@ interface Hub {
   search: DeviceSearch | null;
   /** 지금 다시 찾는다 */
   rescan(): void;
+  /** 장비 연결을 처음부터 다시 한다 (안 잡히거나 "사용 중"으로 나올 때) */
+  reset(): void;
 }
 const Ctx = createContext<Hub | null>(null);
 
@@ -28,7 +30,7 @@ export function useUsableDevices(): Hub {
   const hub = useContext(Ctx);
   const { api } = useStore();
   const own = useDevices(api, hub === null);
-  return hub ?? { devices: own, mode: "device", connect: () => undefined, search: null, rescan: () => undefined };
+  return hub ?? { devices: own, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
 }
 
 const mhz = (hz?: number) => (hz === undefined ? "" : (hz / 1e6).toFixed(0));
@@ -52,7 +54,7 @@ function DevicePicture() {
 /**
  * 실제 장비가 하나도 없을 때 보여 주는 한 줄: 찾는 중인지, 다른 프로그램이 쓰는 중인지, 왜 못 찾았는지. 그리고 "다시 찾기".
  */
-export function SearchNote({ search, onRescan }: { search: DeviceSearch | null; onRescan: () => void }) {
+export function SearchNote({ search, onRescan, onReset }: { search: DeviceSearch | null; onRescan: () => void; onReset?: () => void }) {
   const b = search?.backends ?? [];
   const searching = b.some((x) => x.searching);
   const busy = b.flatMap((x) => x.busy_devices ?? []);
@@ -79,9 +81,16 @@ export function SearchNote({ search, onRescan }: { search: DeviceSearch | null; 
         </p>
       )}
       {b.length > 0 && (
-        <Button variant="link" onClick={onRescan} disabled={searching} data-testid="search-rescan">
-          {t("hub.search.rescan")}
-        </Button>
+        <div className="row">
+          <Button variant="link" onClick={onRescan} disabled={searching} data-testid="search-rescan">
+            {t("hub.search.rescan")}
+          </Button>
+          {onReset && (
+            <Button variant="link" onClick={onReset} disabled={searching} data-testid="search-reset" title={t("hub.search.reset_hint")}>
+              {t("hub.search.reset")}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -156,6 +165,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
     };
   }, [api]);
   const rescan = useCallback(() => void api.deviceRescan().then(setSearch, () => undefined), [api]);
+  const reset = useCallback(() => void api.deviceReset().then(setSearch, () => undefined), [api]);
 
   const real = useMemo(() => (all ?? []).filter((d) => !isSim(d)), [all]);
   const setMode = useCallback((m: DeviceMode) => {
@@ -182,7 +192,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   }, [all, real, asking]);
 
   const usable = useMemo(() => (all === null ? null : mode === "none" ? all.filter(isSim) : all), [all, mode]);
-  const hub = useMemo<Hub>(() => ({ devices: usable, mode, connect: () => setConnecting(true), search, rescan }), [usable, mode, search, rescan]);
+  const hub = useMemo<Hub>(() => ({ devices: usable, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, mode, search, rescan, reset]);
 
   return (
     <Ctx.Provider value={hub}>
@@ -202,7 +212,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
                 ))}
               </div>
             ) : (
-              <SearchNote search={search} onRescan={rescan} />
+              <SearchNote search={search} onRescan={rescan} onReset={reset} />
             )}
             <div className="dialog-actions">
               <Button onClick={() => setMode("device")} disabled={real.length === 0} data-testid="connect-start" autoFocus>
@@ -247,7 +257,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
           <div className="t-caption-strong">{t("hub.mine.title")}</div>
           {mode === "none" && <p className="t-caption muted">{t("hub.mine.none_mode")}</p>}
           {real.length === 0 ? (
-            <SearchNote search={search} onRescan={rescan} />
+            <SearchNote search={search} onRescan={rescan} onReset={reset} />
           ) : (
             real.map((d) => <DeviceCard key={d.id} device={d} />)
           )}
@@ -262,7 +272,13 @@ export function DeviceHub({ children }: { children: ReactNode }) {
             >
               {t("hub.mine.reconnect")}
             </Button>
+            {real.length > 0 && (search?.backends.length ?? 0) > 0 && (
+              <Button variant="link" onClick={reset} data-testid="my-devices-reset" title={t("hub.search.reset_hint")}>
+                {t("hub.search.reset")}
+              </Button>
+            )}
           </div>
+          <p className="t-caption muted">{t("hub.search.reset_hint")}</p>
         </div>
       )}
       {!asking && (

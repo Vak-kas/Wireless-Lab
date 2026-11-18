@@ -524,5 +524,7 @@
   "hub.search.error": "Could not find devices: {message}",
   "hub.search.none": "No device connected (checked {s} s ago). Check the USB cable and port.",
   "hub.search.unsupported": "No device connected.",
-  "hub.search.rescan": "Search again"
+  "hub.search.rescan": "Search again",
+  "hub.search.reset": "Refresh device connection",
+  "hub.search.reset_hint": "Use this when a device is not found or shows as in use. The program that talks to it (MATLAB) is closed and restarted, then the search runs again. Takes about 20 s."
 }

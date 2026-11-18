@@ -46,8 +46,22 @@ def main() -> None:
         usrp_matlab.warm()          # USRP 찾기를 미리 시작한다(MATLAB 을 띄우는 데 시간이 걸린다)
     except ImportError:
         pass
+    from . import procs
+
+    procs.record(port=args.port)
     print(f"nrtrail 서버: http://{HOST}:{args.port}")
-    uvicorn.run(app, host=HOST, port=args.port, log_level="warning")
+    try:
+        uvicorn.run(app, host=HOST, port=args.port, log_level="warning")
+    finally:
+        # 꺼질 때 MATLAB 을 남기지 않는다(남으면 USRP 를 잡은 채로 다음 실행을 막는다)
+        try:
+            from .engines import matlab as matlab_engine
+
+            if matlab_engine._shared is not None:
+                matlab_engine._shared.close()
+        except ImportError:
+            pass
+        procs.forget()
 
 
 if __name__ == "__main__":

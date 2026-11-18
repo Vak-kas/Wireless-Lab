@@ -79,6 +79,7 @@ export const httpApi: Api = {
   monitorStop: (id) => call(`/monitor/${id}`, "DELETE"),
   deviceSearch: () => call("/devices/status"),
   deviceRescan: () => call("/devices/rescan", "POST", {}),
+  deviceReset: () => call("/devices/reset", "POST", {}),
   txStatus: () => call("/tx"),
   txStart: (req) => call("/tx/start", "POST", req),
   txStop: () => call("/tx/stop", "POST", {}),

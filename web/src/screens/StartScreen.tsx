@@ -125,7 +125,7 @@ export function StartScreen() {
         <TileHead title={t("home.title")} lead={t("home.lead")} />
         {real.length === 0 ? (
           <div className="card home-empty" data-testid="home-no-device">
-            {hub.mode === "none" ? <p className="t-body">{t("hub.none_mode")}</p> : <SearchNote search={hub.search} onRescan={hub.rescan} />}
+            {hub.mode === "none" ? <p className="t-body">{t("hub.none_mode")}</p> : <SearchNote search={hub.search} onRescan={hub.rescan} onReset={hub.reset} />}
             <div>
               <Button variant="secondary" onClick={hub.connect} data-testid="home-connect">
                 {t("hub.mine.reconnect")}
