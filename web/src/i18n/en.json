@@ -461,7 +461,7 @@
   "tx.file.path": "SigMF meta file path (repeats from the start)",
   "tx.note": "Only a test tone or a waveform file you provide can be sent. It stops by itself when the time is up, and the time, frequency and gain are logged.",
   "tx.ask": "Transmit…",
-  "tx.sending": "Transmitting…",
+  "tx.sending": "Transmitting… (opening the transmitter takes about 10 s the first time)",
   "tx.done": "Sent for {s} s and finished.",
   "tx.done.stopped": "Stopped at {s} s.",
   "tx.done.underruns": "(The sample feed fell behind {n} times.)",
