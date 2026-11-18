@@ -90,13 +90,29 @@ def check_node() -> Check:
     return Check("node", "Node.js", "ok", ver)
 
 
+def usrp_via_matlab() -> bool:
+    """MATLAB 을 거쳐 USRP 를 쓸 수 있는 설치인가(장비를 찾지는 않는다. 찾기는 몇 초 걸리고 받는 중인 장비를 방해할 수 있다)."""
+    if find_matlab() is None or importlib.util.find_spec("matlab") is None:
+        return False
+    try:
+        return importlib.util.find_spec("nrtrail.usrp_matlab") is not None and importlib.util.find_spec("matlab.engine") is not None
+    except (ImportError, ValueError):
+        return False
+
+
 def check_soapy() -> list[Check]:
     has_mod = importlib.util.find_spec("SoapySDR") is not None
     util = shutil.which("SoapySDRUtil")
     if not has_mod:
-        return [Check("soapysdr", "SoapySDR (Python)", "missing", "모듈 없음",
-                      "실제 SDR 장비를 쓰려면 SoapySDR과 장비 모듈(SoapyUHD, SoapyHackRF, SoapyPlutoSDR 등)을 설치하세요. "
-                      "파일 재생과 연습 모드는 없어도 동작합니다. 설치는 사람이 직접 해야 합니다.")]
+        if usrp_via_matlab():
+            # USRP 는 MATLAB 의 USRP 지원 패키지로 찾고 받는다. 이때 SoapySDR 은 없어도 되는 선택 항목이다.
+            return [Check("usrp_matlab", "USRP (MATLAB 지원 패키지)", "ok", "쓸 수 있음"),
+                    Check("soapysdr", "SoapySDR (Python)", "ok", "없음 · 없어도 됩니다",
+                          "USRP 는 MATLAB 으로 연결하므로 필요 없습니다. HackRF·Pluto 같은 다른 장비를 쓸 때만 필요합니다.")]
+        return [Check("soapysdr", "SoapySDR (Python)", "warn", "모듈 없음",
+                      "실제 SDR 장비를 쓰려면 SoapySDR 과 장비 모듈(SoapyUHD, SoapyHackRF, SoapyPlutoSDR 등)이 필요합니다. "
+                      "pip 로는 설치할 수 없고(파이썬 패키지로 배포되지 않음) 운영체제의 패키지 관리자로 설치해야 하므로, 사람이 직접 해야 합니다. "
+                      "파일 재생, 연습 모드, 모의 실험은 없어도 동작합니다.")]
     out = [Check("soapysdr", "SoapySDR (Python)", "ok", "모듈 있음")]
     if util:
         _, text = _run([util, "--find"], timeout=30)
