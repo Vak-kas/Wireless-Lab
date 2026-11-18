@@ -389,5 +389,10 @@
   "wifi.usig.none": "최근 10초 동안 Wi-Fi 7 다운링크 프레임이 없습니다.",
   "wifi.usig.col.width": "송신 폭",
   "wifi.usig.col.count": "프레임 수 (최근 10초)",
-  "wifi.usig.col.share": "비율"
+  "wifi.usig.col.share": "비율",
+  "sim.enter": "모의 실험하기",
+  "sim.leave": "실제 장비로 돌아가기",
+  "sim.hint": "장비 없이 저장해 둔 연습 신호로 해 봅니다.",
+  "sim.badge": "모의 실험 중 · 저장해 둔 연습 신호를 장비처럼 흘려보냅니다",
+  "sim.no_real": "연결된 장비가 없습니다. USRP를 꽂으면 몇 초 뒤 여기에 나타납니다."
 }

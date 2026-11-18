@@ -146,6 +146,9 @@ test("장비: 인식된 장비가 있으면 단계별로 무엇이 되는지 보
   const devices = (await (await page.request.get("/api/devices")).json()) as unknown[];
   test.skip(devices.length === 0, "인식된 장비가 없다");
   await page.goto("/");
+  await expect(page.getByTestId("device-picker")).toBeVisible();
+  // 실제 장비가 없으면 모의 장비는 "모의 실험하기"를 눌러야 나온다
+  if (!(await page.getByTestId("device-capability").isVisible())) await page.getByTestId("sim-toggle").click();
   await expect(page.getByTestId("device-capability")).toBeVisible();
   await page.getByTestId("source-device").screenshot({ path: path.join(SHOTS, "13-device.png") });
 });

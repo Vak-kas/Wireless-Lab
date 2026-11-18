@@ -5,6 +5,7 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
+import { DevicePicker } from "./DevicePicker";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
 
@@ -31,7 +32,7 @@ export function StartScreen() {
     });
     void api.devices().then((list) => {
       setDevices(list);
-      setDevice(list[0]?.id ?? "");
+      setDevice(list.find((d) => d.driver !== "simulated")?.id ?? "");
     });
     void api.doctor(true).then(setDoctor);
     void api.listSessions().then(setRecent);
@@ -120,13 +121,7 @@ export function StartScreen() {
               <Empty action={<a href={href("settings")}>{t("start.device.check")}</a>}>{t("start.device.none")}</Empty>
             ) : (
               <>
-                <div className="chips" role="group" aria-label={t("start.device.pick")}>
-                  {devices.map((d) => (
-                    <Chip key={d.id} selected={d.id === device} onSelect={() => setDevice(d.id)}>
-                      {d.label}
-                    </Chip>
-                  ))}
-                </div>
+                <DevicePicker devices={devices} device={device} onPick={setDevice} disabled={busy} />
                 {devices
                   .filter((d) => d.id === device)
                   .map((d) => (

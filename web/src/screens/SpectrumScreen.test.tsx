@@ -54,14 +54,14 @@ function api(sweeps: MonitorState[] = [state([])]) {
   return a;
 }
 
-test("장비를 고르면 장비 정보가 나오고, 쓸 수 없는 대역은 막혀 있다", async () => {
+test("장비를 고르면 장비 정보가 나오고, 쓸 수 없는 대역은 보이지 않는다", async () => {
   renderWithStore(<SpectrumScreen />, api());
   const card = await screen.findByTestId("survey-device");
   expect(within(card).getByText("ABC123")).toBeInTheDocument();
   expect(within(card).getByText("70 ~ 6000 MHz")).toBeInTheDocument();
   expect(within(card).getByText("RX2, TX/RX")).toBeInTheDocument();
   expect(within(card).getByText("0 ~ 76 dB")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "파일에 담긴 대역" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "파일에 담긴 대역" })).toBeNull(); // 실제 장비에는 모의용 대역을 보이지 않는다
   expect(screen.getByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByTestId("monitor-start")).toBeDisabled(); // 채널을 아직 고르지 않았다
 });
@@ -192,7 +192,7 @@ test("실제 송신 대역폭: 처음 자리 잡은 폭보다 좁은 프레임�
   expect(within(screen.getByTestId("usig-table")).getByText("75%")).toBeInTheDocument();
 });
 
-test("실제 장비가 나중에 나타나면 모의 장비에서 그쪽으로 옮겨 가고, 직접 고른 뒤에는 그대로 둔다", async () => {
+test("모의 장비는 평소에 보이지 않고, '모의 실험하기'를 눌러야 나온다. 실제 장비가 나타나면 자동으로 고른다", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   try {
     const a = api();
@@ -204,14 +204,26 @@ test("실제 장비가 나중에 나타나면 모의 장비에서 그쪽으로 �
     const describe = a.surveyDevice;
     a.surveyDevice = async (id) => (asked.push(id), describe(id));
     renderWithStore(<SpectrumScreen />, a);
-    await waitFor(() => expect(asked).toEqual(["simulated:x"]));
+    expect(await screen.findByTestId("device-none")).toBeInTheDocument(); // 실제 장비가 없다고 알려 준다
+    expect(screen.queryByRole("button", { name: "x" })).toBeNull();
+    expect(asked).toEqual([]);
+
     list = [usrp, sim];
     await vi.advanceTimersByTimeAsync(5100);
     await waitFor(() => expect(screen.getByRole("button", { name: "USRP B210" })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.queryByRole("button", { name: "x" })).toBeNull();
+
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    await user.click(screen.getByRole("button", { name: "모의 장비 · x" }));
-    await vi.advanceTimersByTimeAsync(5100);
-    expect(screen.getByRole("button", { name: "모의 장비 · x" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByTestId("sim-toggle"));
+    expect(screen.getByRole("button", { name: "x" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "USRP B210" })).toBeNull();
+    expect(screen.getByText(/모의 실험 중/)).toBeInTheDocument();
+    await vi.advanceTimersByTimeAsync(5100); // 목록을 다시 읽어도 고른 것은 그대로
+    expect(screen.getByRole("button", { name: "x" })).toHaveAttribute("aria-pressed", "true");
+    expect(asked.at(-1)).toBe("simulated:x");
+
+    await user.click(screen.getByTestId("sim-toggle"));
+    expect(screen.getByRole("button", { name: "USRP B210" })).toHaveAttribute("aria-pressed", "true");
   } finally {
     vi.useRealTimers();
   }

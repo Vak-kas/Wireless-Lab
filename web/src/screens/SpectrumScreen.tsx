@@ -5,6 +5,7 @@ import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { DevicePicker } from "./DevicePicker";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
 import { ApTable, BandwidthWatch, countByWidth, dominant, type UsigSample } from "./WifiPanels";
 
@@ -214,9 +215,10 @@ export function SpectrumScreen() {
       void api.devices().then(
         (list) => {
           setDevices((old) => (old && old.map((d) => d.id).join() === list.map((d) => d.id).join() ? old : list));
-          // 사용자가 직접 고르기 전에는 실제 장비를 우선한다. USRP 는 몇 초 늦게 나타나므로, 나타나면 모의 장비에서 옮겨 간다.
+          // 사용자가 직접 고르기 전에는 실제 장비만 기본으로 고른다(모의 장비는 "모의 실험하기"를 눌러야 쓴다).
+          // USRP 는 몇 초 늦게 나타나므로, 나타나면 그때 고른다.
           const real = list.find((d) => d.driver !== "simulated");
-          setDevice((cur) => (chosen.current && list.some((d) => d.id === cur) ? cur : (real ?? list[0])?.id || ""));
+          setDevice((cur) => (chosen.current && (cur === "" || list.some((d) => d.id === cur)) ? cur : (real?.id ?? "")));
         },
         () => setDevices((old) => old ?? []),
       );
@@ -237,8 +239,8 @@ export function SpectrumScreen() {
   }, []);
 
   useEffect(() => {
-    if (!device) return;
     setInfo(null);
+    if (!device) return;
     void api.surveyDevice(device).then(
       (i) => {
         setInfo(i);
@@ -489,23 +491,17 @@ export function SpectrumScreen() {
       <SubNav title={t("nav.spectrum")} />
       <Tile tone="light">
         <TileHead title={t("spectrum.title")} lead={t("spectrum.lead")} />
-        {devices !== null && devices.length === 0 && <Empty>{t("start.device.none")}</Empty>}
-        {devices && devices.length > 0 && (
-          <div className="chips center-row" role="group" aria-label={t("start.device.pick")}>
-            {devices.map((d) => (
-              <Chip
-                key={d.id}
-                selected={d.id === device}
-                onSelect={() => {
-                  chosen.current = true;
-                  setDevice(d.id);
-                }}
-                disabled={starting}
-              >
-                {d.label}
-              </Chip>
-            ))}
-          </div>
+        {devices !== null && (
+          <DevicePicker
+            devices={devices}
+            device={device}
+            disabled={starting}
+            center
+            onPick={(id) => {
+              chosen.current = true;
+              setDevice(id);
+            }}
+          />
         )}
         {info && (
           <div className="source-grid">
@@ -513,8 +509,9 @@ export function SpectrumScreen() {
             <div className="card" data-testid="survey-controls">
               <h3 className="t-tagline">{t("spectrum.plan.title")}</h3>
               <div className="chips" role="group" aria-label={t("spectrum.plan.title")}>
-                {info.plans.map((p) => (
-                  <Chip key={p.id} selected={p.id === plan} onSelect={() => choosePlan(p)} disabled={starting || !p.available}>
+                {/* 이 장비로 쓸 수 있는 것만 보여 준다: 모의 장비에는 파일 대역만, 실제 장비에는 실제 대역만 */}
+                {info.plans.filter((p) => p.available).map((p) => (
+                  <Chip key={p.id} selected={p.id === plan} onSelect={() => choosePlan(p)} disabled={starting}>
                     {t(`spectrum.plan.${p.id}`)}
                   </Chip>
                 ))}

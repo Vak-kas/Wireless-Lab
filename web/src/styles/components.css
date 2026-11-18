@@ -1061,3 +1061,10 @@ details.fold > .fold-body {
   margin-top: var(--space-lg);
   margin-bottom: var(--space-lg);
 }
+.picker.center {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+}
+.picker.center .center-row {
+  margin-bottom: var(--space-sm);
+}

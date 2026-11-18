@@ -389,5 +389,10 @@
   "wifi.usig.none": "No Wi-Fi 7 downlink frames in the last 10 s.",
   "wifi.usig.col.width": "Width",
   "wifi.usig.col.count": "Frames (last 10 s)",
-  "wifi.usig.col.share": "Share"
+  "wifi.usig.col.share": "Share",
+  "sim.enter": "Try a simulation",
+  "sim.leave": "Back to real devices",
+  "sim.hint": "Uses stored practice signals instead of a device.",
+  "sim.badge": "Simulation · stored practice signals are replayed as if from a device",
+  "sim.no_real": "No device connected. A USRP appears here a few seconds after you plug it in."
 }
