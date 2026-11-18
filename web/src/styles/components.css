@@ -1068,3 +1068,126 @@ details.fold > .fold-body {
 .picker.center .center-row {
   margin-bottom: var(--space-sm);
 }
+
+/* ---------- 장비 허브: 연결 창, 새 장비 알림, 내 장비 ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  background: color-mix(in srgb, var(--color-surface-black) 45%, transparent);
+}
+.dialog {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  display: grid;
+  gap: var(--space-md);
+  text-align: center;
+}
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  justify-content: center;
+}
+.searching {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-disabled);
+}
+.device-list {
+  display: grid;
+  gap: var(--space-sm);
+}
+.device-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--space-md);
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  background: var(--color-surface-pearl);
+  color: var(--color-ink);
+}
+.device-card dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xxs) var(--space-md);
+  margin: var(--space-xxs) 0;
+}
+.device-card dd {
+  margin: 0;
+}
+.device-card .muted {
+  color: var(--color-ink-disabled);
+}
+.device-picture {
+  width: 96px;
+  height: 64px;
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fab {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: calc(var(--size-sticky-bar-height) + var(--space-md));
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--size-touch-min);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.fab-count {
+  min-width: 22px;
+  padding: 0 var(--space-xxs);
+  border-radius: var(--radius-pill);
+  text-align: center;
+  background: var(--color-ink-disabled);
+  color: var(--color-on-primary);
+}
+.fab-count[data-level="on"] {
+  background: var(--color-success);
+}
+.drawer,
+.toast {
+  position: fixed;
+  right: var(--space-lg);
+  z-index: 46;
+  width: min(380px, calc(100% - 2 * var(--space-lg)));
+  max-height: 60vh;
+  overflow: auto;
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+.drawer {
+  bottom: calc(var(--size-sticky-bar-height) + var(--space-md) + var(--size-touch-min) + var(--space-xs));
+}
+.toast {
+  top: calc(var(--size-nav-height) + var(--space-md));
+  border-color: var(--color-primary);
+}

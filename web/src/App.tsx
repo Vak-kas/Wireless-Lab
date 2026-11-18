@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { GlobalNav, StickyBar } from "./components/layout";
 import { Empty } from "./components/ui";
+import { DeviceHub } from "./devices/DeviceHub";
 import { t } from "./i18n";
 import { go, useRoute } from "./router";
 import { SessionsScreen, SettingsScreen } from "./screens/AdminScreens";
@@ -54,7 +55,9 @@ function Screens() {
 export function App() {
   return (
     <StoreProvider>
-      <Screens />
+      <DeviceHub>
+        <Screens />
+      </DeviceHub>
     </StoreProvider>
   );
 }

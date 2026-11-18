@@ -14,6 +14,12 @@ async function startPractice(page: Page, scenarioTitle?: RegExp) {
   await expect(page.getByTestId("run-scan")).toBeVisible();
 }
 
+// 처음 열면 장비 연결 창이 뜬다. 다른 시험들은 이미 "장비로 시작"을 고른 상태에서 시작한다.
+test.beforeEach(async ({ page }, info) => {
+  if (info.title.startsWith("장비 연결 창")) return;
+  await page.addInitScript(() => sessionStorage.setItem("nrtrail.deviceMode", "device"));
+});
+
 test("연습 모드: 처음부터 끝까지 (스캔 → SSB → MIB → SIB1 → SIB19 → NTN → 추적)", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("doctor-summary")).toBeVisible();
@@ -151,4 +157,19 @@ test("장비: 인식된 장비가 있으면 단계별로 무엇이 되는지 보
   await page.getByTestId("sim-toggle").click();
   await expect(page.getByTestId("device-capability")).toBeVisible();
   await page.getByTestId("source-device").screenshot({ path: path.join(SHOTS, "13-device.png") });
+});
+
+test("장비 연결 창: 처음 열면 뜨고, 장비 없이 시작하면 닫히며 오른쪽 아래에 내 장비 단추가 남는다", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("dialog", { name: "장비를 연결하세요" })).toBeVisible();
+  await expect(page.getByTestId("my-devices-button")).toHaveCount(0);
+  await page.getByTestId("connect-skip").click();
+  await expect(page.getByTestId("connect-overlay")).toHaveCount(0);
+  await expect(page.getByTestId("source-practice")).toBeVisible();
+  await page.getByTestId("my-devices-button").click();
+  await expect(page.getByTestId("my-devices")).toContainText("장비 없이 쓰는 중");
+  // 새로 고쳐도(같은 창) 다시 묻지 않는다
+  await page.reload();
+  await expect(page.getByTestId("my-devices-button")).toBeVisible();
+  await expect(page.getByTestId("connect-overlay")).toHaveCount(0);
 });

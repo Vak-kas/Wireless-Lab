@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DeviceInfo } from "../api";
-import { Badge, Button, Chip } from "../components/ui";
+import { Button, Chip } from "../components/ui";
 import { t } from "../i18n";
 
 export const isSim = (d: DeviceInfo) => d.driver === "simulated";
@@ -34,9 +34,7 @@ export function DevicePicker({
   return (
     <div data-testid="device-picker" className={center ? "picker center" : "picker"}>
       {sim && (
-        <p>
-          <Badge level="info">{t("sim.badge")}</Badge>
-        </p>
+<p className="t-caption muted">{t("sim.badge")}</p>
       )}
       {shown.length > 0 ? (
         <div className={`chips ${center ? "center-row" : ""}`} role="group" aria-label={t("start.device.pick")}>

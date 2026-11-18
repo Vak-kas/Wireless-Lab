@@ -5,7 +5,7 @@ import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
-import { useDevices } from "../state/useDevices";
+import { useUsableDevices } from "../devices/DeviceHub";
 import { DevicePicker } from "./DevicePicker";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
 import { ApTable, BandwidthWatch, countByWidth, dominant, type UsigSample } from "./WifiPanels";
@@ -208,7 +208,7 @@ export function SpectrumScreen() {
 
   // 사용자가 직접 고르기 전에는 실제 장비만 기본으로 고른다(모의 장비는 "모의 실험하기"를 눌러야 쓴다).
   // USRP 는 몇 초 늦게 나타나므로, 나타나면 그때 고른다.
-  const devices = useDevices(api, mon === null);
+  const { devices, mode, connect } = useUsableDevices();
   useEffect(() => {
     if (!devices) return;
     const real = devices.find((d) => d.driver !== "simulated");
@@ -479,6 +479,14 @@ export function SpectrumScreen() {
       <SubNav title={t("nav.spectrum")} />
       <Tile tone="light">
         <TileHead title={t("spectrum.title")} lead={t("spectrum.lead")} />
+        {mode === "none" && (
+          <p className="t-caption muted" data-testid="no-device-mode">
+            {t("hub.none_mode")}{" "}
+            <Button variant="link" onClick={connect}>
+              {t("hub.mine.reconnect")}
+            </Button>
+          </p>
+        )}
         {devices !== null && (
           <DevicePicker
             devices={devices}

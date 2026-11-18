@@ -5,7 +5,7 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
-import { useDevices } from "../state/useDevices";
+import { useUsableDevices } from "../devices/DeviceHub";
 import { DevicePicker } from "./DevicePicker";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
@@ -17,7 +17,8 @@ export function StartScreen() {
   const { api, start, stageDef } = useStore();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenario, setScenario] = useState<string>("");
-  const devices = useDevices(api) ?? [];
+  const hub = useUsableDevices();
+  const devices = hub.devices ?? [];
   /** 사용자가 장비를 직접 골랐는가 (모의 실험을 켠 것 포함) */
   const chosen = useRef(false);
   const [device, setDevice] = useState<string>("");
@@ -128,6 +129,14 @@ export function StartScreen() {
               <Empty action={<a href={href("settings")}>{t("start.device.check")}</a>}>{t("start.device.none")}</Empty>
             ) : (
               <>
+                {hub.mode === "none" && (
+                  <p className="t-caption muted" data-testid="no-device-mode">
+                    {t("hub.none_mode")}{" "}
+                    <Button variant="link" onClick={hub.connect}>
+                      {t("hub.mine.reconnect")}
+                    </Button>
+                  </p>
+                )}
                 <DevicePicker
                   devices={devices}
                   device={device}
