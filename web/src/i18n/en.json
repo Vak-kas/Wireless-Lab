@@ -379,9 +379,8 @@
   "wifi.yes": "yes",
   "wifi.pick": "Select this band",
   "wifi.usig.title": "Actual transmit bandwidth (Wi-Fi 7)",
-  "wifi.usig.desc": "Pick the AP's primary channel; after each sweep it is heard for 0.1 s and the bandwidth announced in Wi-Fi 7 frame headers is counted. More frames narrower than the operating width suggests some channels are blocked. Needs downlink traffic to a Wi-Fi 7 client.",
-  "wifi.usig.channel": "Primary channel to watch",
-  "wifi.usig.off": "Off",
+  "wifi.usig.desc": "Counts the transmit width announced in Wi-Fi 7 frame headers. More frames narrower than the operating width suggests some channels are blocked. Needs downlink traffic to a Wi-Fi 7 client.",
+  "wifi.usig.channel": "Channel",
   "wifi.usig.reference": "Initial width: {w} MHz",
   "wifi.usig.narrowed": "Transmit width dropped from {from} to {to} MHz",
   "wifi.usig.none": "No Wi-Fi 7 downlink frames in the last 10 s.",
@@ -435,5 +434,14 @@
   "home.sim.desc": "Replays a stored practice signal as if from a device, so you can rehearse the device flow.",
   "home.sim.follow": "Follow a base station",
   "home.sim.spectrum": "Spectrum status",
-  "monitor.shaky": "{names}: waiting for a steady value before saving the baseline"
+  "monitor.shaky": "{names}: waiting for a steady value before saving the baseline",
+  "wifi.live.title": "Live Wi-Fi signals",
+  "wifi.live.on": "On",
+  "wifi.live.desc": "Every 2 s one of the watched channels is heard for 0.12 s and its beacons and frame headers are read. Payloads are not decoded. The level chart updates a little slower while this is on.",
+  "wifi.live.aps": "APs seen now",
+  "wifi.live.no_aps": "No beacon yet. Each channel has to come round in turn; give it a moment.",
+  "wifi.live.waiting": "Nothing received yet.",
+  "wifi.kinds.title": "Frame kinds seen (last 10 s)",
+  "wifi.kinds.legacy": "basic (mgmt, control)",
+  "wifi.usig.all": "All channels"
 }

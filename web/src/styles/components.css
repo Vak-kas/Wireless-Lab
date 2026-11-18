@@ -1246,3 +1246,11 @@ details.fold > .fold-body {
 .task-soon {
   color: var(--fg-muted);
 }
+.live {
+  display: grid;
+  gap: var(--space-sm);
+  text-align: left;
+}
+.live .card {
+  margin: 0;
+}

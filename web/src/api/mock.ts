@@ -214,6 +214,9 @@ export const mockApi: Api = {
   wifiAps: async () => {
     throw new Error("mock");
   },
+  wifiLive: async () => {
+    throw new Error("mock");
+  },
   wifiUsig: async () => {
     throw new Error("mock");
   },

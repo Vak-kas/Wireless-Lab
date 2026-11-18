@@ -9,11 +9,15 @@ import { useUsableDevices } from "../devices/DeviceHub";
 import { takeIntent } from "../devices/intent";
 import { DevicePicker } from "./DevicePicker";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
-import { ApTable, BandwidthWatch, countByWidth, dominant, type UsigSample } from "./WifiPanels";
+import { ApTable, BandwidthWatch, countByWidth, dominant, FrameKinds, type UsigSample } from "./WifiPanels";
 
 type Stat = "median_dbfs" | "mean_dbfs";
 const PAUSE_MS = 200;
 const USIG_KEEP_MS = 60_000;
+/** 실시간 Wi-Fi 풀이를 하는 간격. 채널을 하나씩 돌아가며 받는다(풀이에 1초쯤 걸려 매 바퀴 하면 세기 그림이 느려진다) */
+const LIVE_EVERY_MS = 2000;
+/** 이 시간 동안 다시 안 잡힌 AP 는 목록에서 뺀다 */
+const AP_KEEP_MS = 30_000;
 /** 처음 자리 잡은 폭을 정할 때 필요한 PPDU 수 */
 const USIG_REFERENCE_MIN = 10;
 
@@ -201,12 +205,15 @@ export function SpectrumScreen() {
   const chosen = useRef(intent !== null);
   const [device, setDevice] = useState(intent?.device ?? "");
   const [wifi, setWifi] = useState(false);
+  const wifiReady = useRef(false);
   const [aps, setAps] = useState<WifiAp[] | null>(null);
   const [finding, setFinding] = useState(false);
   const [usigChannel, setUsigChannel] = useState("");
   const [usig, setUsig] = useState<UsigSample[]>([]);
   const [usigRef, setUsigRef] = useState<number | null>(null);
-  const usigOn = useRef({ channel: "", plan: "", gain: "" });
+  const [liveOn, setLiveOn] = useState(true);
+  const [liveAps, setLiveAps] = useState<(WifiAp & { at: number })[]>([]);
+  const live = useRef({ on: true, gain: "", next: 0, last: 0 });
   const viewer = useRef<SpectrumViewHandle>(null);
 
   // 사용자가 직접 고르기 전에는 실제 장비만 기본으로 고른다(모의 장비는 "모의 실험하기"를 눌러야 쓴다).
@@ -219,7 +226,13 @@ export function SpectrumScreen() {
   }, [devices]);
 
   useEffect(() => {
-    void api.wifiStatus().then((w) => setWifi(w.available), () => setWifi(false));
+    void api.wifiStatus().then(
+      (w) => {
+        wifiReady.current = w.available;
+        setWifi(w.available);
+      },
+      () => setWifi(false),
+    );
   }, [api]);
 
   const choosePlan = useCallback((p: SurveyPlan | undefined) => {
@@ -256,20 +269,25 @@ export function SpectrumScreen() {
         const next = await api.monitorSweep(monId);
         if (!alive.current) return;
         setMon(next);
-        // 실제 송신 대역폭 보기가 켜져 있으면 한 바퀴마다 그 채널을 짧게 받아 PPDU 머리말을 읽는다
-        const u = usigOn.current;
-        if (u.channel) {
-          const res = await api.wifiUsig({ device: next.device, plan: u.plan, channel: u.channel, gain_db: u.gain.trim() ? Number(u.gain) : undefined });
+        // 실시간 Wi-Fi 풀이: 몇 초마다 지켜보는 채널 가운데 하나를 짧게 받아 프레임 머리말과 비콘을 읽는다
+        const lv = live.current;
+        const names = next.channels.filter((c) => c.measured).map((c) => c.name);
+        if (wifiReady.current && lv.on && next.plan.startsWith("wifi-") && names.length > 0 && Date.now() - lv.last >= LIVE_EVERY_MS) {
+          const channel = names[lv.next % names.length]!;
+          lv.next += 1;
+          const res = await api.wifiLive({ device: next.device, plan: next.plan, channel, gain_db: lv.gain.trim() ? Number(lv.gain) : undefined });
           if (!alive.current) return;
           const at = Date.now();
-          setUsig((old) => {
-            const kept = [...old.filter((x) => at - x.at < USIG_KEEP_MS), { at, ppdus: res.ppdus }];
-            setUsigRef((ref) => {
-              if (ref !== null) return ref;
-              const rows = countByWidth(kept, at, USIG_KEEP_MS);
-              return rows.reduce((a, r) => a + r.count, 0) >= USIG_REFERENCE_MIN ? dominant(rows) : null;
-            });
-            return kept;
+          lv.last = at;
+          setUsig((old) => [...old.filter((x) => at - x.at < USIG_KEEP_MS), { at, channel, ppdus: res.ppdus }]);
+          setLiveAps((old) => {
+            // 같은 AP 가 여러 채널에서 잡히면 가장 센 쪽을 남긴다. 한동안 안 잡힌 AP 는 뺀다.
+            const map = new Map(old.filter((ap) => at - ap.at < AP_KEEP_MS).map((ap) => [ap.bssid, ap]));
+            for (const ap of res.aps) {
+              const cur = map.get(ap.bssid);
+              map.set(ap.bssid, { ...(cur && cur.power_db > ap.power_db ? cur : ap), at });
+            }
+            return [...map.values()].sort((x, y) => y.power_db - x.power_db);
           });
         }
         timer = setTimeout(() => void tick(), PAUSE_MS);
@@ -313,6 +331,7 @@ export function SpectrumScreen() {
           step_hz: mhzIn(custom.step),
         }),
       );
+      live.current = { on: liveOn, gain, next: 0, last: 0 };
       setRunning(true);
     } catch (e) {
       fail(String(e instanceof Error ? e.message : e));
@@ -324,14 +343,27 @@ export function SpectrumScreen() {
   const back = () => {
     setRunning(false);
     setMon(null);
-    watchUsig("");
+    setUsigChannel("");
+    setUsigRef(null);
+    setUsig([]);
+    setLiveAps([]);
   };
 
+  // 처음 자리 잡은 송신 폭: 지켜보는 범위에서 Wi-Fi 7 다운링크 프레임이 충분히 모였을 때 가장 많던 폭
+  useEffect(() => {
+    if (usigRef !== null || usig.length === 0) return;
+    const scope = usigChannel ? usig.filter((x) => x.channel === usigChannel) : usig;
+    const counted = countByWidth(scope, Date.now(), USIG_KEEP_MS);
+    if (counted.reduce((a, r) => a + r.count, 0) >= USIG_REFERENCE_MIN) setUsigRef(dominant(counted));
+  }, [usig, usigChannel, usigRef]);
+
   const watchUsig = (name: string) => {
-    usigOn.current = { channel: name, plan, gain };
     setUsigChannel(name);
-    setUsig([]);
     setUsigRef(null);
+  };
+  const toggleLive = (on: boolean) => {
+    live.current.on = on;
+    setLiveOn(on);
   };
 
   const findAps = async () => {
@@ -470,7 +502,31 @@ export function SpectrumScreen() {
             </>
           )}
           {wifi && real && mon.plan.startsWith("wifi-") && (
-            <BandwidthWatch channels={rows.map((r) => r.name)} channel={usigChannel} onChannel={watchUsig} samples={usig} reference={usigRef} now={Date.now()} />
+            <div className="card stack-gap live" data-testid="wifi-live">
+              <div className="row">
+                <h3 className="t-tagline">{t("wifi.live.title")}</h3>
+                <label className="t-caption">
+                  <input type="checkbox" checked={liveOn} onChange={(e) => toggleLive(e.target.checked)} data-testid="wifi-live-toggle" /> {t("wifi.live.on")}
+                </label>
+              </div>
+              <p className="t-caption muted">{t("wifi.live.desc")}</p>
+              {liveOn && (
+                <>
+                  <h4 className="t-caption-strong">{t("wifi.live.aps")}</h4>
+                  <ApTable aps={liveAps} empty={t("wifi.live.no_aps")} />
+                  <h4 className="t-caption-strong">{t("wifi.kinds.title")}</h4>
+                  <FrameKinds samples={usig} now={Date.now()} order={rows.map((r) => r.name)} />
+                  <BandwidthWatch
+                    channels={rows.map((r) => r.name)}
+                    channel={usigChannel}
+                    onChannel={watchUsig}
+                    samples={usigChannel ? usig.filter((x) => x.channel === usigChannel) : usig}
+                    reference={usigRef}
+                    now={Date.now()}
+                  />
+                </>
+              )}
+            </div>
           )}
           <details className="fold">
             <summary className="t-body">{t("spectrum.how.title")}</summary>

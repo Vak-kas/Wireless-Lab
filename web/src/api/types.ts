@@ -114,11 +114,13 @@ export interface WifiAp {
 }
 
 export interface WifiPpdu {
-  bandwidth_mhz: number | null;
-  uplink: boolean;
-  bss_color: number | null;
-  non_ofdma: boolean;
-  punctured: number | null;
+  /** 프레임 종류 (Non-HT, HT-MF, VHT, HE-SU, EHT-MU …). 송신 폭 등은 Wi-Fi 7(EHT) 프레임에만 있다 */
+  format?: string;
+  bandwidth_mhz?: number | null;
+  uplink?: boolean;
+  bss_color?: number | null;
+  non_ofdma?: boolean;
+  punctured?: number | null;
   power_db: number;
 }
 
@@ -306,6 +308,8 @@ export interface Api {
   monitorStop(id: string): Promise<void>;
   wifiStatus(): Promise<{ available: boolean }>;
   wifiAps(req: { device: string; plan: string; channels: string[]; gain_db?: number }): Promise<{ aps: WifiAp[] }>;
+  /** 모니터링 중: 채널 하나를 짧게 받아 프레임 종류·송신 폭·비콘을 함께 */
+  wifiLive(req: { device: string; plan: string; channel: string; gain_db?: number }): Promise<{ channel: string; ppdus: WifiPpdu[]; aps: WifiAp[] }>;
   wifiUsig(req: { device: string; plan: string; channel: string; gain_db?: number }): Promise<{ ppdus: WifiPpdu[]; downlink: number }>;
   surveySpectrum(req: { device: string; center_hz?: number; bandwidth_hz?: number; gain_db?: number }): Promise<SpectrumView>;
   oaiStatus(): Promise<OaiStatus>;

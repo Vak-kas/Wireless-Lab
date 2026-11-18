@@ -244,3 +244,34 @@ test("첫 화면에서 'Wi-Fi 보기'로 넘어오면 그 장비와 대역이 �
   expect(await screen.findByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "true");
   expect(sessionStorage.getItem("nrtrail.spectrumIntent")).toBeNull(); // 한 번 쓰면 지운다
 });
+
+test("모니터링 중 실시간 Wi-Fi: 잡힌 AP, 프레임 종류, 송신 폭을 보여 주고 끌 수 있다", async () => {
+  const a = api([state([row("ch36", -70)])]);
+  a.wifiStatus = async () => ({ available: true });
+  a.wifiLive = vi.fn(async ({ channel }: { channel: string }) => ({
+    channel,
+    aps: [{ ssid: "home", bssid: "AA:BB", seen_on: channel, primary: "ch36", width_mhz: 160, eht: true, count: 1, power_db: -30 }],
+    ppdus: [
+      { format: "Non-HT", power_db: -30 },
+      { format: "HE-SU", power_db: -31 },
+      ...Array.from({ length: 12 }, () => ({ format: "EHT-MU", bandwidth_mhz: 160, uplink: false, bss_color: 1, non_ofdma: true, punctured: 0, power_db: -32 })),
+    ],
+  }));
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(screen.getByTestId("monitor-start"));
+  const live = await screen.findByTestId("wifi-live");
+  await waitFor(() => expect(a.wifiLive).toHaveBeenCalledWith({ device: "driver=uhd", plan: "wifi-5g", channel: "ch36", gain_db: undefined }));
+  expect(await within(live).findByText("home")).toBeInTheDocument();
+  const kinds = within(live).getByTestId("kinds-table");
+  expect(within(kinds).getByRole("columnheader", { name: "Wi-Fi 7" })).toBeInTheDocument();
+  expect(within(kinds).getByText("12")).toBeInTheDocument();
+  expect(await within(live).findByText("처음 자리 잡은 폭: 160 MHz")).toBeInTheDocument();
+  expect(within(within(live).getByTestId("usig-table")).getByText("160 MHz")).toBeInTheDocument();
+
+  const calls = (a.wifiLive as ReturnType<typeof vi.fn>).mock.calls.length;
+  await userEvent.click(within(live).getByTestId("wifi-live-toggle"));
+  expect(within(live).queryByTestId("kinds-table")).toBeNull();
+  await new Promise((r) => setTimeout(r, 400));
+  expect((a.wifiLive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls); // 끄면 더 받지 않는다
+});
