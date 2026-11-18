@@ -59,6 +59,13 @@ class MonitorPatch(BaseModel):
     baseline: str | None = None      # "save" | "clear"
 
 
+class BleBody(BaseModel):
+    device: str
+    channel: int = 37
+    gain_db: float | None = None
+    seconds: float = 0.25
+
+
 class SpectrumBody(BaseModel):
     device: str
     center_hz: float | None = None
@@ -175,6 +182,17 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         pass
     else:
         usrp_matlab.install()   # MATLAB 엔진이 있으면 USRP 를 장비 목록에 끼운다
+
+    @app.post("/api/ble/scan")
+    async def ble_scan(body: BleBody) -> dict[str, Any]:
+        from . import ble
+        if survey_lock.locked():
+            raise HTTPException(409, "이미 재는 중입니다.")
+        async with survey_lock:
+            try:
+                return await asyncio.to_thread(ble.scan, body.device, body.channel, body.gain_db, body.seconds)
+            except ble.BleError as e:
+                raise HTTPException(400, str(e)) from e
 
     try:
         from . import wifi

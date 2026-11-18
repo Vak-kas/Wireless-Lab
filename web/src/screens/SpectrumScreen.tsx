@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
+import type { BleDevice, MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
@@ -7,6 +7,7 @@ import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { useUsableDevices } from "../devices/DeviceHub";
 import { takeIntent } from "../devices/intent";
+import { BleTable } from "./BlePanel";
 import { DevicePicker } from "./DevicePicker";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
 import { ApTable, BandwidthWatch, countByWidth, dominant, FrameKinds, type UsigSample } from "./WifiPanels";
@@ -18,6 +19,10 @@ const USIG_KEEP_MS = 60_000;
 const LIVE_EVERY_MS = 2000;
 /** 이 시간 동안 다시 안 잡힌 AP 는 목록에서 뺀다 */
 const AP_KEEP_MS = 30_000;
+const BLE_ADV = [37, 38, 39];
+/** 수신이 이만큼 잇달아 실패하면 모니터링을 멈춘다(한두 번의 샘플 유실로는 멈추지 않는다) */
+const MAX_FAILS = 3;
+type Tab = "level" | "near" | "frames";
 /** 처음 자리 잡은 폭을 정할 때 필요한 PPDU 수 */
 const USIG_REFERENCE_MIN = 10;
 
@@ -214,6 +219,11 @@ export function SpectrumScreen() {
   const [liveOn, setLiveOn] = useState(true);
   const [liveAps, setLiveAps] = useState<(WifiAp & { at: number })[]>([]);
   const live = useRef({ on: true, gain: "", next: 0, last: 0 });
+  const [tab, setTab] = useState<Tab>("level");
+  const [bleDevs, setBleDevs] = useState<(BleDevice & { at: number })[]>([]);
+  const [bleOther, setBleOther] = useState<{ directed: Record<string, number>; broken: number }>({ directed: {}, broken: 0 });
+  const [hiccup, setHiccup] = useState("");
+  const fails = useRef(0);
   const viewer = useRef<SpectrumViewHandle>(null);
 
   // 사용자가 직접 고르기 전에는 실제 장비만 기본으로 고른다(모의 장비는 "모의 실험하기"를 눌러야 쓴다).
@@ -238,7 +248,7 @@ export function SpectrumScreen() {
   const choosePlan = useCallback((p: SurveyPlan | undefined) => {
     setPlan(p?.id ?? "");
     // 파일 대역은 전부, 나머지는 사용자가 채널 맵에서 고른다
-    setPicked(p?.id === "capture" ? (p.map ?? []).map((c) => c.name) : []);
+    setPicked(p?.id === "capture" ? (p.map ?? []).map((c) => c.name) : p?.id === "ble" ? BLE_ADV.map((c) => `ch${c}`) : []);
     setAps(null);
   }, []);
 
@@ -268,14 +278,68 @@ export function SpectrumScreen() {
       try {
         const next = await api.monitorSweep(monId);
         if (!alive.current) return;
+        fails.current = 0;
         setMon(next);
-        // 실시간 Wi-Fi 풀이: 몇 초마다 지켜보는 채널 가운데 하나를 짧게 받아 프레임 머리말과 비콘을 읽는다
-        const lv = live.current;
-        const names = next.channels.filter((c) => c.measured).map((c) => c.name);
-        if (wifiReady.current && lv.on && next.plan.startsWith("wifi-") && names.length > 0 && Date.now() - lv.last >= LIVE_EVERY_MS) {
+        setHiccup(next.channels.find((c) => c.error)?.error ?? "");
+        await liveStep(next);
+        if (!alive.current) return;
+        timer = setTimeout(() => void tick(), PAUSE_MS);
+      } catch (e) {
+        if (!alive.current) return;
+        const message = String(e instanceof Error ? e.message : e);
+        fails.current += 1;
+        if (fails.current >= MAX_FAILS) {
+          setRunning(false);
+          fail(message);
+        } else {
+          setHiccup(message);
+          timer = setTimeout(() => void tick(), PAUSE_MS * 3);
+        }
+      }
+    };
+
+    /** 실시간 풀이: 몇 초마다 채널 하나를 짧게 받아 Wi-Fi 는 비콘·프레임 머리말을, 블루투스는 광고를 읽는다. 실패해도 모니터링은 계속한다. */
+    const liveStep = async (next: MonitorState) => {
+      const lv = live.current;
+      if (!lv.on || Date.now() - lv.last < LIVE_EVERY_MS) return;
+      const gain_db = lv.gain.trim() ? Number(lv.gain) : undefined;
+      try {
+        if (next.plan === "ble") {
+          const channel = BLE_ADV[lv.next % BLE_ADV.length]!;
+          lv.next += 1;
+          const res = await api.bleScan({ device: next.device, channel, gain_db });
+          if (!alive.current) return;
+          const at = Date.now();
+          lv.last = at;
+          setBleOther((old) => {
+            const directed = { ...old.directed };
+            for (const [k, v] of Object.entries(res.directed)) directed[k] = (directed[k] ?? 0) + v;
+            return { directed, broken: old.broken + res.crc_failed };
+          });
+          setBleDevs((old) => {
+            const map = new Map(old.filter((d) => at - d.at < AP_KEEP_MS).map((d) => [d.address, d]));
+            for (const d of res.devices) {
+              const cur = map.get(d.address);
+              map.set(d.address, {
+                ...d,
+                name: d.name || cur?.name || "",
+                company: d.company || cur?.company || "",
+                company_id: d.company_id ?? cur?.company_id ?? null,
+                pdu_types: [...new Set([...(cur?.pdu_types ?? []), ...d.pdu_types])],
+                count: (cur?.count ?? 0) + d.count,
+                power_db: Math.max(d.power_db, cur?.power_db ?? -999),
+                channel: cur && cur.power_db > d.power_db ? cur.channel : d.channel,
+                at,
+              });
+            }
+            return [...map.values()].sort((x, y) => y.power_db - x.power_db);
+          });
+        } else if (wifiReady.current && next.plan.startsWith("wifi-")) {
+          const names = next.channels.filter((c) => c.measured).map((c) => c.name);
+          if (names.length === 0) return;
           const channel = names[lv.next % names.length]!;
           lv.next += 1;
-          const res = await api.wifiLive({ device: next.device, plan: next.plan, channel, gain_db: lv.gain.trim() ? Number(lv.gain) : undefined });
+          const res = await api.wifiLive({ device: next.device, plan: next.plan, channel, gain_db });
           if (!alive.current) return;
           const at = Date.now();
           lv.last = at;
@@ -290,11 +354,10 @@ export function SpectrumScreen() {
             return [...map.values()].sort((x, y) => y.power_db - x.power_db);
           });
         }
-        timer = setTimeout(() => void tick(), PAUSE_MS);
       } catch (e) {
         if (!alive.current) return;
-        setRunning(false);
-        fail(String(e instanceof Error ? e.message : e));
+        lv.last = Date.now();
+        setHiccup(String(e instanceof Error ? e.message : e));
       }
     };
     void tick();
@@ -332,6 +395,7 @@ export function SpectrumScreen() {
         }),
       );
       live.current = { on: liveOn, gain, next: 0, last: 0 };
+      fails.current = 0;
       setRunning(true);
     } catch (e) {
       fail(String(e instanceof Error ? e.message : e));
@@ -347,6 +411,10 @@ export function SpectrumScreen() {
     setUsigRef(null);
     setUsig([]);
     setLiveAps([]);
+    setBleDevs([]);
+    setBleOther({ directed: {}, broken: 0 });
+    setHiccup("");
+    setTab("level");
   };
 
   // 처음 자리 잡은 송신 폭: 지켜보는 범위에서 Wi-Fi 7 다운링크 프레임이 충분히 모였을 때 가장 많던 폭
@@ -400,6 +468,8 @@ export function SpectrumScreen() {
       state: !r.measured ? "missing" : r.clipped ? "clipped" : "ok",
       title: r.measured ? `${r.name} · ${mhz(r.center_hz)} MHz · ${num(r[stat])} dBFS` : `${r.name} · ${t("spectrum.unmeasured")}`,
     }));
+    const isBle = mon.plan === "ble";
+    const tabs: Tab[] = isBle && real ? ["level", "near"] : wifi && real && mon.plan.startsWith("wifi-") ? ["level", "near", "frames"] : ["level"];
     const riseBars: Bar[] = rows.map((r) => ({
       name: r.name,
       value: r.rise_db,
@@ -446,74 +516,102 @@ export function SpectrumScreen() {
               {t("spectrum.baseline.clear")}
             </Button>
           </div>
-          {mon.sweeps === 0 ? (
-            <Empty>{t("monitor.first")}</Empty>
-          ) : (
-            <>
-              <div className="card">
-                <Bars bars={levelBars} label={t("spectrum.chart.label")} yLabel={t("spectrum.axis.y")} testid="survey-bar" />
-                <p className="t-caption muted center">{mon.has_baseline ? t("spectrum.chart.caption_base") : t("spectrum.chart.caption")}</p>
-              </div>
-              <div className="card stack-gap">
-                <Bars bars={riseBars} label={t("monitor.rise.label")} yLabel={t("monitor.rise.axis")} zero testid="rise-bar" />
-                <p className="t-caption muted center">{mon.has_baseline ? t("monitor.rise.caption", { db: mon.rise_threshold_db }) : t("monitor.rise.none")}</p>
-              </div>
-              <div className="table-wrap">
-                <table className="data t-caption" data-testid="survey-table">
-                  <caption className="sr-only">{t("spectrum.chart.label")}</caption>
-                  <thead>
-                    <tr>
-                      {["name", "center", "median", "mean", "peak", "rise", ...(real ? ["look"] : [])].map((c) => (
-                        <th key={c} scope="col" className={`t-caption-strong ${c === "name" ? "" : "right"}`}>
-                          {c === "look" ? <span className="sr-only">{t("spectrum.look")}</span> : t(`spectrum.col.${c}`)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.name}>
-                        <td>{r.name}</td>
-                        <td className="right">{mhz(r.center_hz)}</td>
-                        {r.measured ? (
-                          <>
-                            <td className="right">{num(r.median_dbfs)}</td>
-                            <td className="right">{num(r.mean_dbfs)}</td>
-                            <td className="right">{num(r.peak_dbfs)}</td>
-                          </>
-                        ) : (
-                          <td className="right muted" colSpan={3}>
-                            {t("spectrum.unmeasured")}
-                          </td>
-                        )}
-                        <td className="right">{num(r.rise_db, true)}</td>
-                        {real && (
-                          <td className="right">
-                            <Button variant="link" onClick={() => viewer.current?.look(r.center_hz, r.width_hz)} data-testid={`survey-look-${r.name}`}>
-                              {t("spectrum.look")}
-                            </Button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+          {hiccup && (
+            <p className="t-caption muted center" role="status" data-testid="monitor-hiccup">
+              ! {t("monitor.hiccup", { message: hiccup })}
+            </p>
           )}
-          {wifi && real && mon.plan.startsWith("wifi-") && (
-            <div className="card stack-gap live" data-testid="wifi-live">
-              <div className="row">
-                <h3 className="t-tagline">{t("wifi.live.title")}</h3>
-                <label className="t-caption">
-                  <input type="checkbox" checked={liveOn} onChange={(e) => toggleLive(e.target.checked)} data-testid="wifi-live-toggle" /> {t("wifi.live.on")}
-                </label>
-              </div>
+          <div className="tabs" role="tablist" aria-label={t("monitor.tabs")}>
+            {tabs.map((id) => (
+              <button key={id} type="button" role="tab" aria-selected={tab === id} className="tab t-body" onClick={() => setTab(id)} data-testid={`tab-${id}`}>
+                {t(`monitor.tab.${id}${id === "near" && isBle ? ".ble" : ""}`)}
+                {id === "near" && <span className="tab-count">{isBle ? bleDevs.length : liveAps.length}</span>}
+              </button>
+            ))}
+            {tabs.length > 1 && (
+              <label className="t-caption tab-toggle">
+                <input type="checkbox" checked={liveOn} onChange={(e) => toggleLive(e.target.checked)} data-testid="wifi-live-toggle" /> {t("wifi.live.on")}
+              </label>
+            )}
+          </div>
+
+          {tab === "level" &&
+            (mon.sweeps === 0 ? (
+              <Empty>{t("monitor.first")}</Empty>
+            ) : (
+              <>
+              <div className="card">
+                  <Bars bars={levelBars} label={t("spectrum.chart.label")} yLabel={t("spectrum.axis.y")} testid="survey-bar" />
+                  <p className="t-caption muted center">{mon.has_baseline ? t("spectrum.chart.caption_base") : t("spectrum.chart.caption")}</p>
+                </div>
+                <div className="card stack-gap">
+                  <Bars bars={riseBars} label={t("monitor.rise.label")} yLabel={t("monitor.rise.axis")} zero testid="rise-bar" />
+                  <p className="t-caption muted center">{mon.has_baseline ? t("monitor.rise.caption", { db: mon.rise_threshold_db }) : t("monitor.rise.none")}</p>
+                </div>
+                <div className="table-wrap">
+                  <table className="data t-caption" data-testid="survey-table">
+                    <caption className="sr-only">{t("spectrum.chart.label")}</caption>
+                    <thead>
+                      <tr>
+                        {["name", "center", "median", "mean", "peak", "rise", ...(real ? ["look"] : [])].map((c) => (
+                          <th key={c} scope="col" className={`t-caption-strong ${c === "name" ? "" : "right"}`}>
+                            {c === "look" ? <span className="sr-only">{t("spectrum.look")}</span> : t(`spectrum.col.${c}`)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r) => (
+                        <tr key={r.name}>
+                          <td>{r.name}</td>
+                          <td className="right">{mhz(r.center_hz)}</td>
+                          {r.measured ? (
+                            <>
+                              <td className="right">{num(r.median_dbfs)}</td>
+                              <td className="right">{num(r.mean_dbfs)}</td>
+                              <td className="right">{num(r.peak_dbfs)}</td>
+                            </>
+                          ) : (
+                            <td className="right muted" colSpan={3}>
+                              {t("spectrum.unmeasured")}
+                            </td>
+                          )}
+                          <td className="right">{num(r.rise_db, true)}</td>
+                          {real && (
+                            <td className="right">
+                              <Button variant="link" onClick={() => viewer.current?.look(r.center_hz, r.width_hz)} data-testid={`survey-look-${r.name}`}>
+                                {t("spectrum.look")}
+                              </Button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ))}
+
+          {tab === "near" && (
+            <div className="card live" data-testid="wifi-live">
+              <p className="t-caption muted">{isBle ? t("ble.desc") : t("wifi.live.desc")}</p>
+              {!liveOn ? (
+                <p className="t-caption muted">{t("wifi.live.off")}</p>
+              ) : isBle ? (
+                <BleTable devices={bleDevs} directed={bleOther.directed} broken={bleOther.broken} />
+              ) : (
+                <ApTable aps={liveAps} empty={t("wifi.live.no_aps")} />
+              )}
+            </div>
+          )}
+
+          {tab === "frames" && (
+            <div className="card live" data-testid="wifi-frames">
               <p className="t-caption muted">{t("wifi.live.desc")}</p>
-              {liveOn && (
+              {!liveOn ? (
+                <p className="t-caption muted">{t("wifi.live.off")}</p>
+              ) : (
                 <>
-                  <h4 className="t-caption-strong">{t("wifi.live.aps")}</h4>
-                  <ApTable aps={liveAps} empty={t("wifi.live.no_aps")} />
                   <h4 className="t-caption-strong">{t("wifi.kinds.title")}</h4>
                   <FrameKinds samples={usig} now={Date.now()} order={rows.map((r) => r.name)} />
                   <BandwidthWatch
@@ -528,6 +626,7 @@ export function SpectrumScreen() {
               )}
             </div>
           )}
+
           <details className="fold">
             <summary className="t-body">{t("spectrum.how.title")}</summary>
             <div className="fold-body t-caption">

@@ -80,6 +80,7 @@ export const httpApi: Api = {
   txStatus: () => call("/tx"),
   txStart: (req) => call("/tx/start", "POST", req),
   txStop: () => call("/tx/stop", "POST", {}),
+  bleScan: (req) => call("/ble/scan", "POST", req),
   wifiStatus: () => call("/wifi"),
   wifiAps: (req) => call("/wifi/aps", "POST", req),
   wifiUsig: (req) => call("/wifi/usig", "POST", req),

@@ -245,7 +245,7 @@ test("첫 화면에서 'Wi-Fi 보기'로 넘어오면 그 장비와 대역이 �
   expect(sessionStorage.getItem("nrtrail.spectrumIntent")).toBeNull(); // 한 번 쓰면 지운다
 });
 
-test("모니터링 중 실시간 Wi-Fi: 잡힌 AP, 프레임 종류, 송신 폭을 보여 주고 끌 수 있다", async () => {
+test("모니터링 탭: 주변 AP 와 프레임·송신 폭이 스크롤 없이 탭으로 나오고, 실시간 풀이를 끌 수 있다", async () => {
   const a = api([state([row("ch36", -70)])]);
   a.wifiStatus = async () => ({ available: true });
   a.wifiLive = vi.fn(async ({ channel }: { channel: string }) => ({
@@ -260,18 +260,72 @@ test("모니터링 중 실시간 Wi-Fi: 잡힌 AP, 프레임 종류, 송신 폭�
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
   await userEvent.click(screen.getByTestId("monitor-start"));
-  const live = await screen.findByTestId("wifi-live");
   await waitFor(() => expect(a.wifiLive).toHaveBeenCalledWith({ device: "driver=uhd", plan: "wifi-5g", channel: "ch36", gain_db: undefined }));
-  expect(await within(live).findByText("home")).toBeInTheDocument();
-  const kinds = within(live).getByTestId("kinds-table");
-  expect(within(kinds).getByRole("columnheader", { name: "Wi-Fi 7" })).toBeInTheDocument();
-  expect(within(kinds).getByText("12")).toBeInTheDocument();
-  expect(await within(live).findByText("처음 자리 잡은 폭: 160 MHz")).toBeInTheDocument();
-  expect(within(within(live).getByTestId("usig-table")).getByText("160 MHz")).toBeInTheDocument();
+  expect(await screen.findByTestId("survey-table")).toBeInTheDocument(); // 처음에는 채널 세기 탭
+  await waitFor(() => expect(screen.getByTestId("tab-near")).toHaveTextContent("주변 AP1")); // 탭에 잡힌 AP 수가 보인다
+
+  await userEvent.click(screen.getByTestId("tab-near"));
+  expect(screen.queryByTestId("survey-table")).toBeNull();
+  expect(within(screen.getByTestId("wifi-live")).getByText("home")).toBeInTheDocument();
+
+  await userEvent.click(screen.getByTestId("tab-frames"));
+  const frames = screen.getByTestId("wifi-frames");
+  expect(within(within(frames).getByTestId("kinds-table")).getByRole("columnheader", { name: "Wi-Fi 7" })).toBeInTheDocument();
+  expect(within(within(frames).getByTestId("kinds-table")).getByText("12")).toBeInTheDocument();
+  expect(await within(frames).findByText("처음 자리 잡은 폭: 160 MHz")).toBeInTheDocument();
 
   const calls = (a.wifiLive as ReturnType<typeof vi.fn>).mock.calls.length;
-  await userEvent.click(within(live).getByTestId("wifi-live-toggle"));
-  expect(within(live).queryByTestId("kinds-table")).toBeNull();
+  await userEvent.click(screen.getByTestId("wifi-live-toggle"));
+  expect(within(frames).queryByTestId("kinds-table")).toBeNull();
   await new Promise((r) => setTimeout(r, 400));
   expect((a.wifiLive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls); // 끄면 더 받지 않는다
+});
+
+test("블루투스: 광고 채널 셋이 기본으로 골라지고, 모니터링 중 주변 기기 탭에 주소·이름·제조사가 나온다", async () => {
+  const a = api([state([row("ch37", -70), row("ch38", -71), row("ch39", -72)], { plan: "ble" })]);
+  const describe = a.surveyDevice;
+  a.surveyDevice = async (id) => {
+    const info = await describe(id);
+    return { ...info, plans: [{ id: "ble", available: true, channels: 4, widths: [2], map: [37, 0, 38, 39].map((n) => ({ name: `ch${n}`, center_hz: 2402e6, width_hz: 2e6, reachable: true })) }] };
+  };
+  a.bleScan = vi.fn(async ({ channel }: { channel: number }) => ({
+    channel,
+    packets: 3,
+    crc_failed: 1,
+    clipped: false,
+    directed: { SCAN_REQ: 2 },
+    devices: [{ address: "C0:11:22:33:44:55", address_type: "random" as const, name: "tag", company: "Apple", company_id: 76, services: [], pdu_types: ["ADV_IND"], count: 2, power_db: -20, channel }],
+  }));
+  renderWithStore(<SpectrumScreen />, a);
+  for (const n of [37, 38, 39]) expect(await screen.findByTestId(`cell-ch${n}`)).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("cell-ch0")).toHaveAttribute("aria-pressed", "false");
+  await userEvent.click(screen.getByTestId("monitor-start"));
+  await waitFor(() => expect(a.bleScan).toHaveBeenCalledWith({ device: "driver=uhd", channel: 37, gain_db: undefined }));
+  await waitFor(() => expect(screen.getByTestId("tab-near")).toHaveTextContent("주변 기기1"));
+  expect(screen.queryByTestId("tab-frames")).toBeNull();
+  await userEvent.click(screen.getByTestId("tab-near"));
+  const table = screen.getByTestId("ble-table");
+  expect(within(table).getByText("C0:11:22:33:44:55")).toBeInTheDocument();
+  expect(within(table).getByText("tag")).toBeInTheDocument();
+  expect(within(table).getByText("Apple")).toBeInTheDocument();
+  expect(within(table).getByText("임의")).toBeInTheDocument();
+  expect(screen.getByTestId("ble-panel")).toHaveTextContent("SCAN_REQ 2"); // 특정 기기를 향한 것은 개수만
+});
+
+test("수신이 한두 번 실패해도 모니터링은 멈추지 않고, 잇달아 세 번 실패하면 멈춘다", async () => {
+  const a = api([state([row("ch36", -70)])]);
+  let calls = 0;
+  a.monitorSweep = vi.fn(async () => {
+    calls += 1;
+    if (calls === 1) throw new Error("Overflow occured in middle of a contiguous burst");
+    if (calls >= 4) throw new Error("장비가 응답하지 않습니다");
+    return state([row("ch36", -70)], { sweeps: calls });
+  });
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(screen.getByTestId("monitor-start"));
+  expect(await screen.findByTestId("monitor-hiccup")).toHaveTextContent("Overflow"); // 한 번 실패: 알리고 계속
+  expect(await screen.findByTestId("survey-table", undefined, { timeout: 3000 })).toBeInTheDocument(); // 다음 바퀴는 성공
+  await waitFor(() => expect(screen.getByTestId("monitor-toggle")).toHaveTextContent("다시 시작"), { timeout: 5000 }); // 세 번 잇달아 실패하면 멈춘다
+  expect(calls).toBe(6);
 });

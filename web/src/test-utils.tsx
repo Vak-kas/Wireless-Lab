@@ -86,6 +86,7 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     txStatus: async () => ({ available: false }),
     txStart: no,
     txStop: async () => ({ stopping: false }),
+    bleScan: no,
     wifiStatus: async () => ({ available: false }),
     wifiAps: no,
     wifiUsig: no,

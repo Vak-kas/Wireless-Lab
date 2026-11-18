@@ -1261,3 +1261,40 @@ details.fold > .fold-body {
 .warn-facts .muted {
   color: var(--color-ink-disabled);
 }
+
+/* ---------- 모니터링 탭 ---------- */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  border-bottom: 1px solid var(--line);
+  margin: var(--space-md) 0 var(--space-lg);
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--size-touch-min);
+  padding: 0 var(--space-md);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.tab[aria-selected="true"] {
+  color: var(--fg);
+  border-bottom-color: var(--link);
+  font-weight: 600;
+}
+.tab-count {
+  min-width: 22px;
+  padding: 0 var(--space-xxs);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  text-align: center;
+}
+.tab-toggle {
+  margin-left: auto;
+}

@@ -43,6 +43,8 @@ MIN_BANDWIDTH_HZ = 200e3
 WIFI_5G_BLOCKS = [list(range(36, 65, 4)), list(range(100, 145, 4)), list(range(149, 166, 4))]
 WIFI_5G = [c for block in WIFI_5G_BLOCKS for c in block]
 WIFI_6G = list(range(1, 234, 4))
+# RF 채널 k(2402 + 2k MHz) → BLE 채널 번호: 광고 채널 37, 38, 39 가 k = 0, 12, 39 에 있고 나머지에 0~36 을 차례로 매긴다
+BLE_INDEX = {0: 37, 12: 38, 39: 39} | {k: k - 1 for k in range(1, 12)} | {k: k - 2 for k in range(13, 39)}
 PLANS: dict[str, dict[str, Any]] = {
     "capture": {"simulated_only": True},
     "wifi-2g4": {"channels": [(f"ch{c}", (2407 + 5 * c) * 1e6, 20e6) for c in range(1, 14)], "widths": [20], "blocks": []},
@@ -50,6 +52,8 @@ PLANS: dict[str, dict[str, Any]] = {
                 "blocks": WIFI_5G_BLOCKS},
     "wifi-6g": {"channels": [(f"ch{c}", (5950 + 5 * c) * 1e6, 20e6) for c in WIFI_6G], "widths": [20, 40, 80, 160],
                 "blocks": [WIFI_6G]},
+    # Bluetooth LE 의 RF 채널 40개(2 MHz 간격). 2402·2426·2480 MHz 가 광고 채널 37·38·39, 나머지가 데이터 채널 0~36 이다.
+    "ble": {"channels": [(f"ch{BLE_INDEX[k]}", (2402 + 2 * k) * 1e6, 2e6) for k in range(40)], "widths": [2], "blocks": []},
     "custom": {},
 }
 
@@ -194,8 +198,13 @@ def run(dev_id: str, plan: str, *, gain_db: float | None = None, center_hz: floa
                 if devices.check_request(dev, ch.center_hz, rate):
                     rows.append({"name": ch.name, "center_hz": ch.center_hz, "width_hz": ch.width_hz, "coverage": 0.0, "measured": False})
                     continue
-                iq, cap = receive(ch.center_hz, rate)
-                rows.append(measure_channel(block_spectra(iq, cap.sample_rate_hz), _peak_dbfs(iq), ch, cap.center_freq_hz, cap.sample_rate_hz))
+                try:
+                    iq, cap = receive(ch.center_hz, rate)
+                    rows.append(measure_channel(block_spectra(iq, cap.sample_rate_hz), _peak_dbfs(iq), ch, cap.center_freq_hz, cap.sample_rate_hz))
+                except SurveyError as e:
+                    # 채널 하나를 못 받아도(장비의 샘플 유실 등) 한 바퀴는 끝낸다. 그 채널만 "잴 수 없음"으로 둔다.
+                    rows.append({"name": ch.name, "center_hz": ch.center_hz, "width_hz": ch.width_hz, "coverage": 0.0, "measured": False,
+                                 "error": str(e)[:200]})
     return {"device": dev_id, "plan": plan, "unit": "dBFS", "dwell_s": DWELL_S, "gain_db": gain_db, "channels": rows,
             "fixed_tuning": sim}
 

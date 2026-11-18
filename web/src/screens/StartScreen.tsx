@@ -147,7 +147,7 @@ export function StartScreen() {
                 />
                 <Task id="wifi" disabled={busy} onClick={() => openSpectrum({ device: d.id, plan: "wifi-5g" })} />
                 <Task id="view" disabled={busy} onClick={() => openSpectrum({ device: d.id, focus: "view" })} />
-                <Task id="bt" soon />
+                <Task id="bt" disabled={busy} onClick={() => openSpectrum({ device: d.id, plan: "ble" })} />
                 <Task
                   id="tx"
                   soon={!txReady}

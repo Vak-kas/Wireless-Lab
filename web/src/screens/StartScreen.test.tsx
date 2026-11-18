@@ -20,8 +20,8 @@ test("첫 화면은 내 장비와 '이 장비로 할 일'로 시작하고, 연�
   const card = await screen.findByTestId("home-device-usrp:B200:S1");
   expect(within(card).getByText("USRP B200")).toBeInTheDocument();
   expect(within(card).getByText("S1")).toBeInTheDocument();
-  for (const id of ["nr", "wifi", "view"]) expect(within(card).getByTestId(`task-${id}`)).toBeEnabled();
-  for (const id of ["bt", "tx"]) expect(within(card).getByTestId(`task-${id}`)).toBeDisabled(); // 아직 없는 기능
+  for (const id of ["nr", "wifi", "view", "bt"]) expect(within(card).getByTestId(`task-${id}`)).toBeEnabled();
+  expect(within(card).getByTestId("task-tx")).toBeDisabled(); // 송신 기능이 없는 설치에서는 꺼져 있다
   expect(within(card).queryByText(/모의 장비/)).toBeNull();
 
   expect(screen.getByRole("heading", { name: "저장해 둔 신호로 연습하기" })).toBeInTheDocument();
@@ -38,6 +38,8 @@ test("할 일: 'Wi-Fi 보기'는 그 장비와 5 GHz 를 골라 주파수 화면
   await userEvent.click(await screen.findByTestId("task-wifi"));
   expect(window.location.hash).toBe("#/spectrum");
   expect(JSON.parse(sessionStorage.getItem("nrtrail.spectrumIntent")!)).toEqual({ device: "usrp:B200:S1", plan: "wifi-5g" });
+  await userEvent.click(screen.getByTestId("task-bt"));
+  expect(JSON.parse(sessionStorage.getItem("nrtrail.spectrumIntent")!)).toEqual({ device: "usrp:B200:S1", plan: "ble" });
   await userEvent.click(screen.getByTestId("task-view"));
   expect(JSON.parse(sessionStorage.getItem("nrtrail.spectrumIntent")!)).toEqual({ device: "usrp:B200:S1", focus: "view" });
   await userEvent.click(screen.getByTestId("task-nr"));

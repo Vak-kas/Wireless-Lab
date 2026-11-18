@@ -121,6 +121,30 @@ export interface TxRequest {
   confirm?: { accepted: boolean; closed_setup: boolean; version: string; shown: { device: string; center_hz: number; gain_db: number; seconds: number } };
 }
 
+export interface BleDevice {
+  address: string;
+  address_type: "public" | "random";
+  name: string;
+  company: string;
+  company_id: number | null;
+  services: string[];
+  pdu_types: string[];
+  count: number;
+  power_db: number;
+  /** 잡힌 광고 채널 (37, 38, 39) */
+  channel: number;
+}
+
+export interface BleScan {
+  channel: number;
+  packets: number;
+  crc_failed: number;
+  clipped: boolean;
+  devices: BleDevice[];
+  /** 특정 기기를 향한 패킷: 종류별 개수만 (내용은 풀지 않는다) */
+  directed: Record<string, number>;
+}
+
 export interface WifiAp {
   ssid: string;
   bssid: string;
@@ -161,6 +185,8 @@ export interface MonitorChannel {
   forced?: boolean;
   /** 자동 기준값까지 남은 시간 (초) */
   settle_s?: number;
+  /** 이번 바퀴에 이 채널을 받지 못한 이유 */
+  error?: string;
 }
 
 export interface MonitorState {
@@ -330,6 +356,7 @@ export interface Api {
   txStatus(): Promise<TxStatus>;
   txStart(req: TxRequest): Promise<{ seconds: number; stopped: boolean; underruns: number }>;
   txStop(): Promise<{ stopping: boolean }>;
+  bleScan(req: { device: string; channel: number; gain_db?: number; seconds?: number }): Promise<BleScan>;
   wifiStatus(): Promise<{ available: boolean }>;
   wifiAps(req: { device: string; plan: string; channels: string[]; gain_db?: number }): Promise<{ aps: WifiAp[] }>;
   /** 모니터링 중: 채널 하나를 짧게 받아 프레임 종류·송신 폭·비콘을 함께 */

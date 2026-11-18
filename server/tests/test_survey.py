@@ -86,7 +86,7 @@ def test_simulated_device_surveys_the_band_in_its_file(tmp_path, monkeypatch):
     dev = simulated_id()
     info = survey.describe(dev)
     assert {p["id"]: p["available"] for p in info["plans"]} == {"capture": True, "wifi-2g4": False, "wifi-5g": False, "wifi-6g": False,
-                                                                 "custom": False}
+                                                                 "ble": False, "custom": False}
     assert len(next(p for p in info["plans"] if p["id"] == "capture")["map"]) == 16
     picked = survey.run(dev, "capture", only=[info["plans"][0]["map"][3]["name"], info["plans"][0]["map"][4]["name"]])
     assert len(picked["channels"]) == 2
@@ -170,3 +170,27 @@ def test_spectrum_view_of_a_tuned_device_reports_what_the_device_actually_used(t
     best = out["freq_hz"][int(np.argmax(out["mean_db"]))]
     assert abs(best - (2.4371e9 + TONE)) <= out["bin_hz"] / 2 + 1
     assert abs(max(out["mean_db"]) - (-20.0)) < 0.5
+
+
+def test_bluetooth_channels_map_to_frequencies():
+    chans = {c[0]: c[1] for c in survey.PLANS["ble"]["channels"]}
+    assert len(chans) == 40 and chans["ch37"] == 2402e6 and chans["ch38"] == 2426e6 and chans["ch39"] == 2480e6
+    assert chans["ch0"] == 2404e6 and chans["ch10"] == 2424e6 and chans["ch11"] == 2428e6 and chans["ch36"] == 2478e6
+    assert [c[1] for c in survey.PLANS["ble"]["channels"]] == sorted(chans.values())          # 채널 맵은 주파수 순서
+
+
+def test_one_failed_channel_does_not_fail_the_sweep(tmp_path, monkeypatch):
+    from nrtrail import sigmf
+    monkeypatch.setattr(survey, "sessions_dir", lambda: tmp_path)
+    monkeypatch.setattr(devices, "find_device", lambda _id: {"id": "d", "driver": "uhd", "freq_min_hz": 70e6, "freq_max_hz": 6e9, "max_sample_rate_hz": 56e6})
+
+    def flaky(_dev, req, out_meta):
+        if req.center_freq_hz == 5200e6:
+            raise devices.DeviceError("Overflow occured in middle of a contiguous burst")
+        sigmf.write_capture(out_meta, tone_plus_noise(0, 0.1), sample_rate_hz=req.sample_rate_hz, center_freq_hz=req.center_freq_hz, source="device")
+        return sigmf.read_meta(out_meta)
+
+    monkeypatch.setattr(devices, "capture", flaky)
+    rows = {r["name"]: r for r in survey.run("d", "wifi-5g", only=["ch36", "ch40", "ch44"])["channels"]}
+    assert rows["ch36"]["measured"] and rows["ch44"]["measured"]
+    assert not rows["ch40"]["measured"] and "Overflow" in rows["ch40"]["error"]
