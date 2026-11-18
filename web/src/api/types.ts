@@ -179,6 +179,41 @@ export interface TxStatus {
     description?: string;
     error?: string | null;
   }[];
+  /** 보내면서 받기의 한도 */
+  receive?: { max_seconds: number; max_samples: number; skip_seconds: number; default_gain_db: number };
+}
+
+/** 보내면서 받은 신호를 보낸 것과 견준 결과 */
+export interface TxReceived {
+  device: string;
+  gain_db: number;
+  num_samples: number;
+  seconds?: number;
+  power_dbfs: number | null;
+  peak: number;
+  clipped: boolean;
+  overflows: number;
+  spectrum: { offset_hz: number[]; db: number[] };
+  check: {
+    kind: string;
+    found: boolean;
+    reason?: string;
+    expected_offset_hz?: number;
+    found_offset_hz?: number;
+    above_floor_db?: number;
+    match?: number;
+    at_seconds?: number;
+  };
+  decoded?: { decoder: string; packets: number; crc_failed: number; found: boolean };
+  /** 받은 구간이 남은 파일 (.sigmf-meta) */
+  meta_path: string;
+}
+
+export interface TxResult {
+  seconds: number;
+  stopped: boolean;
+  underruns: number;
+  received?: TxReceived;
 }
 
 export interface TxRequest {
@@ -188,6 +223,8 @@ export interface TxRequest {
   gain_db: number;
   seconds: number;
   waveform: { kind: "tone"; offset_hz: number; amplitude: number } | { kind: "standard"; standard: string } | { kind: "file"; path: string };
+  /** 보내면서 받기: 받는 장비(보내는 장비와 같아도 된다), 수신 이득, 모을 길이 */
+  receive?: { device: string; gain_db: number; seconds: number };
   /** 경고창에서 확인한 내용. 없으면 서버가 거부한다 */
   confirm?: { accepted: boolean; closed_setup: boolean; version: string; shown: { device: string; center_hz: number; gain_db: number; seconds: number } };
 }
@@ -435,7 +472,7 @@ export interface Api {
   /** 장비 연결을 처음부터 다시 (MATLAB 을 닫았다가 새로 띄워 찾는다) */
   deviceReset(): Promise<DeviceSearch>;
   txStatus(): Promise<TxStatus>;
-  txStart(req: TxRequest): Promise<{ seconds: number; stopped: boolean; underruns: number }>;
+  txStart(req: TxRequest): Promise<TxResult>;
   txStop(): Promise<{ stopping: boolean }>;
   bleScan(req: { device: string; channel: number; gain_db?: number; seconds?: number }): Promise<BleScan>;
   wifiStatus(): Promise<{ available: boolean }>;

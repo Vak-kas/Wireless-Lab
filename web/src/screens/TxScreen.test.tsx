@@ -161,3 +161,84 @@ test("미구현 칸은 꺼진 채로 보이고, 내가 넣은 생성기는 이�
   await userEvent.click(screen.getByTestId("tx-confirm"));
   await waitFor(() => expect(a.txStart).toHaveBeenCalledWith(expect.objectContaining({ sample_rate_hz: 2e6, waveform: { kind: "standard", standard: "my-sig" } })));
 });
+
+const b210 = { id: "usrp:B210:S2", label: "USRP B210 (S2)", driver: "uhd" };
+const rxBase = {
+  gain_db: 20,
+  num_samples: 200000,
+  power_dbfs: -14,
+  peak: 0.2,
+  clipped: false,
+  overflows: 0,
+  spectrum: { offset_hz: [-500e3, 0, 100e3, 500e3], db: [-70, -68, -15, -71] },
+  meta_path: "/x/sessions/tx/rx-1.sigmf-meta",
+};
+
+test("보내면서 받기: 다른 장비를 받는 쪽으로 고르고, 경고창에 받는 장비가 보이며, 결과에 받았는지와 근거가 나온다", async () => {
+  const a = api();
+  a.devices = async () => [usrp, b210];
+  a.txStatus = async () => ({ available: true, warning_version: "v1", max_seconds: 30, max_gain_db: 89.75, default_gain_db: 0, standards: [], receive: { max_seconds: 1, max_samples: 8e6, skip_seconds: 0.2, default_gain_db: 20 } });
+  a.txStart = vi.fn(async () => ({
+    seconds: 2,
+    stopped: false,
+    underruns: 0,
+    received: { ...rxBase, device: b210.id, check: { kind: "tone", found: true, expected_offset_hz: 100e3, found_offset_hz: 100.6e3, above_floor_db: 54.2 } },
+  }));
+  renderWithStore(<TxScreen />, a);
+  await userEvent.type(await screen.findByTestId("tx-center"), "2450");
+  expect(screen.queryByTestId("tx-rx-gain")).toBeNull(); // 켜기 전에는 받는 쪽 설정이 없다
+  await userEvent.click(screen.getByTestId("tx-rx-on"));
+  // 따로 고르지 않으면 보내는 장비가 아닌 쪽이 받는다
+  expect(screen.getByTestId("tx-rx-wiring")).toHaveTextContent("받는 장비의 RX 포트");
+  await userEvent.click(screen.getByTestId("tx-ask"));
+  const dialog = await screen.findByRole("alertdialog");
+  expect(within(dialog).getByText("USRP B210 (S2) · 20 dB")).toBeInTheDocument();
+  await userEvent.click(screen.getByTestId("tx-agree"));
+  await userEvent.click(screen.getByTestId("tx-closed"));
+  await userEvent.click(screen.getByTestId("tx-confirm"));
+  await waitFor(() => expect(a.txStart).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(a.txStart).mock.calls[0]?.[0].receive).toEqual({ device: b210.id, gain_db: 20, seconds: 0.2 });
+  const rx = await screen.findByTestId("tx-rx");
+  expect(within(rx).getByText("보낸 신호를 받았습니다")).toBeInTheDocument();
+  expect(within(rx).getByTestId("tx-rx-tone")).toHaveTextContent("100.6 kHz (보낸 곳 100 kHz), 바닥보다 54.2 dB 높음");
+  expect(within(rx).getByTestId("tx-rx-spectrum")).toBeInTheDocument();
+  expect(within(rx).getByText("/x/sessions/tx/rx-1.sigmf-meta")).toBeInTheDocument();
+});
+
+test("보내면서 받기: 장비가 한 대면 같은 장비로 받고, 못 받았으면 그렇게 알리고 넘침도 알린다", async () => {
+  const a = api();
+  a.devices = async () => [usrp];
+  a.txStart = vi.fn(async () => ({
+    seconds: 2,
+    stopped: false,
+    underruns: 0,
+    received: { ...rxBase, device: usrp.id, clipped: true, overflows: 3, check: { kind: "waveform", found: false, match: 0.04 } },
+  }));
+  renderWithStore(<TxScreen />, a);
+  await userEvent.type(await screen.findByTestId("tx-center"), "2450");
+  await userEvent.click(screen.getByTestId("tx-rx-on"));
+  expect(screen.getByTestId("tx-rx-wiring")).toHaveTextContent("같은 장비의 TX 포트와 RX 포트");
+  await userEvent.click(screen.getByTestId("tx-ask"));
+  await userEvent.click(await screen.findByTestId("tx-agree"));
+  await userEvent.click(screen.getByTestId("tx-closed"));
+  await userEvent.click(screen.getByTestId("tx-confirm"));
+  const rx = await screen.findByTestId("tx-rx");
+  expect(vi.mocked(a.txStart).mock.calls[0]?.[0].receive?.device).toBe(usrp.id);
+  expect(within(rx).getByText("보낸 신호가 받은 쪽에서 확인되지 않았습니다")).toBeInTheDocument();
+  expect(within(rx).getByTestId("tx-rx-match")).toHaveTextContent("0.04");
+  expect(within(rx).getByText(/너무 셉니다/)).toBeInTheDocument();
+  expect(within(rx).getByText(/3번 끊겼습니다/)).toBeInTheDocument();
+});
+
+test("받기를 켜지 않으면 요청에 receive 가 없다", async () => {
+  const a = api();
+  renderWithStore(<TxScreen />, a);
+  await userEvent.type(await screen.findByTestId("tx-center"), "2450");
+  await userEvent.click(screen.getByTestId("tx-ask"));
+  await userEvent.click(await screen.findByTestId("tx-agree"));
+  await userEvent.click(screen.getByTestId("tx-closed"));
+  await userEvent.click(screen.getByTestId("tx-confirm"));
+  await waitFor(() => expect(a.txStart).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(a.txStart).mock.calls[0]?.[0]).not.toHaveProperty("receive");
+  expect(screen.queryByTestId("tx-rx")).toBeNull();
+});

@@ -27,7 +27,7 @@ The user interface is in Korean by default; an English translation is included.
 | 5G NR signal-processing engine for real signals (based on MATLAB 5G Toolbox) | — | ✓ |
 | Automatic USRP registration and reception (MATLAB) | — | ✓ |
 | Wi-Fi beacon and preamble decoding (nearby APs, bandwidth) | — | ✓ |
-| Experimental transmit (a responsibility confirmation is required every time) | — | ✓ |
+| Experimental transmit (a responsibility confirmation is required every time), receive-while-sending check | — | ✓ |
 | OAI NTN simulator testbed | — | ✓ |
 
 Pro is an overlay on top of this repository and requires MATLAB with the relevant toolboxes.

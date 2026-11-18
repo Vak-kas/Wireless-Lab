@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { SurveyPlan, TxRequest, TxStatus } from "../api";
+import type { SurveyPlan, TxReceived, TxRequest, TxResult, TxStatus } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { isSim, useUsableDevices } from "../devices/DeviceHub";
@@ -14,6 +14,94 @@ const RATES = [1, 2, 5, 10, 20];
 const STANDARD_HINT: Record<string, string> = { "wifi-nonht": "wifi", "wifi-he": "wifi", "wifi-eht": "wifi", "ble-adv": "ble" };
 const show = (v: number) => Number(v.toFixed(3)).toString();
 const n = (s: string) => Number(s);
+
+/** 받은 신호의 스펙트럼: 가로는 가운데 주파수 기준 위치, 세로는 세기. 시험 톤이면 보낸 자리에 세로선을 긋는다. */
+function RxSpectrum({ rx }: { rx: TxReceived }) {
+  const { offset_hz: f, db } = rx.spectrum;
+  if (db.length < 2) return null;
+  const W = 640;
+  const H = 180;
+  const left = 44;
+  const bottom = 22;
+  const lo = Math.floor(Math.min(...db) / 10) * 10;
+  const hi = Math.max(lo + 10, Math.ceil(Math.max(...db) / 10) * 10);
+  const fMin = f[0] ?? 0;
+  const fMax = f[f.length - 1] ?? 1;
+  const x = (hz: number) => left + ((hz - fMin) / (fMax - fMin)) * (W - left - 8);
+  const y = (v: number) => 8 + ((hi - v) / (hi - lo)) * (H - bottom - 8);
+  const mark = rx.check.kind === "tone" ? rx.check.expected_offset_hz : undefined;
+  return (
+    <figure className="nearby-chart" data-testid="tx-rx-spectrum">
+      <figcaption className="t-caption-strong">{t("tx.rx.spectrum")}</figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("tx.rx.spectrum.alt")}>
+        {[lo, (lo + hi) / 2, hi].map((v) => (
+          <g key={v}>
+            <line className="grid" x1={left} x2={W - 8} y1={y(v)} y2={y(v)} />
+            <text className="axis" x={left - 6} y={y(v) + 4} textAnchor="end">
+              {v}
+            </text>
+          </g>
+        ))}
+        {[fMin, 0, fMax].map((hz) => (
+          <text key={hz} className="axis" x={x(hz)} y={H - 6} textAnchor={hz === fMin ? "start" : hz === fMax ? "end" : "middle"}>
+            {show(hz / 1e6)} MHz
+          </text>
+        ))}
+        {mark !== undefined && <line className="mark" x1={x(mark)} x2={x(mark)} y1={8} y2={H - bottom} />}
+        <polyline className="trace" points={db.map((v, i) => `${x(f[i] ?? 0).toFixed(1)},${y(v).toFixed(1)}`).join(" ")} />
+      </svg>
+    </figure>
+  );
+}
+
+/** 보내면서 받은 결과: 받았는지 한 줄, 근거가 된 숫자, 스펙트럼. */
+function RxResult({ rx }: { rx: TxReceived }) {
+  const c = rx.check;
+  const found = c.found || rx.decoded?.found === true;
+  return (
+    <div className="stack" data-testid="tx-rx">
+      <p className="row">
+        <Badge level={found ? "ok" : "warn"}>{t(found ? "tx.rx.found" : "tx.rx.missing")}</Badge>
+      </p>
+      <dl className="facts t-caption">
+        <div>
+          <dt className="muted">{t("tx.rx.level")}</dt>
+          <dd>{rx.power_dbfs === null ? "—" : `${rx.power_dbfs} dBFS`}</dd>
+        </div>
+        {c.kind === "tone" && c.found_offset_hz !== undefined && (
+          <div>
+            <dt className="muted">{t("tx.rx.tone")}</dt>
+            <dd data-testid="tx-rx-tone">
+              {t("tx.rx.tone.value", { found: show(c.found_offset_hz / 1e3), expected: show((c.expected_offset_hz ?? 0) / 1e3), db: c.above_floor_db ?? 0 })}
+            </dd>
+          </div>
+        )}
+        {c.kind === "waveform" && c.match !== undefined && (
+          <div>
+            <dt className="muted">{t("tx.rx.match")}</dt>
+            <dd data-testid="tx-rx-match">{t("tx.rx.match.value", { v: c.match.toFixed(2) })}</dd>
+          </div>
+        )}
+        {rx.decoded && (
+          <div>
+            <dt className="muted">{t("tx.rx.decoded")}</dt>
+            <dd data-testid="tx-rx-decoded">{t(rx.decoded.found ? "tx.rx.decoded.ok" : "tx.rx.decoded.no", { n: rx.decoded.packets, bad: rx.decoded.crc_failed })}</dd>
+          </div>
+        )}
+        <div>
+          <dt className="muted">{t("tx.rx.file")}</dt>
+          <dd>{rx.meta_path}</dd>
+        </div>
+      </dl>
+      {rx.clipped && <p className="t-caption notice">! {t("tx.rx.clipped")}</p>}
+      {rx.overflows > 0 && <p className="t-caption muted">{t("tx.rx.overflows", { n: rx.overflows })}</p>}
+      {c.reason && <p className="t-caption muted">{t(`tx.rx.reason.${c.reason}`)}</p>}
+      {!found && !c.reason && <p className="t-caption muted">{t("tx.rx.missing.hint")}</p>}
+      <RxSpectrum rx={rx} />
+      <p className="t-caption muted">{t(c.kind === "tone" ? "tx.rx.how.tone" : "tx.rx.how.waveform")}</p>
+    </div>
+  );
+}
 
 /**
  * 실험용 송신. 시작할 때마다 경고창에서 책임과 환경을 확인해야 나간다(서버도 확인이 없는 요청을 거부한다).
@@ -43,7 +131,11 @@ export function TxScreen() {
   const [closed, setClosed] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState<{ seconds: number; stopped: boolean; underruns: number } | null>(null);
+  const [done, setDone] = useState<TxResult | null>(null);
+  const [rxOn, setRxOn] = useState(false);
+  const [rxPicked, setRxPicked] = useState("");
+  const [rxGain, setRxGain] = useState("");
+  const [rxSeconds, setRxSeconds] = useState("0.2");
   const sendingRef = useRef(false);
 
   useEffect(() => {
@@ -90,6 +182,9 @@ export function TxScreen() {
   };
 
   const gainDb = gain.trim() ? n(gain) : (status?.default_gain_db ?? 0);
+  // 받는 장비: 따로 고르지 않았으면 보내는 장비가 아닌 것을 먼저, 한 대뿐이면 같은 장비
+  const rxDevice = real.some((d) => d.id === rxPicked) ? rxPicked : (real.find((d) => d.id !== device)?.id ?? device);
+  const rxGainDb = rxGain.trim() ? n(rxGain) : (status?.receive?.default_gain_db ?? 20);
 
   const ask = () => {
     const req: TxRequest = {
@@ -99,7 +194,12 @@ export function TxScreen() {
       gain_db: gainDb,
       seconds: n(seconds),
       waveform: kind === "tone" ? { kind, offset_hz: n(offset) * 1e3, amplitude: n(amplitude) } : kind === "standard" ? { kind, standard } : { kind, path: path.trim() },
+      ...(rxOn ? { receive: { device: rxDevice, gain_db: rxGainDb, seconds: n(rxSeconds) } } : {}),
     };
+    if (rxOn && (!(n(rxSeconds) > 0) || !Number.isFinite(rxGainDb))) {
+      setError(t("tx.error.inputs"));
+      return;
+    }
     if (!device || !(req.center_hz > 0) || !(req.sample_rate_hz > 0) || !(req.seconds > 0) || !Number.isFinite(req.gain_db) || (kind === "file" && !path.trim())) {
       setError(t("tx.error.inputs"));
       return;
@@ -269,6 +369,38 @@ export function TxScreen() {
                 {(f) => <input {...f} className="input t-body" placeholder="/path/to/waveform.sigmf-meta" value={path} onChange={(e) => setPath(e.target.value)} disabled={sending} data-testid="tx-path" />}
               </Field>
             )}
+            <div className="rx-option" data-testid="tx-rx-option">
+              <label className="check t-body">
+                <input type="checkbox" checked={rxOn} onChange={(e) => setRxOn(e.target.checked)} disabled={sending} data-testid="tx-rx-on" />
+                {t("tx.rx.on")}
+              </label>
+              <p className="t-caption muted">{t("tx.rx.desc")}</p>
+              {rxOn && (
+                <>
+                  <div className="chips" role="group" aria-label={t("tx.rx.device")}>
+                    {real.map((d) => (
+                      <Chip key={d.id} selected={d.id === rxDevice} onSelect={() => setRxPicked(d.id)} disabled={sending}>
+                        {d.label}
+                        {d.id === device ? ` · ${t("tx.rx.same")}` : ""}
+                      </Chip>
+                    ))}
+                  </div>
+                  <p className="t-caption muted" data-testid="tx-rx-wiring">
+                    {t(rxDevice === device ? "tx.rx.wiring.same" : "tx.rx.wiring.two")}
+                  </p>
+                  <div className="row">
+                    <Field label={t("tx.rx.gain")}>
+                      {(f) => (
+                        <input {...f} inputMode="decimal" value={rxGain} placeholder={String(status.receive?.default_gain_db ?? 20)} onChange={(e) => setRxGain(e.target.value)} disabled={sending} data-testid="tx-rx-gain" />
+                      )}
+                    </Field>
+                    <Field label={t("tx.rx.seconds", { max: status.receive?.max_seconds ?? 1 })}>
+                      {(f) => <input {...f} inputMode="decimal" value={rxSeconds} onChange={(e) => setRxSeconds(e.target.value)} disabled={sending} data-testid="tx-rx-seconds" />}
+                    </Field>
+                  </div>
+                </>
+              )}
+            </div>
             <p className="t-caption muted">{t("tx.note")}</p>
             <div className="row">
               {sending ? (
@@ -293,6 +425,7 @@ export function TxScreen() {
                 {done.underruns > 0 ? ` ${t("tx.done.underruns", { n: done.underruns })}` : ""}
               </p>
             )}
+            {done?.received && <RxResult rx={done.received} />}
           </div>
         )}
       </Tile>
@@ -312,6 +445,7 @@ export function TxScreen() {
                   ["gain", `${asking.gain_db} dB`],
                   ["seconds", `${asking.seconds} s`],
                   ["waveform", asking.waveform.kind === "tone" ? t("tx.waveform.tone") : asking.waveform.kind === "standard" ? nameOf(asking.waveform.standard) : asking.waveform.path],
+                  ...(asking.receive ? ([["receive", `${label(asking.receive.device)} · ${asking.receive.gain_db} dB`]] as const) : []),
                 ] as const
               ).map(([k, v]) => (
                 <div key={k}>

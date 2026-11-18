@@ -1337,3 +1337,22 @@ details.fold > .fold-body {
 .notice {
   color: var(--color-warning);
 }
+
+/* ---------- 송신: 보내면서 받기 ---------- */
+.rx-option {
+  display: grid;
+  gap: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-hairline);
+  text-align: left;
+}
+.nearby-chart .trace {
+  fill: none;
+  stroke: var(--color-viz-accent);
+  stroke-width: 1.5;
+}
+.nearby-chart .mark {
+  stroke: var(--color-viz-cat-4);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
