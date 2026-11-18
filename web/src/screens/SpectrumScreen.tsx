@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DeviceInfo, MonitorState, SurveyDevice, SurveyPlan } from "../api";
+import type { DeviceInfo, MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
+import { ApTable, BandwidthWatch, countByWidth, dominant, type UsigSample } from "./WifiPanels";
 
 type Stat = "median_dbfs" | "mean_dbfs";
 const PAUSE_MS = 200;
+const DEVICE_POLL_MS = 5000;
+const USIG_KEEP_MS = 60_000;
+/** 처음 자리 잡은 폭을 정할 때 필요한 PPDU 수 */
+const USIG_REFERENCE_MIN = 10;
 
 const mhz = (hz: number) => (hz / 1e6).toFixed(hz % 1e6 === 0 ? 0 : 2);
 const num = (v: number | null | undefined, sign = false) => (v === undefined || v === null ? "—" : `${sign && v >= 0 ? "+" : ""}${(Math.round(v * 10) / 10 || 0).toFixed(1)}`);
@@ -190,22 +195,41 @@ export function SpectrumScreen() {
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const alive = useRef(false);
+  const [wifi, setWifi] = useState(false);
+  const [aps, setAps] = useState<WifiAp[] | null>(null);
+  const [finding, setFinding] = useState(false);
+  const [usigChannel, setUsigChannel] = useState("");
+  const [usig, setUsig] = useState<UsigSample[]>([]);
+  const [usigRef, setUsigRef] = useState<number | null>(null);
+  const usigOn = useRef({ channel: "", plan: "", gain: "" });
   const viewer = useRef<SpectrumViewHandle>(null);
 
+  // 장비 목록은 몇 초마다 다시 읽는다: USRP 는 찾는 데 몇 초 걸려 처음에는 빠져 있을 수 있고, 나중에 꽂을 수도 있다.
+  const monitoring = mon !== null;
   useEffect(() => {
-    void api.devices().then(
-      (list) => {
-        setDevices(list);
-        setDevice((cur) => cur || list[0]?.id || "");
-      },
-      () => setDevices([]),
-    );
+    if (monitoring) return;
+    const load = () =>
+      void api.devices().then(
+        (list) => {
+          setDevices((old) => (old && old.map((d) => d.id).join() === list.map((d) => d.id).join() ? old : list));
+          setDevice((cur) => cur || list[0]?.id || "");
+        },
+        () => setDevices((old) => old ?? []),
+      );
+    load();
+    const timer = setInterval(load, DEVICE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [api, monitoring]);
+
+  useEffect(() => {
+    void api.wifiStatus().then((w) => setWifi(w.available), () => setWifi(false));
   }, [api]);
 
   const choosePlan = useCallback((p: SurveyPlan | undefined) => {
     setPlan(p?.id ?? "");
     // 파일 대역은 전부, 나머지는 사용자가 채널 맵에서 고른다
     setPicked(p?.id === "capture" ? (p.map ?? []).map((c) => c.name) : []);
+    setAps(null);
   }, []);
 
   useEffect(() => {
@@ -231,6 +255,22 @@ export function SpectrumScreen() {
         const next = await api.monitorSweep(monId);
         if (!alive.current) return;
         setMon(next);
+        // 실제 송신 대역폭 보기가 켜져 있으면 한 바퀴마다 그 채널을 짧게 받아 PPDU 머리말을 읽는다
+        const u = usigOn.current;
+        if (u.channel) {
+          const res = await api.wifiUsig({ device: next.device, plan: u.plan, channel: u.channel, gain_db: u.gain.trim() ? Number(u.gain) : undefined });
+          if (!alive.current) return;
+          const at = Date.now();
+          setUsig((old) => {
+            const kept = [...old.filter((x) => at - x.at < USIG_KEEP_MS), { at, ppdus: res.ppdus }];
+            setUsigRef((ref) => {
+              if (ref !== null) return ref;
+              const rows = countByWidth(kept, at, USIG_KEEP_MS);
+              return rows.reduce((a, r) => a + r.count, 0) >= USIG_REFERENCE_MIN ? dominant(rows) : null;
+            });
+            return kept;
+          });
+        }
         timer = setTimeout(() => void tick(), PAUSE_MS);
       } catch (e) {
         if (!alive.current) return;
@@ -283,6 +323,32 @@ export function SpectrumScreen() {
   const back = () => {
     setRunning(false);
     setMon(null);
+    watchUsig("");
+  };
+
+  const watchUsig = (name: string) => {
+    usigOn.current = { channel: name, plan, gain };
+    setUsigChannel(name);
+    setUsig([]);
+    setUsigRef(null);
+  };
+
+  const findAps = async () => {
+    setFinding(true);
+    try {
+      setAps((await api.wifiAps({ device, plan, channels: picked, gain_db: gain.trim() ? Number(gain) : undefined })).aps);
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    } finally {
+      setFinding(false);
+    }
+  };
+
+  /** AP 가 쓰는 채널들(P20 이 속한 운용 폭 묶음)을 채널 맵에서 고른다. */
+  const pickAp = (ap: WifiAp) => {
+    const group = current?.groups?.[String(ap.width_mhz ?? 20)]?.find((g) => g.includes(ap.primary)) ?? [ap.primary];
+    const ok = new Set((current?.map ?? []).filter((c) => c.reachable).map((c) => c.name));
+    setPicked(group.filter((n) => ok.has(n)));
   };
 
   const patch = (body: { auto?: boolean; stat?: Stat; baseline?: "save" | "clear" }) => {
@@ -397,6 +463,9 @@ export function SpectrumScreen() {
               </div>
             </>
           )}
+          {wifi && real && mon.plan.startsWith("wifi-") && (
+            <BandwidthWatch channels={rows.map((r) => r.name)} channel={usigChannel} onChannel={watchUsig} samples={usig} reference={usigRef} now={Date.now()} />
+          )}
           <details className="fold">
             <summary className="t-body">{t("spectrum.how.title")}</summary>
             <div className="fold-body t-caption">
@@ -454,11 +523,18 @@ export function SpectrumScreen() {
                   {(p) => <input {...p} inputMode="decimal" value={gain} onChange={(e) => setGain(e.target.value)} />}
                 </Field>
               )}
-              <div>
-                <Button onClick={() => void begin()} disabled={starting || !canStart} data-testid="monitor-start">
+              <div className="row">
+                <Button onClick={() => void begin()} disabled={starting || finding || !canStart} data-testid="monitor-start">
                   {t("monitor.start")}
                 </Button>
+                {wifi && real && plan.startsWith("wifi-") && (
+                  <Button variant="secondary" onClick={() => void findAps()} disabled={finding || starting || picked.length === 0} data-testid="ap-find">
+                    {finding ? t("wifi.aps.busy", { n: picked.length }) : t("wifi.aps.find")}
+                  </Button>
+                )}
               </div>
+              {wifi && real && plan.startsWith("wifi-") && <p className="t-caption muted">{t("wifi.aps.hint")}</p>}
+              {aps && <ApTable aps={aps} onPick={pickAp} />}
             </div>
           </div>
         )}

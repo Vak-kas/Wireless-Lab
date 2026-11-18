@@ -210,6 +210,13 @@ export const mockApi: Api = {
     throw new Error("mock");
   },
   monitorStop: async () => undefined,
+  wifiStatus: async () => ({ available: false }),
+  wifiAps: async () => {
+    throw new Error("mock");
+  },
+  wifiUsig: async () => {
+    throw new Error("mock");
+  },
   surveySpectrum: async (req) => {
     const n = 256;
     const mean = Array.from({ length: n }, (_, i) => -80 + (i > 90 && i < 170 ? 28 : 0) + Math.random() * 2);

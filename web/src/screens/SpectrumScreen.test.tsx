@@ -161,3 +161,33 @@ test("모니터를 멈춘 뒤 표에서 들여다보기를 누르면 그 채널�
   await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 5180e6, bandwidth_hz: 20e6 })));
   expect(screen.getByTestId("view-center")).toHaveValue("5180");
 });
+
+test("주변 AP 찾기: 찾은 AP의 '이 대역 고르기'로 그 AP가 쓰는 채널이 골라진다", async () => {
+  const a = api();
+  a.wifiStatus = async () => ({ available: true });
+  a.wifiAps = vi.fn(async () => ({ aps: [{ ssid: "home", bssid: "AA:BB", seen_on: "ch36", primary: "ch44", width_mhz: 80, eht: true, count: 2, power_db: -31.25 }] }));
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(await screen.findByTestId("ap-find"));
+  expect(a.wifiAps).toHaveBeenCalledWith({ device: "driver=uhd", plan: "wifi-5g", channels: ["ch36"], gain_db: undefined });
+  const table = await screen.findByTestId("ap-table");
+  expect(within(table).getByText("home")).toBeInTheDocument();
+  expect(within(table).getByText("80 MHz")).toBeInTheDocument();
+  await userEvent.click(screen.getByTestId("ap-pick-AA:BB"));
+  for (const n of [36, 40, 44, 48]) expect(screen.getByTestId(`cell-ch${n}`)).toHaveAttribute("aria-pressed", "true");
+});
+
+test("실제 송신 대역폭: 처음 자리 잡은 폭보다 좁은 프레임이 주가 되면 경고한다", async () => {
+  const { BandwidthWatch, countByWidth, dominant } = await import("./WifiPanels");
+  const { render } = await import("@testing-library/react");
+  const p = (w: number, uplink = false) => ({ bandwidth_mhz: w, uplink, bss_color: 1, non_ofdma: true, punctured: 0, power_db: -30 });
+  const samples = [
+    { at: 1000, ppdus: [p(160), p(160)] }, // 오래된 것(10초 밖)
+    { at: 20_000, ppdus: [p(80), p(80), p(80), p(160), p(20, true)] },
+  ];
+  expect(countByWidth(samples, 21_000)).toEqual([{ width: 160, count: 1 }, { width: 80, count: 3 }]); // 올려 보내는 프레임은 세지 않는다
+  expect(dominant(countByWidth(samples, 21_000))).toBe(80);
+  render(<BandwidthWatch channels={["ch36"]} channel="ch36" onChannel={() => undefined} samples={samples} reference={160} now={21_000} />);
+  expect(screen.getByTestId("usig-narrowed")).toHaveTextContent("160 → 80 MHz");
+  expect(within(screen.getByTestId("usig-table")).getByText("75%")).toBeInTheDocument();
+});

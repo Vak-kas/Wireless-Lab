@@ -170,6 +170,22 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         monitors.remove(mid)
 
     try:
+        from . import usrp_matlab
+    except ImportError:
+        pass
+    else:
+        usrp_matlab.install()   # MATLAB 엔진이 있으면 USRP 를 장비 목록에 끼운다
+
+    try:
+        from . import wifi
+    except ImportError:
+        @app.get("/api/wifi")
+        def wifi_unavailable() -> dict[str, Any]:
+            return {"available": False}
+    else:
+        wifi.register(app, survey_lock)
+
+    try:
         from . import testbed_oai
     except ImportError:
         @app.get("/api/testbed/oai")

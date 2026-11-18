@@ -100,6 +100,28 @@ export interface SurveyPlan {
   groups?: Record<string, string[][]>;
 }
 
+export interface WifiAp {
+  ssid: string;
+  bssid: string;
+  /** 잡힌 채널 */
+  seen_on: string;
+  /** P20 채널 이름 (예: ch36) */
+  primary: string;
+  width_mhz: number | null;
+  eht: boolean;
+  count: number;
+  power_db: number;
+}
+
+export interface WifiPpdu {
+  bandwidth_mhz: number | null;
+  uplink: boolean;
+  bss_color: number | null;
+  non_ofdma: boolean;
+  punctured: number | null;
+  power_db: number;
+}
+
 export interface MonitorChannel {
   name: string;
   center_hz: number;
@@ -282,6 +304,9 @@ export interface Api {
   monitorSweep(id: string): Promise<MonitorState>;
   monitorPatch(id: string, body: { auto?: boolean; stat?: string; baseline?: "save" | "clear" }): Promise<MonitorState>;
   monitorStop(id: string): Promise<void>;
+  wifiStatus(): Promise<{ available: boolean }>;
+  wifiAps(req: { device: string; plan: string; channels: string[]; gain_db?: number }): Promise<{ aps: WifiAp[] }>;
+  wifiUsig(req: { device: string; plan: string; channel: string; gain_db?: number }): Promise<{ ppdus: WifiPpdu[]; downlink: number }>;
   surveySpectrum(req: { device: string; center_hz?: number; bandwidth_hz?: number; gain_db?: number }): Promise<SpectrumView>;
   oaiStatus(): Promise<OaiStatus>;
   oaiRecord(seconds: number): Promise<OaiRecording>;
