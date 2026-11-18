@@ -67,6 +67,10 @@ Windows에서는 `venv\Scripts\python`으로 바꿔 씁니다. 전체 검증은 
 - 서버는 `127.0.0.1`에서만 열립니다.
 - 실시간 장비 입력으로는 방송 정보(기지국의 SSB·MIB·SIB, Wi-Fi 비콘과 프레임 머리말, BLE 광고)까지만 처리합니다. 개별 기기끼리 주고받는 내용은 풀지 않습니다.
 
+## 지원 환경
+
+macOS 에서 개발하고 시험합니다. Windows 와 Linux 는 준비 중입니다.
+
 ## 라이선스
 
 Apache License 2.0 — [LICENSE](LICENSE) 참고. Pro 덧붙임은 이 라이선스에 포함되지 않습니다.

@@ -70,6 +70,10 @@ On Windows use `venv\Scripts\python` instead. Full verification: `venv/bin/pytho
 - The server listens on `127.0.0.1` only.
 - From live device input it processes broadcast information only (a base station's SSB, MIB and SIB; Wi-Fi beacons and frame preambles; BLE advertisements). It does not decode what individual devices exchange with each other.
 
+## Platforms
+
+Developed and tested on macOS. Windows and Linux support is in progress.
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE). The Pro overlay is not covered by this license.
