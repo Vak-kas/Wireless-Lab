@@ -30,6 +30,11 @@ class DeviceError(RuntimeError):
     """사용자에게 보여줄 수 있는 장비 오류."""
 
 
+# SoapySDR 말고 다른 방식으로 장비를 찾고 받는 쪽을 끼우는 자리(예: MATLAB 의 USRP 지원 패키지).
+# id 머리말 → 모듈. 모듈은 list_found() -> [{"id","label","driver","serial"}], capture(dev_id, req, out_meta) -> Capture 를 갖는다.
+BACKENDS: dict[str, Any] = {}
+
+
 @lru_cache(maxsize=1)
 def capabilities() -> list[dict[str, Any]]:
     data: dict[str, Any] = json.loads((DEVICES / "capabilities.json").read_text(encoding="utf-8"))
@@ -75,6 +80,13 @@ def list_devices() -> list[dict[str, Any]]:
             label = str(kw.get("label") or kw.get("product") or driver)
             args = ",".join(f"{k}={v}" for k, v in sorted(kw.items()) if k in ("driver", "serial", "uri", "addr"))
             out.append(_info(args, label, driver, capability_for(driver, label), str(kw.get("serial", ""))))
+    for backend in BACKENDS.values():
+        try:
+            found = backend.list_found()
+        except Exception:  # noqa: BLE001 — 장비 찾기가 실패해도 나머지 목록은 보여 준다
+            found = []
+        for f in found:
+            out.append(_info(f["id"], f["label"], f["driver"], capability_for(f["driver"], f["label"]), f.get("serial", "")))
     return out
 
 
@@ -116,6 +128,10 @@ def capture(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
     out_meta.parent.mkdir(parents=True, exist_ok=True)
     if dev_id.startswith(SIM_PREFIX):
         return _capture_simulated(dev_id, req, out_meta)
+    for prefix, backend in BACKENDS.items():
+        if dev_id.startswith(prefix):
+            cap: sigmf.Capture = backend.capture(dev_id, req, out_meta)
+            return cap
     return _capture_soapy(dev_id, req, out_meta)
 
 
@@ -183,7 +199,7 @@ def _capture_soapy(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Ca
 def probe(dev_id: str) -> dict[str, Any]:
     """장비가 직접 알려 주는 값(하드웨어 정보, 안테나, 이득·샘플레이트·주파수 범위, 클럭 원천). 수신 쪽만 묻는다.
     하나라도 못 읽으면 그 항목만 빠진다. 실제 장비로는 검증하지 못했다."""
-    if dev_id.startswith(SIM_PREFIX) or not soapy_available():
+    if dev_id.startswith(SIM_PREFIX) or any(dev_id.startswith(p) for p in BACKENDS) or not soapy_available():
         return {}
     soapy = importlib.import_module("SoapySDR")
     rx = soapy.SOAPY_SDR_RX  # 수신 방향만 쓴다

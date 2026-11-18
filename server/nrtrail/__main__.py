@@ -20,9 +20,9 @@ def build_engines(choice: str, mock_delay: float) -> dict[str, Engine]:
     engines: dict[str, Engine] = {"mock": MockEngine(delay_s=mock_delay)}
     if choice in ("auto", "matlab"):
         try:
-            from .engines.matlab import MatlabEngine
+            from .engines.matlab import shared as shared_matlab
 
-            matlab = MatlabEngine()
+            matlab = shared_matlab()
             if matlab.available():
                 engines["matlab"] = matlab
             elif choice == "matlab":
