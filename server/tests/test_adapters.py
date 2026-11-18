@@ -189,3 +189,92 @@ def test_abilities_are_asked_once_and_failures_do_not_hide_the_adapter(monkeypat
     assert adapters.abilities(good) == adapters.abilities(good) == [{"id": "monitor", "state": "yes"}]
     assert calls == ["ok0"]
     assert adapters.abilities(adapters._adapter("wifi:bad0", "wifi", "external", "Wi-Fi", interface="bad0")) == []
+
+
+# ---------- 모드 전환: 실제 명령은 실행하지 않는다(가짜 실행기) ----------
+def linux_rig(monkeypatch: pytest.MonkeyPatch, *, root: bool = False, pkexec: bool = True, monitor: str = "yes") -> list[list[str]]:
+    found = [adapters._adapter("wifi:wlan1", "wifi", "external", "Wi-Fi", interface="wlan1") | {"abilities": [{"id": "monitor", "state": monitor}]}]
+    monkeypatch.setattr(adapters, "list_adapters", lambda force=False: found)
+    monkeypatch.setattr(adapters.sys, "platform", "linux")
+    have = {"iw", "ip", "nmcli"} | ({"pkexec"} if pkexec else set())
+    monkeypatch.setattr(adapters.shutil, "which", lambda name: f"/usr/bin/{name}" if name in have else None)
+    monkeypatch.setattr(adapters.os, "geteuid", lambda: 0 if root else 1000, raising=False)
+    monkeypatch.setattr(adapters, "current_mode", lambda name: None)
+    return []
+
+
+def test_mode_switch_needs_confirmation_and_a_known_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran = linux_rig(monkeypatch)
+    run = lambda cmd, timeout=0: (ran.append(cmd), (0, ""))[1]   # noqa: E731
+    with pytest.raises(adapters.AdapterError, match="확인"):
+        adapters.set_mode("wifi:wlan1", "monitor", False, run)
+    with pytest.raises(adapters.AdapterError, match="모드"):
+        adapters.set_mode("wifi:wlan1", "ap", True, run)
+    with pytest.raises(adapters.AdapterError):
+        adapters.set_mode("bt:default", "monitor", True, run)
+    assert ran == []
+
+
+def test_mode_switch_runs_the_shown_commands_through_the_os_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran = linux_rig(monkeypatch)
+    run = lambda cmd, timeout=0: (ran.append(cmd), (0, ""))[1]   # noqa: E731
+    out = adapters.set_mode("wifi:wlan1", "monitor", True, run)
+    assert out == {"device": "wifi:wlan1", "mode": "monitor", "changed": True}
+    assert ran[0] == ["/usr/bin/nmcli", "device", "set", "wlan1", "managed", "no"]           # NetworkManager 가 되돌리지 않게 먼저
+    assert ran[1] == ["pkexec", "sh", "-c", adapters.SWITCH_SH, "sh", "wlan1", "monitor"]   # 이름과 모드는 인수로만 넘어간다
+    ran.clear()
+    adapters.set_mode("wifi:wlan1", "managed", True, run)
+    assert ran[0][:1] == ["pkexec"] and ran[0][-2:] == ["wlan1", "managed"]
+    assert ran[1] == ["/usr/bin/nmcli", "device", "set", "wlan1", "managed", "yes"]
+
+
+def test_mode_switch_as_root_skips_the_prompt_and_reports_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran = linux_rig(monkeypatch, root=True)
+    adapters.set_mode("wifi:wlan1", "monitor", True, lambda cmd, timeout=0: (ran.append(cmd), (0, ""))[1])
+    assert ran[1][0] == "sh"
+    with pytest.raises(adapters.AdapterError, match="Operation not supported"):
+        adapters.set_mode("wifi:wlan1", "monitor", True, lambda cmd, timeout=0: (1, "command failed: Operation not supported (-95)"))
+
+
+def test_mode_switch_without_a_prompt_only_shows_the_commands(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran = linux_rig(monkeypatch, pkexec=False)
+    with pytest.raises(adapters.AdapterError, match="sudo iw dev wlan1 set type monitor"):
+        adapters.set_mode("wifi:wlan1", "monitor", True, lambda cmd, timeout=0: (ran.append(cmd), (0, ""))[1])
+    assert ran == []
+    assert adapters.switch_commands("wlan1", "monitor")[0] == "nmcli device set wlan1 managed no"
+    assert adapters.switch_commands("wlan1", "managed")[-1] == "nmcli device set wlan1 managed yes"
+
+
+def test_mode_switch_cancelled_prompt_and_unsupported_cases(monkeypatch: pytest.MonkeyPatch) -> None:
+    linux_rig(monkeypatch)
+    with pytest.raises(adapters.AdapterError, match="인증이 취소"):
+        adapters.set_mode("wifi:wlan1", "monitor", True, lambda cmd, timeout=0: (126, "") if cmd[0] == "pkexec" else (0, ""))
+    linux_rig(monkeypatch, monitor="no")
+    with pytest.raises(adapters.AdapterError, match="지원하지 않습니다"):
+        adapters.set_mode("wifi:wlan1", "monitor", True, lambda cmd, timeout=0: (0, ""))
+    assert adapters.switch_support("yes") == {"how": "pkexec"}
+    monkeypatch.setattr(adapters.sys, "platform", "darwin")
+    assert adapters.switch_support("yes") == {"how": "no", "reason": "macos"}
+    with pytest.raises(adapters.AdapterError, match="macOS"):
+        adapters.set_mode("wifi:wlan1", "monitor", True, lambda cmd, timeout=0: (0, ""))
+
+
+def test_odd_interface_names_never_reach_a_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran = linux_rig(monkeypatch)
+    bad = [adapters._adapter("wifi:x", "wifi", "external", "Wi-Fi", interface="wlan1; rm -rf ~") | {"abilities": []}]
+    monkeypatch.setattr(adapters, "list_adapters", lambda force=False: bad)
+    with pytest.raises(adapters.AdapterError, match="이름"):
+        adapters.set_mode("wifi:x", "monitor", True, lambda cmd, timeout=0: (ran.append(cmd), (0, ""))[1])
+    assert ran == []
+
+
+def test_iw_dev_type_line() -> None:
+    assert adapters.parse_iw_dev("Interface wlan1\n\tifindex 4\n\ttype monitor\n\twiphy 1\n") == "monitor"
+    assert adapters.parse_iw_dev("") is None
+
+
+def test_mode_route_refuses_without_confirmation(fake: list[dict[str, Any]]) -> None:
+    app = FastAPI()
+    adapters.register(app)
+    r = TestClient(app).post("/api/adapters/wifi/mode", json={"device": "wifi:en0", "mode": "monitor"})
+    assert r.status_code == 400 and "확인" in r.json()["detail"]

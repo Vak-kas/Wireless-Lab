@@ -79,6 +79,7 @@ export const httpApi: Api = {
   monitorStop: (id) => call(`/monitor/${id}`, "DELETE"),
   adapters: () => call<{ adapters: Adapter[] }>("/adapters").then((r) => r.adapters),
   adapterWifiScan: (device) => call("/adapters/wifi/scan", "POST", { device }),
+  adapterSetMode: (device, mode, confirmed) => call("/adapters/wifi/mode", "POST", { device, mode, confirmed }),
   adapterBleScan: (device, seconds = 4) => call("/adapters/bluetooth/scan", "POST", { device, seconds }),
   deviceSearch: () => call("/devices/status"),
   deviceRescan: () => call("/devices/rescan", "POST", {}),

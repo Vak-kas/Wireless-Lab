@@ -124,6 +124,98 @@ export function AdapterCard({ adapter, action }: { adapter: Adapter; action?: Re
   );
 }
 
+/**
+ * Wi-Fi 어댑터의 모드(일반 ↔ 모니터)를 바꾸는 단추. 누르면 실행될 명령과 영향을 보여 주고 확인을 받는다.
+ * 바꿀 수 없는 운영체제에서는 이유만 한 줄로 알려 준다.
+ */
+export function ModeSwitch({ adapter, onChanged }: { adapter: Adapter; onChanged?: () => void }) {
+  const { api } = useStore();
+  const [asking, setAsking] = useState(false);
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [mode, setMode] = useState(adapter.mode ?? null);
+  useEffect(() => setMode(adapter.mode ?? null), [adapter.mode]);
+  const sw = adapter.mode_switch;
+  if (adapter.kind !== "wifi" || !sw) return null;
+  if (sw.how === "no") {
+    return sw.reason === "macos" || sw.reason === "unsupported" ? (
+      <p className="t-caption muted" data-testid={`mode-note-${adapter.id}`}>
+        {t(`hub.mode.no.${sw.reason}`)}
+      </p>
+    ) : null;
+  }
+  const target = mode === "monitor" ? "managed" : "monitor";
+  const commands = (target === "monitor" ? sw.to_monitor : sw.to_managed) ?? [];
+  const go = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api.adapterSetMode(adapter.id, target, true);
+      setMode(r.mode);
+      setAsking(false);
+      onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mode-switch" data-testid={`mode-switch-${adapter.id}`}>
+      <div className="row">
+        <span className="t-caption" data-testid="mode-now">
+          <span className="muted">{t("hub.mode.now")}</span> {mode ? t(`hub.mode.${mode === "monitor" || mode === "managed" ? mode : "other"}`, { mode }) : t("hub.mode.unknown")}
+        </span>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setAgree(false);
+            setError("");
+            setAsking(true);
+          }}
+          data-testid="mode-ask"
+        >
+          {t(target === "monitor" ? "hub.mode.to_monitor" : "hub.mode.to_managed")}
+        </Button>
+      </div>
+      {asking && (
+        <div className="overlay" data-testid="mode-dialog">
+          <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="mode-title">
+            <h2 id="mode-title" className="t-display-md">
+              {t(target === "monitor" ? "hub.mode.ask.monitor" : "hub.mode.ask.managed")}
+            </h2>
+            <p className="t-body">{t(target === "monitor" ? "hub.mode.effect.monitor" : "hub.mode.effect.managed", { name: String(adapter.detail.interface ?? adapter.label) })}</p>
+            <p className="t-caption muted">{t(`hub.mode.how.${sw.how}`)}</p>
+            <pre className="commands t-caption" data-testid="mode-commands">
+              {commands.join("\n")}
+            </pre>
+            <label className="check t-caption">
+              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} data-testid="mode-agree" />
+              {t("hub.mode.agree")}
+            </label>
+            {error && (
+              <p className="t-caption notice" role="alert" data-testid="mode-error">
+                ! {error}
+              </p>
+            )}
+            <div className="dialog-actions">
+              <Button variant="secondary" onClick={() => setAsking(false)} data-testid="mode-cancel" autoFocus>
+                {t("tx.warn.cancel")}
+              </Button>
+              {sw.how !== "manual" && (
+                <Button onClick={() => void go()} disabled={!agree || busy} data-testid="mode-confirm">
+                  {t("hub.mode.confirm")}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const mhz = (hz?: number) => (hz === undefined ? "" : (hz / 1e6).toFixed(0));
 
 /** 장비 한 대를 나타내는 그림(특정 제품이 아닌 일반적인 SDR 모양). */

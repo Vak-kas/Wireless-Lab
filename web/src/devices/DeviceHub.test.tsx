@@ -184,3 +184,62 @@ test("모니터 모드를 지원하지 않는 어댑터에는 그 안내가 나�
   expect(screen.getByTestId("ability-monitor")).toHaveTextContent("모니터 모드 안 됨");
   expect(screen.queryByText(/아직 없습니다/)).toBeNull();
 });
+
+const linuxWifi = {
+  id: "wifi:wlan1",
+  kind: "wifi" as const,
+  attach: "external" as const,
+  label: "Wi-Fi",
+  detail: { interface: "wlan1" },
+  mode: "managed",
+  mode_switch: { how: "pkexec" as const, to_monitor: ["nmcli device set wlan1 managed no", "sudo iw dev wlan1 set type monitor"], to_managed: ["sudo iw dev wlan1 set type managed"] },
+};
+
+test("모드 전환: 실행될 명령과 영향을 보여 주고, 확인을 표시해야 바뀐다. 바뀐 뒤에는 되돌리기 단추가 된다", async () => {
+  const { ModeSwitch } = await import("./DeviceHub");
+  const api = fakeApi();
+  api.adapterSetMode = vi.fn(async (_d: string, mode: string) => ({ device: "wifi:wlan1", mode, changed: true }));
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  renderWithStore(<ModeSwitch adapter={linuxWifi} />, api);
+  expect(screen.getByTestId("mode-now")).toHaveTextContent("지금 모드 일반 (연결용)");
+  await user.click(screen.getByTestId("mode-ask"));
+  const dialog = screen.getByRole("alertdialog", { name: "모니터 모드로 바꿀까요?" });
+  expect(within(dialog).getByTestId("mode-commands")).toHaveTextContent("sudo iw dev wlan1 set type monitor");
+  expect(within(dialog).getByText(/이 도구는 암호를 받지 않습니다/)).toBeInTheDocument();
+  expect(within(dialog).getByText(/인터넷을 쓰고 있었다면 끊깁니다/)).toBeInTheDocument();
+  expect(screen.getByTestId("mode-confirm")).toBeDisabled();
+  expect(api.adapterSetMode).not.toHaveBeenCalled();
+  await user.click(screen.getByTestId("mode-agree"));
+  await user.click(screen.getByTestId("mode-confirm"));
+  await waitFor(() => expect(api.adapterSetMode).toHaveBeenCalledWith("wifi:wlan1", "monitor", true));
+  await waitFor(() => expect(screen.getByTestId("mode-now")).toHaveTextContent("지금 모드 모니터"));
+  expect(screen.queryByTestId("mode-dialog")).toBeNull();
+  expect(screen.getByTestId("mode-ask")).toHaveTextContent("일반 모드로 되돌리기");
+});
+
+test("모드 전환: 실패하면 창 안에 이유가 나오고, 인증 창을 못 쓰는 경우에는 명령만 보여 준다", async () => {
+  const { ModeSwitch } = await import("./DeviceHub");
+  const api = fakeApi();
+  api.adapterSetMode = vi.fn(async () => {
+    throw new Error("인증이 취소됐습니다.");
+  });
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  const view = renderWithStore(<ModeSwitch adapter={linuxWifi} />, api);
+  await user.click(screen.getByTestId("mode-ask"));
+  await user.click(screen.getByTestId("mode-agree"));
+  await user.click(screen.getByTestId("mode-confirm"));
+  expect(await screen.findByTestId("mode-error")).toHaveTextContent("인증이 취소됐습니다.");
+  expect(screen.getByTestId("mode-now")).toHaveTextContent("일반 (연결용)");
+  view.unmount();
+  renderWithStore(<ModeSwitch adapter={{ ...linuxWifi, mode_switch: { ...linuxWifi.mode_switch, how: "manual" } }} />, api);
+  await user.click(screen.getByTestId("mode-ask"));
+  expect(screen.getByText(/터미널에서 아래 명령을 직접 실행하세요/)).toBeInTheDocument();
+  expect(screen.queryByTestId("mode-confirm")).toBeNull();
+});
+
+test("모드 전환: macOS 에서는 단추 대신 이유를 알려 준다", async () => {
+  const { ModeSwitch } = await import("./DeviceHub");
+  renderWithStore(<ModeSwitch adapter={{ ...linuxWifi, id: "wifi:en0", mode: null, mode_switch: { how: "no", reason: "macos" } }} />);
+  expect(screen.getByTestId("mode-note-wifi:en0")).toHaveTextContent("받는 동안에만 모니터 모드가 켜지는 방식");
+  expect(screen.queryByTestId("mode-ask")).toBeNull();
+});

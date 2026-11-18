@@ -6,6 +6,9 @@
   받을 수 있는 대역·폭·규격, 모니터 모드를 지원하는지(libpcap 의 pcap_can_set_rfmon, Linux 는 iw), 지금 권한으로 프레임을 잡을 수 있는지.
 - macOS: Wi-Fi 는 CoreWLAN(pyobjc), 블루투스는 bleak. 망 이름·주소는 위치 권한을 준 프로그램에만 보인다.
   Windows: netsh / Linux: nmcli 로 읽는다.
+- **모드 전환**(일반 ↔ 모니터)은 사람이 화면에서 누르고 확인했을 때만 한다(set_mode). Linux 에서만 된다: `ip link` 와 `iw` 로 바꾸고,
+  관리자 권한이 필요하면 운영체제의 인증 창(pkexec)에 맡긴다 — 이 도구는 암호를 받지도 보지도 않는다. 인증 창을 쓸 수 없으면
+  직접 실행할 명령을 알려 준다. macOS 는 캡처하는 동안에만 모니터 모드가 켜지는 방식이라 미리 바꿔 둘 수 없고, Windows 는 지원하지 않는다.
 - 블루투스 찾기는 따로 띄운 프로세스(ble_host)에서 한다. macOS 는 블루투스 권한이 없는 프로그램을 그 자리에서 끝내 버리기 때문에
   서버 안에서 직접 부르면 서버가 같이 죽는다.
 """
@@ -340,6 +343,93 @@ def abilities(adapter: dict[str, Any]) -> list[dict[str, str]]:
     return _abilities[key]
 
 
+# ---------- 모드 전환 (Linux) ----------
+MODES = ("managed", "monitor")
+IFNAME = re.compile(r"[A-Za-z0-9_.-]{1,15}")
+# $1 = 인터페이스, $2 = 모드. 이름은 IFNAME 으로 검사한 것만 인수로 넘긴다(명령 문자열에 끼워 넣지 않는다).
+SWITCH_SH = 'ip link set "$1" down && iw dev "$1" set type "$2" && ip link set "$1" up'
+
+
+def _exec(cmd: list[str], timeout: float = 60.0) -> tuple[int, str]:
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return 1, str(e)
+    return p.returncode, (p.stdout + p.stderr).strip()
+
+
+def parse_iw_dev(text: str) -> str | None:
+    """`iw dev <if> info` 의 "type" 줄: managed / monitor / 그 밖의 값은 그대로."""
+    m = re.search(r"^\s*type\s+(\S+)", text, re.M)
+    return m.group(1) if m else None
+
+
+def current_mode(name: str) -> str | None:
+    if not sys.platform.startswith("linux") or not shutil.which("iw") or not IFNAME.fullmatch(name):
+        return None
+    return parse_iw_dev(_run(["iw", "dev", name, "info"]))
+
+
+def switch_support(monitor: str) -> dict[str, str]:
+    """이 컴퓨터에서 모드를 바꿀 수 있는가. how: direct(권한 있음) / pkexec(운영체제가 암호를 물음) / manual(명령을 직접 실행) / no."""
+    if sys.platform == "darwin":
+        return {"how": "no", "reason": "macos"}
+    if not sys.platform.startswith("linux"):
+        return {"how": "no", "reason": "os"}
+    if monitor == "no":
+        return {"how": "no", "reason": "unsupported"}
+    if not shutil.which("iw") or not shutil.which("ip"):
+        return {"how": "no", "reason": "tools"}
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        return {"how": "direct"}
+    return {"how": "pkexec"} if shutil.which("pkexec") else {"how": "manual"}
+
+
+def switch_commands(name: str, mode: str) -> list[str]:
+    """사람이 직접 실행할 때의 명령(화면에 그대로 보여 준다)."""
+    lines = [f"sudo ip link set {name} down", f"sudo iw dev {name} set type {mode}", f"sudo ip link set {name} up"]
+    if shutil.which("nmcli"):
+        nm = f"nmcli device set {name} managed {'no' if mode == 'monitor' else 'yes'}"
+        lines = [nm, *lines] if mode == "monitor" else [*lines, nm]
+    return lines
+
+
+def set_mode(dev_id: str, mode: str, confirmed: bool, run: Any = _exec) -> dict[str, Any]:
+    """Wi-Fi 어댑터를 일반(managed) ↔ 모니터(monitor) 모드로 바꾼다. 확인 표시가 없으면 거부한다."""
+    if not confirmed:
+        raise AdapterError("모드를 바꾸기 전에 확인이 필요합니다.")
+    if mode not in MODES:
+        raise AdapterError("바꿀 수 있는 모드는 managed(일반)와 monitor(모니터)입니다.")
+    adapter = _find(dev_id, "wifi")
+    name = str(adapter["detail"].get("interface", ""))
+    if not IFNAME.fullmatch(name):
+        raise AdapterError("어댑터 이름을 알 수 없습니다.")
+    monitor = next((a.get("state", "unknown") for a in adapter.get("abilities", []) if a["id"] == "monitor"), "unknown")
+    how = switch_support(monitor)
+    if how["how"] == "no":
+        raise AdapterError({"macos": "macOS 는 받는 동안에만 모니터 모드가 켜지는 방식이라 미리 바꿔 둘 수 없습니다.",
+                            "os": "이 운영체제에서는 모드 전환을 지원하지 않습니다.",
+                            "unsupported": "이 어댑터는 모니터 모드를 지원하지 않습니다.",
+                            "tools": "모드를 바꾸려면 iw 와 ip 명령이 필요합니다."}[how["reason"]])
+    commands = switch_commands(name, mode)
+    if how["how"] == "manual":
+        raise AdapterError("관리자 권한이 필요합니다. 터미널에서 직접 실행하세요: " + " ; ".join(commands))
+    nm = shutil.which("nmcli")
+    if nm and mode == "monitor":
+        run([nm, "device", "set", name, "managed", "no"], 20)          # NetworkManager 가 다시 일반 모드로 돌려놓지 않게(실패해도 계속한다)
+    core = ["sh", "-c", SWITCH_SH, "sh", name, mode]
+    code, text = run(core if how["how"] == "direct" else ["pkexec", *core], 120)
+    if code != 0:
+        if how["how"] == "pkexec" and code in (126, 127):               # 126: 인증 창을 닫음, 127: 인증 실패·인증 창을 띄울 수 없음
+            raise AdapterError("인증이 취소됐거나 인증 창을 띄울 수 없습니다. 터미널에서 직접 실행할 수도 있습니다: " + " ; ".join(commands))
+        raise AdapterError("모드를 바꾸지 못했습니다: " + text[-300:])
+    if nm and mode == "managed":
+        run([nm, "device", "set", name, "managed", "yes"], 20)
+    now = current_mode(name)
+    list_adapters(force=True)
+    return {"device": dev_id, "mode": now or mode, "changed": now in (None, mode)}
+
+
 # ---------- 공통 ----------
 _cache: tuple[float, list[dict[str, Any]]] | None = None
 _cache_lock = threading.Lock()
@@ -356,6 +446,14 @@ def list_adapters(force: bool = False) -> list[dict[str, Any]]:
         except Exception:  # noqa: BLE001 — 운영체제마다 실패 모양이 달라, 목록만 비운다
             found = []
         found = [a | {"abilities": abilities(a)} for a in found]
+        for a in found:
+            if a["kind"] == "wifi":
+                name = str(a["detail"].get("interface", ""))
+                monitor = next((x.get("state", "unknown") for x in a["abilities"] if x["id"] == "monitor"), "unknown")
+                a["mode"] = current_mode(name)
+                a["mode_switch"] = switch_support(monitor)
+                if a["mode_switch"]["how"] != "no":
+                    a["mode_switch"] = a["mode_switch"] | {"to_monitor": switch_commands(name, "monitor"), "to_managed": switch_commands(name, "managed")}
         _cache = (time.monotonic(), found)
         return found
 
@@ -417,6 +515,12 @@ class WifiScanBody(BaseModel):
     device: str
 
 
+class ModeBody(BaseModel):
+    device: str
+    mode: str
+    confirmed: bool = False
+
+
 class BleScanBody(BaseModel):
     device: str
     seconds: float = Field(default=4.0)
@@ -435,6 +539,14 @@ def register(app: FastAPI) -> None:
         async with lock:
             try:
                 return await asyncio.to_thread(wifi_scan, body.device)
+            except AdapterError as e:
+                raise HTTPException(400, str(e)) from e
+
+    @app.post("/api/adapters/wifi/mode")
+    async def adapters_mode(body: ModeBody) -> dict[str, Any]:
+        async with lock:
+            try:
+                return await asyncio.to_thread(set_mode, body.device, body.mode, body.confirmed)
             except AdapterError as e:
                 raise HTTPException(400, str(e)) from e
 

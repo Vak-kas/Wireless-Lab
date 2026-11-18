@@ -113,6 +113,13 @@ export interface Adapter {
    * state: yes / no / admin(관리자 권한이 있어야 됨) / unknown(운영체제가 알려 주지 않음)
    */
   abilities?: { id: string; state?: "yes" | "no" | "admin" | "unknown"; value?: string }[];
+  /** 지금 모드 (Linux 에서만 안다): managed = 일반(연결용), monitor = 모니터 */
+  mode?: string | null;
+  /**
+   * 모드를 바꿀 수 있는가. how: direct(바로 됨) / pkexec(운영체제가 암호를 물음) / manual(명령을 직접 실행) / no(reason 참고)
+   * to_monitor / to_managed: 그때 실행되는 명령
+   */
+  mode_switch?: { how: "direct" | "pkexec" | "manual" | "no"; reason?: string; to_monitor?: string[]; to_managed?: string[] };
 }
 
 export interface NearbyNetwork {
@@ -472,6 +479,8 @@ export interface Api {
   adapterWifiScan(device: string): Promise<WifiNearby>;
   /** 어댑터로 주변 BLE 광고를 듣는다 (연결하지 않는다) */
   adapterBleScan(device: string, seconds?: number): Promise<BleNearby>;
+  /** Wi-Fi 어댑터의 모드를 바꾼다. confirmed 가 없으면 서버가 거부한다 */
+  adapterSetMode(device: string, mode: "managed" | "monitor", confirmed: boolean): Promise<{ device: string; mode: string; changed: boolean }>;
   deviceSearch(): Promise<DeviceSearch>;
   deviceRescan(): Promise<DeviceSearch>;
   /** 장비 연결을 처음부터 다시 (MATLAB 을 닫았다가 새로 띄워 찾는다) */

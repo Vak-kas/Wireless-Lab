@@ -1376,3 +1376,19 @@ details.fold > .fold-body {
 .abilities li[data-state="admin"] {
   color: var(--color-warning);
 }
+
+/* ---------- 어댑터 모드 전환 ---------- */
+.mode-switch {
+  margin-top: var(--space-xs);
+}
+.commands {
+  margin: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas-parchment);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  text-align: left;
+  white-space: pre-wrap;
+}

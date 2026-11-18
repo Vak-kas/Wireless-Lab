@@ -5,7 +5,7 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
-import { AdapterCard, DeviceCard, SearchNote, useUsableDevices } from "../devices/DeviceHub";
+import { AdapterCard, DeviceCard, ModeSwitch, SearchNote, useUsableDevices } from "../devices/DeviceHub";
 import { saveIntent, saveNearby, saveTxDevice, type SpectrumIntent } from "../devices/intent";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
@@ -196,7 +196,7 @@ export function StartScreen() {
             <p className="t-caption muted">{t("home.adapters.lead")}</p>
             {hub.adapters.map((a) => (
               <div className="card home-device" key={a.id} data-testid={`home-adapter-${a.id}`}>
-                <AdapterCard adapter={a} />
+                <AdapterCard adapter={a} action={<ModeSwitch adapter={a} />} />
                 <h3 className="t-tagline">{t("home.tasks")}</h3>
                 <div className="tasks">
                   <Task

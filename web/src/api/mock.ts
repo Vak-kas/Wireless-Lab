@@ -214,6 +214,9 @@ export const mockApi: Api = {
   adapterWifiScan: async () => {
     throw new Error("mock");
   },
+  adapterSetMode: async () => {
+    throw new Error("mock");
+  },
   adapterBleScan: async () => {
     throw new Error("mock");
   },
