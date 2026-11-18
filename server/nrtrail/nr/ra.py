@@ -1,13 +1,13 @@
 """랜덤 액세스 관측(SPEC 11절)용 계산: RA-RNTI, RAR(Msg2) 풀이, TA → 거리, Msg4의 경쟁 해소.
 
 테스트베드 전용이다. 입력이 synthetic 이거나 testbed로 표시된 file일 때만 쓴다(runner.check_allowed).
-근거 (TS 38.321 원문은 specs/에 없다 → 원문 미대조. TS 38.213은 대조함)
+근거
 - RA-RNTI = 1 + s_id + 14*t_id + 14*80*f_id + 14*80*8*ul_carrier_id — TS 38.321 5.1.3
 - MAC RAR(7바이트): R(1) | TA 명령(12) | UL 그랜트(27) | TC-RNTI(16) — TS 38.321 6.2.3
 - RAR 부헤더: E|T|R|R|BI(4) 또는 E|T|RAPID(6) — TS 38.321 6.1.5
-- UL 그랜트 27비트의 필드 — TS 38.213 표 8.2-1 (원문 대조함)
-- N_TA = T_A * 16 * 64 / 2^mu — TS 38.213 4.2 (원문 대조함)
-- DCI 1_0 (RA-RNTI): 주파수 할당 | 시간 4 | VRB-PRB 1 | MCS 5 | TB scaling 2 | 예약 16 — TS 38.212 7.3.1.2.1 (원문 대조함)
+- UL 그랜트 27비트의 필드 — TS 38.213 표 8.2-1
+- N_TA = T_A * 16 * 64 / 2^mu — TS 38.213 4.2
+- DCI 1_0 (RA-RNTI): 주파수 할당 | 시간 4 | VRB-PRB 1 | MCS 5 | TB scaling 2 | 예약 16 — TS 38.212 7.3.1.2.1
 - 경쟁 해소 MAC CE: LCID 62, UE 경쟁 해소 식별자 48비트 — TS 38.321 6.1.3.3, 표 6.2.1-1
 """
 
@@ -173,7 +173,7 @@ def parse_msg4_pdu(data: bytes) -> dict[str, Any]:
     return {"contention_id": contention_id, "ccch_sdu": ccch_sdu, "other_lcids": other}
 
 
-# TC-RNTI(또는 C-RNTI)로 가려진 DCI 1_0의 필드. TS 38.212 7.3.1.2.1 (원문 대조함). 길이는 SI-RNTI·RA-RNTI 형식과 같다.
+# TC-RNTI(또는 C-RNTI)로 가려진 DCI 1_0의 필드. TS 38.212 7.3.1.2.1. 길이는 SI-RNTI·RA-RNTI 형식과 같다.
 def _tc_layout(n_rb: int) -> list[tuple[str, int]]:
     from .pdsch import dci_riv_bits
 

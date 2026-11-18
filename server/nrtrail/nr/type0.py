@@ -1,6 +1,6 @@
 """CORESET0와 Type0-PDCCH 감시 시점 (SIB1을 어디서 찾는가).
 
-근거(원문 대조함): TS 38.213 13절. 표는 tools/extract_38213.py 가 원문에서 뽑은 pipeline/tables/ts38213_13.json 을 쓴다.
+근거: TS 38.213 13절. 표는 tools/extract_38213.py 가 원문에서 뽑은 pipeline/tables/ts38213_13.json 을 쓴다.
 FR1, 다중화 패턴 1만 다룬다(FR2와 패턴 2·3은 범위 밖).
 """
 

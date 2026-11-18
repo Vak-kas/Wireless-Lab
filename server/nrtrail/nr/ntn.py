@@ -1,9 +1,9 @@
 """NTN 계산: 위성 궤도 전파, 단말-위성 기하, 지연·TA·도플러.
 
 근거
-- 공통 지연 다항식: TS 38.213 4.2 (원문 대조함, specs/38213-j50)
+- 공통 지연 다항식: TS 38.213 4.2
     Delay_common(t) = TA_Common/2 + TA_CommonDrift/2*(t - t_epoch) + TA_CommonDriftVariant/2*(t - t_epoch)^2
-- 전체 TA: T_TA = (N_TA + N_TA,offset + N_TA,adj^common + N_TA,adj^UE) * Tc — TS 38.211 4.3.1 (원문 대조함, specs/38211-j50)
+- 전체 TA: T_TA = (N_TA + N_TA,offset + N_TA,adj^common + N_TA,adj^UE) * Tc — TS 38.211 4.3.1
 - Tc = 1/(480000*4096) s — TS 38.211 4.1
 - 좌표와 상수: WGS-84, 지구 중력 상수와 자전 각속도는 IERS/WGS-84 값.
 궤도 전파는 짧은 구간(수십 초)용 이체 문제 수치 적분(RK4)이다. J2 등 섭동은 넣지 않는다.

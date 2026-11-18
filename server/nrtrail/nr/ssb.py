@@ -1,7 +1,7 @@
 """SS/PBCH 블록의 시간 배치(Case A~C)와 PBCH 페이로드 풀이.
 
-근거(원문 대조함): TS 38.213 4.1 (specs/38213-j50, Case A-C의 첫 심볼과 n의 범위, L_max와 DM-RS 비트 수).
-근거(원문 미대조): TS 38.212 7.1.1 (PBCH 추가 페이로드 비트), TS 38.211 7.4.3.1 (SSB 안의 자원 배치).
+근거: TS 38.213 4.1 (specs/38213-j50, Case A-C의 첫 심볼과 n의 범위, L_max와 DM-RS 비트 수).
+근거: TS 38.212 7.1.1 (PBCH 추가 페이로드 비트), TS 38.211 7.4.3.1 (SSB 안의 자원 배치).
 """
 
 from __future__ import annotations

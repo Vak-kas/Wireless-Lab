@@ -307,7 +307,7 @@
   "spectrum.fact.rep_rate": "샘플레이트 범위 (장비 보고)",
   "spectrum.fact.rep_freq": "주파수 범위 (장비 보고)",
   "spectrum.fact.clock_sources": "클럭 원천",
-  "spectrum.fact.source": "\"장비 보고\"가 붙지 않은 값은 능력표에 적어 둔 값이며 제조사 문서와 대조하지 못했습니다.",
+  "spectrum.fact.source": "\"장비 보고\"가 붙지 않은 값은 능력표에 적어 둔 값이라 실제 장비와 조금 다를 수 있습니다.",
   "start.device.spectrum": "주파수 상태 보기",
   "view.eyebrow": "특정 주파수 들여다보기",
   "view.title": "가운데 주파수와 대역폭을 정해서 보기",
@@ -397,7 +397,7 @@
   "hub.connect.start": "이 장비로 시작",
   "hub.connect.start_many": "장비 {n}대로 시작",
   "hub.connect.skip": "장비 없이 시작하기",
-  "hub.connect.skip_note": "장비 없이 시작하면 연습 모드, 저장 파일, 모의 실험만 쓸 수 있습니다. 나중에 장비를 꽂으면 알려 드립니다.",
+  "hub.connect.skip_note": "장비 없이 시작하면 연습 모드, 저장 파일, 모의 실험과 이 컴퓨터의 Wi-Fi·블루투스(주변 보기)를 쓸 수 있습니다. 나중에 장비를 꽂으면 알려 드립니다.",
   "hub.connected": "연결됨",
   "hub.serial": "일련번호",
   "hub.range": "주파수",
@@ -408,9 +408,9 @@
   "hub.mine.button": "내 장비",
   "hub.mine.title": "내 장비",
   "hub.mine.empty": "연결된 장비가 없습니다.",
-  "hub.mine.none_mode": "지금은 장비 없이 쓰는 중입니다.",
+  "hub.mine.none_mode": "지금은 꽂는 장비(SDR) 없이 쓰는 중입니다. 이 컴퓨터의 장비는 그대로 쓸 수 있습니다.",
   "hub.mine.reconnect": "장비 연결 창 열기",
-  "hub.none_mode": "장비 없이 시작했습니다. 실제 장비가 필요한 기능은 감춰 두었습니다.",
+  "hub.none_mode": "꽂는 장비(SDR) 없이 시작했습니다. SDR 이 필요한 기능은 감춰 두었고, 이 컴퓨터의 Wi-Fi·블루투스는 아래에서 쓸 수 있습니다.",
   "home.title": "무엇을 해 볼까요",
   "home.lead": "연결된 장비를 고르고, 그 장비로 할 일을 누르세요.",
   "home.tasks": "이 장비로 할 일",
@@ -573,5 +573,7 @@
   "nearby.col.rssi": "세기 (dBm)",
   "nearby.col.company": "제조사",
   "nearby.col.count": "들린 횟수",
-  "nearby.limits": "어댑터로는 스펙트럼 그림, 프레임 내용 풀이, 송신을 할 수 없습니다. 그런 일은 SDR 장비가 필요합니다."
+  "nearby.limits": "어댑터로는 스펙트럼 그림, 프레임 내용 풀이, 송신을 할 수 없습니다. 그런 일은 SDR 장비가 필요합니다.",
+  "hub.sdr.title": "꽂는 장비 (SDR)",
+  "hub.adapters.always": "아래 장비는 이 컴퓨터에 이미 있어서, 장비 없이 시작해도 쓸 수 있습니다."
 }

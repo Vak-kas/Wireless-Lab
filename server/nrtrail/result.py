@@ -1,6 +1,6 @@
 """StageResult 조립 도우미. 이름표·문구는 StageDef(pipeline/stages.json)에서 가져온다.
 
-규칙(CLAUDE.md): 화면에 보이는 모든 유도 값(kind="derived")에는 Derivation이 있어야 하고,
+규칙: 화면에 보이는 모든 유도 값(kind="derived")에는 Derivation이 있어야 하고,
 비트에서 바로 읽은 값(kind="decoded")에는 어느 비트에서 나왔는지(source)가 있어야 한다.
 build()가 이를 검사해 어기면 예외를 던진다.
 """

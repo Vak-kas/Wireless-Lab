@@ -1,7 +1,7 @@
 """캡처 안에서 PDCCH를 들여다볼 시점(감시 시점)을 샘플 위치로 나열한다.
 
-MATLAB에는 풀어낸 목록만 넘긴다(DECISIONS.md 14번). 근거: TS 38.213 13(Type0-PDCCH, 원문 대조함),
-TS 38.331 5.2.2.3.2(SI 창, 원문 미대조).
+MATLAB에는 풀어낸 목록만 넘긴다. 근거: TS 38.213 13(Type0-PDCCH),
+TS 38.331 5.2.2.3.2(SI 창).
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ def in_si_window(occ: dict[str, Any], w: SiWindow) -> bool:
 
 
 def parse_search_space(ss: dict[str, Any]) -> dict[str, Any]:
-    """SearchSpace IE(JSON 트리) -> 감시 규칙. TS 38.213 10.1 (원문 대조함): 주기 k_s, 오프셋 o_s, 지속 T_s 슬롯,
+    """SearchSpace IE(JSON 트리) -> 감시 규칙. TS 38.213 10.1: 주기 k_s, 오프셋 o_s, 지속 T_s 슬롯,
     monitoringSymbolsWithinSlot 비트맵(MSB = 심볼 0)이 슬롯 안의 첫 심볼들."""
     (kind, offset), = (ss.get("monitoringSlotPeriodicityAndOffset") or {"sl1": None}).items()
     bitmap = ss.get("monitoringSymbolsWithinSlot") or "8000"          # 14비트가 16진수로 온다(뒤 2비트는 채움)

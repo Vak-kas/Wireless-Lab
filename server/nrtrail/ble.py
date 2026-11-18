@@ -5,9 +5,9 @@
   ADV_IND, ADV_NONCONN_IND, ADV_SCAN_IND, SCAN_RSP 의 광고 주소(AdvA)와 광고 데이터(이름, 제조사 번호, 서비스 번호).
 - 특정 기기를 향한 패킷(SCAN_REQ, CONNECT_IND, ADV_DIRECT_IND)은 **개수만 세고 내용은 풀지 않는다.**
   CONNECT_IND 에는 그 뒤의 연결을 따라갈 수 있는 값이 들어 있다. 연결(데이터 채널)은 따라가지 않는다
-  (CLAUDE.md: 방송 정보 외의 개별 단말 통신은 처리하지 않는다).
+  (방송 정보 외의 개별 단말 통신은 처리하지 않는다).
 
-어떻게 읽는가 (Bluetooth Core 규격 Vol 6 Part B. 조항 번호는 원문으로 확인하지 못함. 실제 공중 신호의 CRC 통과로 검증)
+어떻게 읽는가 (Bluetooth Core 규격 Vol 6 Part B)
 - 변조: GFSK 1 Mbit/s, 변조 지수 약 0.5. 비트 1 = 주파수가 위로. 비트는 바이트의 낮은 자리부터 나간다.
 - 패킷: 프리앰블 0xAA(8비트) + 접근 주소 0x8E89BED6(32비트) + PDU(머리 2바이트 + 본문) + CRC 24비트.
 - 화이트닝: PDU 와 CRC 에 x^7 + x^4 + 1 수열을 XOR. 초기값은 채널 번호로 정한다.

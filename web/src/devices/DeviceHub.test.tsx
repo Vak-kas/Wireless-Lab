@@ -118,7 +118,7 @@ test("찾기가 실패하면 오류 내용을, 그냥 없으면 언제 확인했
   expect(await screen.findByTestId("search-error")).toHaveTextContent("MATLAB 을 띄우지 못했다");
 });
 
-test("SDR 이 없어도 컴퓨터의 어댑터가 있으면 연결 창에 보이고 그것으로 시작할 수 있다. 장비 없이 시작하면 어댑터도 감춘다", async () => {
+test("SDR 이 없어도 컴퓨터의 어댑터가 있으면 연결 창에 보이고 그것으로 시작할 수 있다. 장비 없이 시작해도 어댑터는 남는다", async () => {
   const api = fakeApi();
   api.devices = async () => [sim];
   api.adapters = async () => [{ id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: { interface: "en0" } }];
@@ -146,6 +146,8 @@ test("SDR 이 없어도 컴퓨터의 어댑터가 있으면 연결 창에 보이
   await user.click(screen.getByTestId("my-devices-button"));
   await user.click(screen.getByTestId("my-devices-connect"));
   await user.click(screen.getByTestId("connect-skip"));
-  expect(screen.getByTestId("aprobe")).toHaveTextContent("none:");
-  expect(screen.getByTestId("aprobe")).not.toHaveTextContent("wifi:en0");
+  expect(screen.getByTestId("aprobe")).toHaveTextContent("none:wifi:en0");
+  expect(screen.getByTestId("my-devices-button")).toHaveTextContent("1");
+  await user.click(screen.getByTestId("my-devices-button"));
+  expect(within(screen.getByTestId("my-devices")).getByTestId("adapter-card-wifi:en0")).toBeInTheDocument();
 });

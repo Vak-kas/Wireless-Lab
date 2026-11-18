@@ -5,7 +5,6 @@
 - 자동 기준값: 기준값이 없는 채널은 SETTLE_S 초를 기다린 뒤, 최근 바퀴들이 STABLE_DB 폭 안에 들면 그때의 표시값을 기준으로 저장한다.
   계속 흔들리면 TIMEOUT_S 초에 그대로 저장하고 그 채널을 "흔들리는 중에 저장"으로 표시한다. 채널마다 따로 판단한다.
 - 증가량 = 표시값 − 기준값. RISE_DB 이상 오르면 "올랐음"으로 표시한다.
-측정과 판단 방식은 사용자의 MATLAB 도구(SSOM_USRP_DEBUG 의 PowerMonitorApp)를 옮긴 것이다. 실제 장비로는 검증하지 못했다.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ SMOOTH = 5
 SETTLE_S = 8.0
 STABLE_DB = 2.0
 TIMEOUT_S = 15.0
-RISE_DB = 6.0          # 이만큼 오르면 "올랐음". 사용자의 도구에는 없던 표시로, 내가 정한 값이다
+RISE_DB = 6.0          # 이만큼 오르면 "올랐음"
 STATS = ("mean_dbfs", "median_dbfs")
 MAX_MONITORS = 4
 

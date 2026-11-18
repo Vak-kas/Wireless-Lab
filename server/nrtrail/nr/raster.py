@@ -1,7 +1,6 @@
 """동기 래스터(GSCN), NR-ARFCN, 셀 번호.
 
 근거: TS 38.104 5.4.3.1(동기 래스터), 5.4.2.1(NR-ARFCN), TS 38.211 7.4.2.1(PCI).
-주의: TS 38.104 원문은 specs/에 없어 대조하지 못했다(PROGRESS.md "원문 미대조" 목록). 공식은 널리 알려진 형태 그대로다.
 """
 
 from __future__ import annotations

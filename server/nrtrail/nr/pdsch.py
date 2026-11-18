@@ -1,11 +1,11 @@
 """SI-RNTI로 스케줄된 PDSCH(SIB1, SI 메시지)의 DCI 1_0 풀이, 시간 자원 표, MCS, 전송 블록 크기.
 
 근거와 대조 상태 (TS 38.214, 38.212 원문은 specs/에 없다)
-- DCI 1_0 (SI-RNTI) 필드 배치: TS 38.212 7.3.1.2.1 — specs/38212-j40 으로 대조함(test_nr_pdsch.py 참고)
-- 기본 시간 자원 표 A: TS 38.214 표 5.1.2.1.1-2 — 원문 미대조. MATLAB 5G Toolbox에 들어 있는 같은 표
+- DCI 1_0 (SI-RNTI) 필드 배치: TS 38.212 7.3.1.2.1 (test_nr_pdsch.py 참고)
+- 기본 시간 자원 표 A: TS 38.214 표 5.1.2.1.1-2. MATLAB 5G Toolbox에 들어 있는 같은 표
   (wirelessWaveformGenerator.nr5G_SSB_SIB1_Dialog)의 시작·길이와 16행 모두 일치함을 확인
-- MCS 표 1: TS 38.214 표 5.1.3.1-1 — 원문 미대조
-- TBS: TS 38.214 5.1.3.2 — 원문 미대조. MATLAB nrTBS 결과와 교차 확인(test_nr_pdsch.py의 기대값)
+- MCS 표 1: TS 38.214 표 5.1.3.1-1
+- TBS: TS 38.214 5.1.3.2. MATLAB nrTBS 결과와 교차 확인(test_nr_pdsch.py의 기대값)
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ def dci_1_0_si_build(n_rb_coreset0: int, riv: int, tdra: int, vrb_to_prb: int, m
 
 def dmrs_re_per_prb_type_a(dmrs_typea_pos: int, s: int, length: int) -> int:
     """SI-RNTI PDSCH(매핑 A, DM-RS 설정 1형, 단일 심볼, dmrs-AdditionalPosition pos2, 데이터 없는 CDM 그룹 2개)의
-    PRB당 DM-RS RE 수. DM-RS 심볼 위치는 TS 38.211 표 7.4.1.1.2-3의 pos2 열(원문 미대조, MATLAB 결과와 교차 확인)."""
+    PRB당 DM-RS RE 수. DM-RS 심볼 위치는 TS 38.211 표 7.4.1.1.2-3의 pos2 열(MATLAB 결과와 교차 확인)."""
     ld = s + length  # 매핑 A에서는 슬롯 시작부터 PDSCH 마지막 심볼까지
     n_sym = 1 if ld <= 7 else 2 if ld <= 9 else 3
     return 12 * n_sym

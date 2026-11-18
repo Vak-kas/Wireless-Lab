@@ -13,7 +13,7 @@ export const isSim = (d: DeviceInfo) => d.driver === "simulated";
 interface Hub {
   /** 화면이 쓸 수 있는 장비. 장비 없이 시작했으면 모의 장비만 */
   devices: DeviceInfo[] | null;
-  /** 컴퓨터의 Wi-Fi·블루투스 어댑터(내장·외장). 장비 없이 시작했으면 비어 있다 */
+  /** 컴퓨터의 Wi-Fi·블루투스 어댑터(내장·외장). 꽂는 장비(SDR) 없이 시작해도 그대로 쓸 수 있다 */
   adapters: Adapter[];
   mode: DeviceMode;
   /** 장비 연결 창을 다시 연다 */
@@ -274,7 +274,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   }, [all, real, asking]);
 
   const usable = useMemo(() => (all === null ? null : mode === "none" ? all.filter(isSim) : all), [all, mode]);
-  const adapters = useMemo(() => (mode === "none" ? [] : adaptersAll), [mode, adaptersAll]);
+  const adapters = adaptersAll;
   const hub = useMemo<Hub>(() => ({ devices: usable, adapters, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, adapters, mode, search, rescan, reset]);
 
   return (
@@ -300,6 +300,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
             {adaptersAll.length > 0 && (
               <div className="device-list" data-testid="connect-adapters">
                 <div className="t-caption-strong">{t("hub.adapters.title")}</div>
+                <p className="t-caption muted">{t("hub.adapters.always")}</p>
                 {adaptersAll.map((a) => (
                   <AdapterCard key={a.id} adapter={a} />
                 ))}
@@ -347,6 +348,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
         <div className="drawer" role="dialog" aria-label={t("hub.mine.title")} data-testid="my-devices">
           <div className="t-caption-strong">{t("hub.mine.title")}</div>
           {mode === "none" && <p className="t-caption muted">{t("hub.mine.none_mode")}</p>}
+          <div className="t-caption-strong">{t("hub.sdr.title")}</div>
           {real.length === 0 ? (
             <SearchNote search={search} onRescan={rescan} onReset={reset} />
           ) : (
@@ -379,8 +381,8 @@ export function DeviceHub({ children }: { children: ReactNode }) {
       {!asking && (
         <button type="button" className="fab t-caption-strong" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="my-devices-button">
           <span aria-hidden="true">{open ? "▼" : "▲"}</span> {t("hub.mine.button")}
-          <span className="fab-count" data-level={real.length + adapters.length > 0 && mode !== "none" ? "on" : "off"}>
-            {real.length + adapters.length}
+          <span className="fab-count" data-level={(mode !== "none" && real.length > 0) || adapters.length > 0 ? "on" : "off"}>
+            {(mode === "none" ? 0 : real.length) + adapters.length}
           </span>
         </button>
       )}

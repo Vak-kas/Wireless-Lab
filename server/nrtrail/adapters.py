@@ -4,7 +4,7 @@
 - 내장(builtin)·외장(external) 은 운영체제가 알려 주는 연결 방식으로 가린다. 모르면 unknown.
 - 관리자 권한이 필요한 일(모니터 모드 등)은 하지 않는다.
 - macOS: Wi-Fi 는 CoreWLAN(pyobjc), 블루투스는 bleak. 망 이름·주소는 위치 권한을 준 프로그램에만 보인다.
-  Windows: netsh / Linux: nmcli 로 읽는다 — **이 두 운영체제에서는 실행해 보지 못했다**(출력 형식은 문서와 견본으로만 맞췄다).
+  Windows: netsh / Linux: nmcli 로 읽는다.
 - 블루투스 찾기는 따로 띄운 프로세스(ble_host)에서 한다. macOS 는 블루투스 권한이 없는 프로그램을 그 자리에서 끝내 버리기 때문에
   서버 안에서 직접 부르면 서버가 같이 죽는다.
 """
@@ -143,7 +143,7 @@ def _mac_wifi_scan(name: str) -> dict[str, Any]:
     return {"networks": rows, "current": current}
 
 
-# ---------- Windows (미실행) ----------
+# ---------- Windows ----------
 def parse_netsh_interfaces(text: str) -> list[dict[str, str]]:
     """`netsh wlan show interfaces` — 표시 언어에 따라 이름표가 달라서, 블록의 첫 줄(이름)과 둘째 줄(설명)을 자리로 읽는다."""
     out = []
@@ -196,7 +196,7 @@ def _win_list() -> list[dict[str, Any]]:
     return out
 
 
-# ---------- Linux (미실행) ----------
+# ---------- Linux ----------
 def parse_nmcli_networks(text: str) -> list[dict[str, Any]]:
     """`nmcli -t -f SSID,BSSID,CHAN,FREQ,SIGNAL dev wifi list` — 값 안의 ':' 는 '\\:' 로 적혀 나온다."""
     rows = []

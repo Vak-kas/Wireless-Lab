@@ -113,7 +113,7 @@ def pdcch_params(stage: str, state: RunState) -> dict[str, Any]:
         return out | {"si_indicator": 0, "occasions": occ}
     ni = state.results["sib1"].next_inputs if "sib1" in state.results else {}
     # SIB1 본문만 DM-RS 기준점이 CORESET0의 가장 낮은 RB다. SI 메시지와 RA 응답의 PDSCH DM-RS는 CRB 0(Point A)이 기준이다
-    # (TS 38.211 7.4.1.1.2, 원문 대조함). CORESET0의 RB 0이 몇 번째 CRB인지 넘긴다.
+    # (TS 38.211 7.4.1.1.2). CORESET0의 RB 0이 몇 번째 CRB인지 넘긴다.
     if ni.get("point_a_hz") is not None:
         out["pdsch_crb_offset_rb"] = round((cs["low_hz"] - ni["point_a_hz"]) / (12 * cs["scs_khz"] * 1000))
     if ni.get("pdsch_tdra_list"):

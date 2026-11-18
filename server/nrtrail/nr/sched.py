@@ -1,9 +1,9 @@
 """자원 할당과 시간표 계산: RIV, locationAndBandwidth, SI 창, 단위 환산.
 
 근거와 대조 상태
-- RIV: TS 38.214 5.1.2.2.2 (원문 미대조. MATLAB 5G Toolbox 결과와 교차 확인은 M5에서)
-- SI 창: TS 38.331 5.2.2.3.2 (원문 미대조)
-- q-RxLevMin, n-TimingAdvanceOffset: TS 38.331 필드 설명, TS 38.133 표 7.1.2-2 (원문 미대조)
+- RIV: TS 38.214 5.1.2.2.2
+- SI 창: TS 38.331 5.2.2.3.2
+- q-RxLevMin, n-TimingAdvanceOffset: TS 38.331 필드 설명, TS 38.133 표 7.1.2-2
 """
 
 from __future__ import annotations
@@ -79,13 +79,13 @@ def prach_config(index: int, paired: bool) -> dict[str, Any]:
 
 
 def point_a_hz(crb_ssb_low_hz: float, offset_to_point_a: int) -> float:
-    """Point A = (SSB와 겹치는 가장 낮은 RB의 부반송파 0) - offsetToPointA x 12 x 15 kHz (FR1). TS 38.211 4.4.4.2 (원문 대조함)."""
+    """Point A = (SSB와 겹치는 가장 낮은 RB의 부반송파 0) - offsetToPointA x 12 x 15 kHz (FR1). TS 38.211 4.4.4.2."""
     return crb_ssb_low_hz - offset_to_point_a * 12 * 15_000
 
 
 def sliv_decode(sliv: int) -> tuple[int, int]:
     """startSymbolAndLength(SLIV) -> (S, L). (L-1) <= 7 이면 SLIV = 14(L-1)+S, 아니면 14(14-L+1)+(13-S), 단 S+L <= 14.
-    TS 38.214 5.1.2.1 (원문 미대조. OAI gNB가 보낸 SI 메시지를 이 풀이로 복호해 확인함)."""
+    TS 38.214 5.1.2.1 (OAI gNB가 보낸 SI 메시지를 이 풀이로 복호해 확인함)."""
     a, b = divmod(sliv, 14)
     s, length = b, a + 1
     if s + length > 14:

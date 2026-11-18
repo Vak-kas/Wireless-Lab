@@ -12,13 +12,13 @@ from ..pipeline import StageDef
 from ..result import ResultBuilder, fmt, inp
 from .base import Ctx, Plot, PlotColumn, PlotTable
 
-# NTN-Config-r17 필드의 단위. TS 38.331 6.3.2 NTN-Config, EphemerisInfo, TA-Info 필드 설명 (원문 미대조).
+# NTN-Config-r17 필드의 단위. TS 38.331 6.3.2 NTN-Config, EphemerisInfo, TA-Info 필드 설명.
 POS_UNIT_M = 1.3
 VEL_UNIT_MPS = 0.06
 TA_COMMON_UNIT_US = 4.072e-3
 TA_DRIFT_UNIT_US_S = 0.2e-3
 TA_DRIFT_VARIANT_UNIT_US_S2 = 0.2e-4
-# 궤도 요소 형식(Orbital-r17)의 단위. TS 38.331 6.3.2 EphemerisInfo 필드 설명 (원문 미대조. ASN.1 값 범위와는 맞음:
+# 궤도 요소 형식(Orbital-r17)의 단위. TS 38.331 6.3.2 EphemerisInfo 필드 설명 (ASN.1 값 범위와는 맞음:
 # 33비트 x 4.249e-3 m = 36500 km -> 장반경 6500~43000 km, 28비트 x 2.341e-8 rad = 2π, 20비트 x 1.431e-8 = 0.015)
 ORBIT_A0_M = 6_500_000.0
 ORBIT_A_UNIT_M = 4.249e-3

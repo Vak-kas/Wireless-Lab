@@ -1,7 +1,7 @@
 """이 도구가 띄운 프로세스(서버, MATLAB 엔진)를 남기지 않기 위한 기록과 정리.
 
 왜 필요한가: 서버가 강제로 꺼지면 그 서버가 띄운 MATLAB 엔진이 부모 없이 남는다. 남은 MATLAB 이 USRP 수신기를 열어 둔 채라면
-다음에 프로그램을 열었을 때 장비가 "사용 중"으로 나와 잡히지 않는다(2026-11-18 에 부모 없는 서버와 MATLAB 이 하루 넘게 남아 있던 것을 봤다).
+다음에 프로그램을 열었을 때 장비가 "사용 중"으로 나와 잡히지 않는다.
 
 - 서버는 뜰 때 `sessions/run/<서버 pid>.json` 을 쓰고, MATLAB 엔진을 띄우면 그 pid 를 거기에 적는다.
 - 끌 때: 먼저 정상 종료를 청하고, 정해진 시간 안에 안 끝나면 강제로 끝낸다.
@@ -52,7 +52,7 @@ def command_of(pid: int) -> str:
     """pid 의 명령줄(모르면 빈 문자열)."""
     try:
         if os.name == "nt":
-            # wmic 는 최신 Windows 에서 빠졌다. PowerShell 로 묻는다. (Windows 에서는 실행해 보지 못했다)
+            # wmic 는 최신 Windows 에서 빠졌다. PowerShell 로 묻는다.
             return subprocess.run(["powershell", "-NoProfile", "-Command",
                                    f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}').CommandLine"],
                                   capture_output=True, text=True, timeout=15).stdout

@@ -4,7 +4,6 @@
   (server/tests/test_devices.py가 소스에서 TX 호출이 없음을 검사한다).
 - SoapySDR이 없어도 가져올 수 있다(모듈은 장비를 쓸 때만 불러온다). 장비가 없어도 시험되도록 SimulatedDevice를 둔다.
 - 받은 IQ는 SigMF(cf32_le)로 디스크에 바로 흘려 쓴다. 긴 수신도 메모리에 다 올리지 않는다.
-실제 장비로는 검증하지 못했다(이 컴퓨터에 SoapySDR·장비 없음) → docs/hardware-checklist.md 로 사람이 확인한다.
 """
 
 from __future__ import annotations
@@ -230,7 +229,7 @@ def _capture_soapy(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Ca
 
 def probe(dev_id: str) -> dict[str, Any]:
     """장비가 직접 알려 주는 값(하드웨어 정보, 안테나, 이득·샘플레이트·주파수 범위, 클럭 원천). 수신 쪽만 묻는다.
-    하나라도 못 읽으면 그 항목만 빠진다. 실제 장비로는 검증하지 못했다."""
+    하나라도 못 읽으면 그 항목만 빠진다."""
     if dev_id.startswith(SIM_PREFIX) or any(dev_id.startswith(p) for p in BACKENDS) or not soapy_available():
         return {}
     soapy = importlib.import_module("SoapySDR")

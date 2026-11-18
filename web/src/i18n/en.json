@@ -307,7 +307,7 @@
   "spectrum.fact.rep_rate": "Sample-rate range (reported)",
   "spectrum.fact.rep_freq": "Frequency range (reported)",
   "spectrum.fact.clock_sources": "Clock sources",
-  "spectrum.fact.source": "Values not marked \"reported\" come from the capability table and have not been checked against vendor documents.",
+  "spectrum.fact.source": "Values not marked \"reported\" come from the capability table and may differ slightly from the actual device.",
   "start.device.spectrum": "Spectrum status",
   "view.eyebrow": "Look at a specific frequency",
   "view.title": "Choose a centre frequency and bandwidth",
@@ -397,7 +397,7 @@
   "hub.connect.start": "Start with this device",
   "hub.connect.start_many": "Start with {n} devices",
   "hub.connect.skip": "Start without a device",
-  "hub.connect.skip_note": "Without a device you can use practice mode, saved files and simulations. You will be told when a device is plugged in later.",
+  "hub.connect.skip_note": "Without a device you can use practice mode, saved files, simulated experiments, and this computer's Wi-Fi and Bluetooth (Nearby). You will be notified when a device is plugged in later.",
   "hub.connected": "connected",
   "hub.serial": "Serial",
   "hub.range": "Frequency",
@@ -408,9 +408,9 @@
   "hub.mine.button": "My devices",
   "hub.mine.title": "My devices",
   "hub.mine.empty": "No device connected.",
-  "hub.mine.none_mode": "You are working without a device.",
+  "hub.mine.none_mode": "Running without a plug-in device (SDR). This computer's own radios are still available.",
   "hub.mine.reconnect": "Open the connect window",
-  "hub.none_mode": "Started without a device. Features that need a real device are hidden.",
+  "hub.none_mode": "Started without a plug-in device (SDR). Features that need an SDR are hidden; this computer's Wi-Fi and Bluetooth are available below.",
   "home.title": "What would you like to do?",
   "home.lead": "Pick a connected device, then a task for it.",
   "home.tasks": "Tasks for this device",
@@ -573,5 +573,7 @@
   "nearby.col.rssi": "Strength (dBm)",
   "nearby.col.company": "Maker",
   "nearby.col.count": "Times heard",
-  "nearby.limits": "An adapter cannot show a spectrum, decode frame contents, or transmit. Those need an SDR device."
+  "nearby.limits": "An adapter cannot show a spectrum, decode frame contents, or transmit. Those need an SDR device.",
+  "hub.sdr.title": "Plug-in devices (SDR)",
+  "hub.adapters.always": "These are already part of this computer, so you can use them even if you start without a device."
 }
