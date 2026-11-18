@@ -6,7 +6,7 @@ import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
 import { DeviceCard, useUsableDevices } from "../devices/DeviceHub";
-import { saveIntent, type SpectrumIntent } from "../devices/intent";
+import { saveIntent, saveTxDevice, type SpectrumIntent } from "../devices/intent";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
 
@@ -75,6 +75,7 @@ export function StartScreen() {
   const [testbed, setTestbed] = useState(false);
   const [pathError, setPathError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [txReady, setTxReady] = useState(false);
 
   useEffect(() => {
     void api.scenarios().then((list) => {
@@ -82,6 +83,7 @@ export function StartScreen() {
       setScenario((list.find((s) => s.recommended) ?? list[0])?.id ?? "");
     });
     void api.doctor(true).then(setDoctor);
+    void api.txStatus().then((s) => setTxReady(s.available), () => setTxReady(false));
     void api.listSessions().then(setRecent);
   }, [api]);
 
@@ -146,7 +148,15 @@ export function StartScreen() {
                 <Task id="wifi" disabled={busy} onClick={() => openSpectrum({ device: d.id, plan: "wifi-5g" })} />
                 <Task id="view" disabled={busy} onClick={() => openSpectrum({ device: d.id, focus: "view" })} />
                 <Task id="bt" soon />
-                <Task id="tx" soon />
+                <Task
+                  id="tx"
+                  soon={!txReady}
+                  disabled={busy}
+                  onClick={() => {
+                    saveTxDevice(d.id);
+                    go("tx");
+                  }}
+                />
               </div>
             </div>
           ))

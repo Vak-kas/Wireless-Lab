@@ -186,6 +186,15 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         wifi.register(app, survey_lock)
 
     try:
+        from . import tx
+    except ImportError:
+        @app.get("/api/tx")
+        def tx_unavailable() -> dict[str, Any]:
+            return {"available": False}
+    else:
+        tx.register(app, survey_lock)
+
+    try:
         from . import testbed_oai
     except ImportError:
         @app.get("/api/testbed/oai")

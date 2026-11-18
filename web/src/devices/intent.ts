@@ -27,3 +27,24 @@ export function takeIntent(): SpectrumIntent | null {
     return null;
   }
 }
+
+const TX_KEY = "nrtrail.txDevice";
+
+/** 첫 화면의 "송신"을 누른 장비. */
+export function saveTxDevice(id: string): void {
+  try {
+    sessionStorage.setItem(TX_KEY, id);
+  } catch {
+    /* 못 쓰면 송신 화면에서 다시 고른다 */
+  }
+}
+
+export function takeTxDevice(): string {
+  try {
+    const v = sessionStorage.getItem(TX_KEY) ?? "";
+    sessionStorage.removeItem(TX_KEY);
+    return v;
+  } catch {
+    return "";
+  }
+}

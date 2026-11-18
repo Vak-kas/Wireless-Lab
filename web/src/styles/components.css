@@ -1254,3 +1254,10 @@ details.fold > .fold-body {
 .live .card {
   margin: 0;
 }
+.dialog .check,
+.warn-facts {
+  text-align: left;
+}
+.warn-facts .muted {
+  color: var(--color-ink-disabled);
+}

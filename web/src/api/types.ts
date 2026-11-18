@@ -100,6 +100,27 @@ export interface SurveyPlan {
   groups?: Record<string, string[][]>;
 }
 
+export interface TxStatus {
+  /** 송신 기능이 이 설치에 있는가 */
+  available: boolean;
+  warning_version?: string;
+  max_seconds?: number;
+  max_gain_db?: number;
+  default_gain_db?: number;
+  sending?: boolean;
+}
+
+export interface TxRequest {
+  device: string;
+  center_hz: number;
+  sample_rate_hz: number;
+  gain_db: number;
+  seconds: number;
+  waveform: { kind: "tone"; offset_hz: number; amplitude: number } | { kind: "file"; path: string };
+  /** 경고창에서 확인한 내용. 없으면 서버가 거부한다 */
+  confirm?: { accepted: boolean; closed_setup: boolean; version: string; shown: { device: string; center_hz: number; gain_db: number; seconds: number } };
+}
+
 export interface WifiAp {
   ssid: string;
   bssid: string;
@@ -306,6 +327,9 @@ export interface Api {
   monitorSweep(id: string): Promise<MonitorState>;
   monitorPatch(id: string, body: { auto?: boolean; stat?: string; baseline?: "save" | "clear" }): Promise<MonitorState>;
   monitorStop(id: string): Promise<void>;
+  txStatus(): Promise<TxStatus>;
+  txStart(req: TxRequest): Promise<{ seconds: number; stopped: boolean; underruns: number }>;
+  txStop(): Promise<{ stopping: boolean }>;
   wifiStatus(): Promise<{ available: boolean }>;
   wifiAps(req: { device: string; plan: string; channels: string[]; gain_db?: number }): Promise<{ aps: WifiAp[] }>;
   /** 모니터링 중: 채널 하나를 짧게 받아 프레임 종류·송신 폭·비콘을 함께 */

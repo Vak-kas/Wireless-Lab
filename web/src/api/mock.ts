@@ -210,6 +210,11 @@ export const mockApi: Api = {
     throw new Error("mock");
   },
   monitorStop: async () => undefined,
+  txStatus: async () => ({ available: false }),
+  txStart: async () => {
+    throw new Error("mock");
+  },
+  txStop: async () => ({ stopping: false }),
   wifiStatus: async () => ({ available: false }),
   wifiAps: async () => {
     throw new Error("mock");

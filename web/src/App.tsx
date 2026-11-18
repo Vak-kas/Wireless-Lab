@@ -9,6 +9,7 @@ import { FollowScreen, ScanScreen } from "./screens/FollowScreens";
 import { NtnScreen, TrackScreen } from "./screens/NtnTrackScreens";
 import { SpectrumScreen } from "./screens/SpectrumScreen";
 import { StartScreen } from "./screens/StartScreen";
+import { TxScreen } from "./screens/TxScreen";
 import { StoreProvider, useStore } from "./state/store";
 
 function Screens() {
@@ -42,6 +43,7 @@ function Screens() {
             {route.screen === "ntn" && <NtnScreen />}
             {route.screen === "track" && <TrackScreen />}
             {route.screen === "spectrum" && <SpectrumScreen />}
+            {route.screen === "tx" && <TxScreen />}
             {route.screen === "sessions" && <SessionsScreen />}
             {route.screen === "settings" && <SettingsScreen />}
           </>
