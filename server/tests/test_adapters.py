@@ -137,3 +137,55 @@ def test_no_transmit_or_connect_calls_in_source() -> None:
         src = (Path(adapters.__file__).parent / name).read_text(encoding="utf-8")
         for word in ("BleakClient", "write_gatt", ".connect(", "associateTo", "startIBSS"):
             assert word not in src, f"{name}: {word}"
+
+
+IW_PHY = "\n".join([
+    "Wiphy phy0",
+    "\tBand 1:",
+    "\t\tCapabilities: 0x19ef",
+    "\t\t\tHT20/HT40",
+    "\tBand 2:",
+    "\t\tVHT Capabilities (0x039071f6):",
+    "\t\t\tSupported Channel Width: 160 MHz",
+    "\tSupported interface modes:",
+    "\t\t * managed",
+    "\t\t * AP",
+    "\t\t * monitor",
+    "\tsoftware interface modes (can always be added):",
+    "\t\t * AP/VLAN",
+    "",
+])
+
+
+def test_iw_tells_bands_and_monitor_support() -> None:
+    assert adapters.parse_iw_phy(IW_PHY) == {"bands": ["2.4", "5"], "monitor": "yes", "max_width_mhz": 160}
+    no_monitor = IW_PHY.replace("\t\t * monitor\n", "")
+    assert adapters.parse_iw_phy(no_monitor)["monitor"] == "no"
+    assert adapters.parse_iw_phy("")["monitor"] == "unknown"       # 못 읽었으면 "안 됨"이 아니라 "알 수 없음"
+
+
+def test_netsh_monitor_line() -> None:
+    assert adapters.parse_netsh_capabilities("    Network monitor mode                         : Supported\n") == "yes"
+    assert adapters.parse_netsh_capabilities("    Network monitor mode                         : Not supported\n") == "no"
+    assert adapters.parse_netsh_capabilities("    네트워크 모니터 모드 : 지원됨\n") == "unknown"
+
+
+def test_pcap_question_never_claims_support_for_a_missing_interface() -> None:
+    assert adapters.pcap_rfmon("nrtrail-no-such-if0") in ("no", "unknown")
+
+
+def test_abilities_are_asked_once_and_failures_do_not_hide_the_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+
+    def ask(name: str) -> list[dict[str, str]]:
+        calls.append(name)
+        if name == "bad0":
+            raise OSError("boom")
+        return [{"id": "monitor", "state": "yes"}]
+
+    monkeypatch.setattr(adapters, "_wifi_abilities", ask)
+    monkeypatch.setattr(adapters, "_abilities", {})
+    good = adapters._adapter("wifi:ok0", "wifi", "external", "Wi-Fi", interface="ok0")
+    assert adapters.abilities(good) == adapters.abilities(good) == [{"id": "monitor", "state": "yes"}]
+    assert calls == ["ok0"]
+    assert adapters.abilities(adapters._adapter("wifi:bad0", "wifi", "external", "Wi-Fi", interface="bad0")) == []

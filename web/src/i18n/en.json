@@ -605,5 +605,20 @@
   "tx.rx.spectrum.alt": "Plot of received strength over frequency",
   "tx.rx.how.tone": "How it is judged: the highest point of the spectrum must be at the sent tone position and at least 15 dB above the floor (median). The vertical line marks the sent position.",
   "tx.rx.how.waveform": "How it is judged: the beginning of the sent waveform is cut into short pieces and aligned with the received signal (so a small frequency difference between devices is tolerated). 0.3 or more counts as received.",
-  "tx.warn.receive": "Receiving device"
+  "tx.warn.receive": "Receiving device",
+  "hub.abilities": "What this device can do",
+  "hub.ability.scan": "Find nearby networks",
+  "hub.ability.bands": "Bands",
+  "hub.ability.width": "Max width",
+  "hub.ability.standards": "Standards",
+  "hub.ability.monitor": "Monitor mode",
+  "hub.ability.capture": "Capture frames with current rights",
+  "hub.ability.le_scan": "Listen to BLE advertisements",
+  "hub.ability.state.yes": "yes",
+  "hub.ability.state.no": "no",
+  "hub.ability.state.admin": "needs administrator rights",
+  "hub.ability.state.unknown": "unknown",
+  "hub.ability.monitor.note": "Monitor mode receives every frame nearby as-is, without connecting. This adapter supports it, but reading frames in monitor mode is not available in this tool yet.",
+  "home.task.monitor": "Frames in monitor mode",
+  "home.task.monitor.desc": "Receive nearby management frames (beacons, channel switch announcements and so on) as they are, without connecting"
 }

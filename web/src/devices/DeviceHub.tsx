@@ -108,6 +108,16 @@ export function AdapterCard({ adapter, action }: { adapter: Adapter; action?: Re
           )}
         </dl>
         {d.power === false && <p className="t-caption muted">{t("hub.power_off")}</p>}
+        {(adapter.abilities?.length ?? 0) > 0 && (
+          <ul className="abilities t-caption" aria-label={t("hub.abilities")} data-testid={`abilities-${adapter.id}`}>
+            {adapter.abilities?.map((a) => (
+              <li key={a.id} data-state={a.state ?? "value"} data-testid={`ability-${a.id}`}>
+                <span className="muted">{t(`hub.ability.${a.id}`)}</span> {a.value ?? t(`hub.ability.state.${a.state ?? "unknown"}`)}
+              </li>
+            ))}
+          </ul>
+        )}
+        {adapter.abilities?.some((a) => a.id === "monitor" && a.state === "yes") && <p className="t-fine-print muted">{t("hub.ability.monitor.note")}</p>}
         {action}
       </div>
     </div>

@@ -57,6 +57,14 @@ const TASK_ICONS: Record<string, React.ReactNode> = {
       <path d="M12 12m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0" strokeDasharray="2 3" />
     </>
   ),
+  // 모니터 모드: 지나가는 프레임들을 들여다보는 돋보기
+  monitor: (
+    <>
+      <path d="M3 7h8M3 11h5M3 15h6" />
+      <circle cx="15" cy="13" r="4.5" />
+      <path d="M18.5 16.5L21 19" />
+    </>
+  ),
   // 내보내는 신호: 위로 향한 화살표와 파동
   tx: (
     <>
@@ -199,6 +207,7 @@ export function StartScreen() {
                       go("nearby");
                     }}
                   />
+                  {a.abilities?.some((x) => x.id === "monitor" && x.state === "yes") && <Task id="monitor" soon />}
                 </div>
               </div>
             ))}

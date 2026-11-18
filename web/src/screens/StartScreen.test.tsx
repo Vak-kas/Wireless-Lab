@@ -61,7 +61,7 @@ test("컴퓨터의 Wi-Fi·블루투스 어댑터는 내장/외장 표시와 함�
   const api = fakeApi();
   api.devices = async () => [usrp];
   const found: Adapter[] = [
-    { id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: { interface: "en0" } },
+    { id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: { interface: "en0" }, abilities: [{ id: "monitor", state: "yes" }] },
     { id: "bt:usb", kind: "bluetooth", attach: "external", label: "Bluetooth", detail: {} },
   ];
   api.adapters = async () => found;
@@ -72,6 +72,9 @@ test("컴퓨터의 Wi-Fi·블루투스 어댑터는 내장/외장 표시와 함�
   expect(within(bt).getByText("외장")).toBeInTheDocument();
   expect(within(bt).getByTestId("task-near-bt")).toBeEnabled();
   // SDR 장비의 할 일(스펙트럼·송신)은 어댑터 카드에 없다
+  // 모니터 모드를 지원하는 어댑터에는 그 칸이 "준비 중"으로 보인다(아직 누를 수 없다)
+  expect(within(wifi).getByTestId("task-monitor")).toBeDisabled();
+  expect(within(bt).queryByTestId("task-monitor")).toBeNull();
   expect(within(wifi).queryByTestId("task-view")).toBeNull();
   expect(within(wifi).queryByTestId("task-tx")).toBeNull();
   await userEvent.click(within(wifi).getByTestId("task-near-wifi"));

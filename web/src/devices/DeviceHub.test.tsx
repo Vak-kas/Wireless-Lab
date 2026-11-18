@@ -151,3 +151,36 @@ test("SDR 이 없어도 컴퓨터의 어댑터가 있으면 연결 창에 보이
   await user.click(screen.getByTestId("my-devices-button"));
   expect(within(screen.getByTestId("my-devices")).getByTestId("adapter-card-wifi:en0")).toBeInTheDocument();
 });
+
+test("어댑터 카드는 할 수 있는 일을 보여 준다: 대역·규격은 값으로, 모니터 모드는 되는지 여부로", async () => {
+  const { AdapterCard } = await import("./DeviceHub");
+  renderWithStore(
+    <AdapterCard
+      adapter={{
+        id: "wifi:en0",
+        kind: "wifi",
+        attach: "external",
+        label: "Wi-Fi",
+        detail: { interface: "en0" },
+        abilities: [
+          { id: "scan", state: "yes" },
+          { id: "bands", value: "2.4 / 5 GHz" },
+          { id: "monitor", state: "yes" },
+          { id: "capture", state: "admin" },
+        ],
+      }}
+    />,
+  );
+  const list = screen.getByTestId("abilities-wifi:en0");
+  expect(within(list).getByTestId("ability-bands")).toHaveTextContent("대역 2.4 / 5 GHz");
+  expect(within(list).getByTestId("ability-monitor")).toHaveTextContent("모니터 모드 됨");
+  expect(within(list).getByTestId("ability-capture")).toHaveTextContent("관리자 권한 필요");
+  expect(screen.getByText(/모니터 모드로 프레임을 읽는 기능은 아직 없습니다/)).toBeInTheDocument();
+});
+
+test("모니터 모드를 지원하지 않는 어댑터에는 그 안내가 나오지 않는다", async () => {
+  const { AdapterCard } = await import("./DeviceHub");
+  renderWithStore(<AdapterCard adapter={{ id: "wifi:x", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: {}, abilities: [{ id: "monitor", state: "no" }] }} />);
+  expect(screen.getByTestId("ability-monitor")).toHaveTextContent("모니터 모드 안 됨");
+  expect(screen.queryByText(/아직 없습니다/)).toBeNull();
+});

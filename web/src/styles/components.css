@@ -1356,3 +1356,23 @@ details.fold > .fold-body {
   stroke-width: 1;
   stroke-dasharray: 4 3;
 }
+
+/* ---------- 어댑터의 능력 ---------- */
+.abilities {
+  list-style: none;
+  margin: var(--space-xxs) 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xxs) var(--space-md);
+}
+.abilities li[data-state="yes"] {
+  color: var(--color-success);
+}
+.abilities li[data-state="no"],
+.abilities li[data-state="unknown"] {
+  color: var(--color-ink-disabled);
+}
+.abilities li[data-state="admin"] {
+  color: var(--color-warning);
+}

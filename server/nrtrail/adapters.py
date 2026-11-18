@@ -2,7 +2,8 @@
 
 - 받는 것은 **방송 정보뿐**이다: Wi-Fi 는 운영체제의 주변 망 찾기 결과(비콘), 블루투스는 BLE 광고. 연결하지 않고, 아무것도 보내지 않는다.
 - 내장(builtin)·외장(external) 은 운영체제가 알려 주는 연결 방식으로 가린다. 모르면 unknown.
-- 관리자 권한이 필요한 일(모니터 모드 등)은 하지 않는다.
+- 관리자 권한이 필요한 일(모니터 모드 켜기 등)은 하지 않는다. 다만 어댑터가 **무엇을 할 수 있는지**는 묻기만 해서 보여 준다(abilities):
+  받을 수 있는 대역·폭·규격, 모니터 모드를 지원하는지(libpcap 의 pcap_can_set_rfmon, Linux 는 iw), 지금 권한으로 프레임을 잡을 수 있는지.
 - macOS: Wi-Fi 는 CoreWLAN(pyobjc), 블루투스는 bleak. 망 이름·주소는 위치 권한을 준 프로그램에만 보인다.
   Windows: netsh / Linux: nmcli 로 읽는다.
 - 블루투스 찾기는 따로 띄운 프로세스(ble_host)에서 한다. macOS 는 블루투스 권한이 없는 프로그램을 그 자리에서 끝내 버리기 때문에
@@ -11,6 +12,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
 import importlib
 import importlib.util
 import json
@@ -232,6 +235,111 @@ def _linux_list() -> list[dict[str, Any]]:
     return out
 
 
+# ---------- 능력 ----------
+def pcap_rfmon(name: str) -> str:
+    """모니터 모드를 켤 수 있는 어댑터인가: "yes" / "no" / "unknown". 묻기만 하고 아무것도 켜지 않는다(pcap_can_set_rfmon)."""
+    path = ctypes.util.find_library("pcap")
+    if not path:
+        return "unknown"
+    try:
+        lib = ctypes.CDLL(path)
+        lib.pcap_create.restype = ctypes.c_void_p
+        lib.pcap_create.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+        lib.pcap_can_set_rfmon.argtypes = [ctypes.c_void_p]
+        lib.pcap_close.argtypes = [ctypes.c_void_p]
+        handle = lib.pcap_create(name.encode(), ctypes.create_string_buffer(256))
+        if not handle:
+            return "unknown"
+        try:
+            got = int(lib.pcap_can_set_rfmon(handle))
+        finally:
+            lib.pcap_close(handle)
+    except (OSError, AttributeError):
+        return "unknown"
+    return "yes" if got == 1 else "no" if got == 0 else "unknown"
+
+
+def parse_iw_phy(text: str) -> dict[str, Any]:
+    """`iw phy <phy> info` → 대역과 모니터 모드 지원. Band 1 = 2.4, 2 = 5, 4 = 6 GHz (nl80211 의 대역 번호)."""
+    bands = [b for n, b in (("1", "2.4"), ("2", "5"), ("4", "6")) if re.search(rf"^\s*Band {n}:", text, re.M)]
+    block = re.search(r"Supported interface modes:\s*\n((?:\s*\*\s*.+\n?)+)", text)
+    modes = re.findall(r"\*\s*(\S.*?)\s*$", block.group(1), re.M) if block else []
+    widths = [w for w, mark in ((160, "160 MHz"), (80, "VHT Capabilities"), (40, "HT20/HT40")) if mark in text]
+    return {"bands": bands, "monitor": ("yes" if "monitor" in modes else "no") if block else "unknown", "max_width_mhz": max(widths, default=None)}
+
+
+def parse_netsh_capabilities(text: str) -> str:
+    """`netsh wlan show wirelesscapabilities` 의 "Network monitor mode" 줄. 영어 표시가 아니면 알 수 없다."""
+    m = re.search(r"network monitor mode\s*:\s*(not\s+)?supported", text, re.I)
+    return "unknown" if not m else "no" if m.group(1) else "yes"
+
+
+def _ability(name: str, state: str = "", value: str = "") -> dict[str, str]:
+    return {k: v for k, v in (("id", name), ("state", state), ("value", value)) if v}
+
+
+def _wifi_abilities(name: str) -> list[dict[str, str]]:
+    bands: list[str] = []
+    width: int | None = None
+    standards = ""
+    monitor = "unknown"
+    capture = "unknown"
+    if sys.platform == "darwin":
+        cw = _corewlan()
+        itf = cw.CWWiFiClient.sharedWiFiClient().interfaceWithName_(name) if cw is not None else None
+        if itf is not None:
+            chans = list(itf.supportedWLANChannels() or [])
+            bands = [b for k, b in sorted(_MAC_BAND.items()) if any(int(c.channelBand()) == k for c in chans)]
+            width = max((_MAC_WIDTH.get(int(c.channelWidth()), 0) for c in chans), default=0) or None
+        try:
+            port = json.loads(_run(["system_profiler", "SPAirPortDataType", "-json"], 30))["SPAirPortDataType"][0]
+            standards = next((str(i.get("spairport_supported_phymodes", "")) for i in port.get("spairport_airport_interfaces", [])
+                              if i.get("_name") == name), "")
+        except (ValueError, KeyError, IndexError):
+            standards = ""
+        monitor = pcap_rfmon(name)
+        capture = "yes" if os.access("/dev/bpf0", os.R_OK) else "admin"      # 프레임을 잡으려면 bpf 장치를 열 수 있어야 한다
+    elif os.name == "nt":
+        monitor = parse_netsh_capabilities(_run(["netsh", "wlan", "show", "wirelesscapabilities"]))
+    else:
+        try:
+            phy = (Path("/sys/class/net") / name / "phy80211" / "name").read_text(encoding="utf-8").strip()
+        except OSError:
+            phy = ""
+        info = parse_iw_phy(_run(["iw", "phy", phy, "info"])) if phy and shutil.which("iw") else {"bands": [], "monitor": "unknown", "max_width_mhz": None}
+        bands, width = info["bands"], info["max_width_mhz"]
+        monitor = info["monitor"] if info["monitor"] != "unknown" else pcap_rfmon(name)
+        capture = "yes" if hasattr(os, "geteuid") and os.geteuid() == 0 else "admin"
+    out = [_ability("scan", "yes")]
+    if bands:
+        out.append(_ability("bands", value=" / ".join(bands) + " GHz"))
+    if width:
+        out.append(_ability("width", value=f"{width} MHz"))
+    if standards:
+        out.append(_ability("standards", value=standards))
+    out.append(_ability("monitor", monitor))
+    if monitor == "yes":
+        out.append(_ability("capture", capture))
+    return out
+
+
+_abilities: dict[str, list[dict[str, str]]] = {}
+
+
+def abilities(adapter: dict[str, Any]) -> list[dict[str, str]]:
+    """어댑터가 할 수 있는 일. 하드웨어의 능력은 바뀌지 않으므로 한 번 물은 뒤 기억한다."""
+    key = adapter["id"]
+    if key not in _abilities:
+        try:
+            if adapter["kind"] == "wifi":
+                _abilities[key] = _wifi_abilities(str(adapter["detail"].get("interface", key[len(WIFI_PREFIX):])))
+            else:
+                _abilities[key] = [_ability("le_scan", "yes" if importlib.util.find_spec("bleak") is not None else "no")]
+        except Exception:  # noqa: BLE001 — 능력을 못 물어도 장비 목록은 보여 준다
+            return []
+    return _abilities[key]
+
+
 # ---------- 공통 ----------
 _cache: tuple[float, list[dict[str, Any]]] | None = None
 _cache_lock = threading.Lock()
@@ -247,6 +355,7 @@ def list_adapters(force: bool = False) -> list[dict[str, Any]]:
             found = _mac_list() if sys.platform == "darwin" else _win_list() if os.name == "nt" else _linux_list()
         except Exception:  # noqa: BLE001 — 운영체제마다 실패 모양이 달라, 목록만 비운다
             found = []
+        found = [a | {"abilities": abilities(a)} for a in found]
         _cache = (time.monotonic(), found)
         return found
 

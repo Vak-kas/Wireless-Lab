@@ -605,5 +605,20 @@
   "tx.rx.spectrum.alt": "받은 신호의 주파수별 세기 그림",
   "tx.rx.how.tone": "판단 방법: 스펙트럼에서 가장 높은 곳이 보낸 톤 위치에 있고 바닥(중앙값)보다 15 dB 이상 높으면 받은 것으로 봅니다. 세로선이 보낸 위치입니다.",
   "tx.rx.how.waveform": "판단 방법: 보낸 파형의 앞부분을 짧은 조각으로 나눠 받은 신호와 맞춰 봅니다(두 장비의 주파수가 조금 달라도 되게). 값이 0.3 이상이면 받은 것으로 봅니다.",
-  "tx.warn.receive": "받는 장비"
+  "tx.warn.receive": "받는 장비",
+  "hub.abilities": "이 장비가 할 수 있는 일",
+  "hub.ability.scan": "주변 망 찾기",
+  "hub.ability.bands": "대역",
+  "hub.ability.width": "최대 폭",
+  "hub.ability.standards": "규격",
+  "hub.ability.monitor": "모니터 모드",
+  "hub.ability.capture": "지금 권한으로 프레임 잡기",
+  "hub.ability.le_scan": "BLE 광고 듣기",
+  "hub.ability.state.yes": "됨",
+  "hub.ability.state.no": "안 됨",
+  "hub.ability.state.admin": "관리자 권한 필요",
+  "hub.ability.state.unknown": "알 수 없음",
+  "hub.ability.monitor.note": "모니터 모드는 연결하지 않고 주변의 모든 프레임을 그대로 받는 방식입니다. 이 어댑터는 지원하지만, 이 도구에서 모니터 모드로 프레임을 읽는 기능은 아직 없습니다(미구현).",
+  "home.task.monitor": "모니터 모드로 프레임 보기",
+  "home.task.monitor.desc": "연결하지 않고 주변의 관리 프레임(비콘, 채널 전환 알림 등)을 그대로 받아 보기"
 }

@@ -108,6 +108,11 @@ export interface Adapter {
   attach: "builtin" | "external" | "unknown";
   label: string;
   detail: Record<string, string | number | boolean>;
+  /**
+   * 이 어댑터가 할 수 있는 일. value 가 있으면 값(대역, 폭, 규격), state 가 있으면 되는지 여부.
+   * state: yes / no / admin(관리자 권한이 있어야 됨) / unknown(운영체제가 알려 주지 않음)
+   */
+  abilities?: { id: string; state?: "yes" | "no" | "admin" | "unknown"; value?: string }[];
 }
 
 export interface NearbyNetwork {
