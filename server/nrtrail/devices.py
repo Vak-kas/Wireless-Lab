@@ -87,7 +87,8 @@ def list_devices() -> list[dict[str, Any]]:
             found = []
         for f in found:
             out.append(_info(f["id"], f["label"], f["driver"], capability_for(f["driver"], f["label"]), f.get("serial", "")))
-    return out
+    # 실제 장비를 앞에 둔다(화면이 맨 앞 장비를 기본으로 고른다). 모의 장비는 뒤로.
+    return sorted(out, key=lambda d: d["driver"] == "simulated")
 
 
 def find_device(dev_id: str) -> dict[str, Any]:

@@ -191,3 +191,28 @@ test("실제 송신 대역폭: 처음 자리 잡은 폭보다 좁은 프레임�
   expect(screen.getByTestId("usig-narrowed")).toHaveTextContent("160 → 80 MHz");
   expect(within(screen.getByTestId("usig-table")).getByText("75%")).toBeInTheDocument();
 });
+
+test("실제 장비가 나중에 나타나면 모의 장비에서 그쪽으로 옮겨 가고, 직접 고른 뒤에는 그대로 둔다", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    const a = api();
+    const sim = { id: "simulated:x", label: "모의 장비 · x", driver: "simulated" };
+    const usrp = { id: "driver=uhd", label: "USRP B210", driver: "uhd" };
+    let list = [sim];
+    a.devices = async () => list;
+    const asked: string[] = [];
+    const describe = a.surveyDevice;
+    a.surveyDevice = async (id) => (asked.push(id), describe(id));
+    renderWithStore(<SpectrumScreen />, a);
+    await waitFor(() => expect(asked).toEqual(["simulated:x"]));
+    list = [usrp, sim];
+    await vi.advanceTimersByTimeAsync(5100);
+    await waitFor(() => expect(screen.getByRole("button", { name: "USRP B210" })).toHaveAttribute("aria-pressed", "true"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(screen.getByRole("button", { name: "모의 장비 · x" }));
+    await vi.advanceTimersByTimeAsync(5100);
+    expect(screen.getByRole("button", { name: "모의 장비 · x" })).toHaveAttribute("aria-pressed", "true");
+  } finally {
+    vi.useRealTimers();
+  }
+});

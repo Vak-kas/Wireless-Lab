@@ -195,6 +195,8 @@ export function SpectrumScreen() {
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const alive = useRef(false);
+  /** 사용자가 장비를 직접 골랐는가 */
+  const chosen = useRef(false);
   const [wifi, setWifi] = useState(false);
   const [aps, setAps] = useState<WifiAp[] | null>(null);
   const [finding, setFinding] = useState(false);
@@ -212,7 +214,9 @@ export function SpectrumScreen() {
       void api.devices().then(
         (list) => {
           setDevices((old) => (old && old.map((d) => d.id).join() === list.map((d) => d.id).join() ? old : list));
-          setDevice((cur) => cur || list[0]?.id || "");
+          // 사용자가 직접 고르기 전에는 실제 장비를 우선한다. USRP 는 몇 초 늦게 나타나므로, 나타나면 모의 장비에서 옮겨 간다.
+          const real = list.find((d) => d.driver !== "simulated");
+          setDevice((cur) => (chosen.current && list.some((d) => d.id === cur) ? cur : (real ?? list[0])?.id || ""));
         },
         () => setDevices((old) => old ?? []),
       );
@@ -489,7 +493,15 @@ export function SpectrumScreen() {
         {devices && devices.length > 0 && (
           <div className="chips center-row" role="group" aria-label={t("start.device.pick")}>
             {devices.map((d) => (
-              <Chip key={d.id} selected={d.id === device} onSelect={() => setDevice(d.id)} disabled={starting}>
+              <Chip
+                key={d.id}
+                selected={d.id === device}
+                onSelect={() => {
+                  chosen.current = true;
+                  setDevice(d.id);
+                }}
+                disabled={starting}
+              >
                 {d.label}
               </Chip>
             ))}
