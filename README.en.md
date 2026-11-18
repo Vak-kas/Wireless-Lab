@@ -1,20 +1,35 @@
-# nrtrail — a local tool for watching and following radio signals with an SDR
+# Wireless Lab (nrtrail) — a local tool to watch, follow and experiment with radio signals
 
 [한국어](README.md) · **English**
 
-nrtrail receives signals from an SDR device (or a saved file) with a few clicks in a web page, and shows
-what happened with pictures and formulas. It runs only between your browser and a server on your own
-computer (`127.0.0.1`).
+Wireless Lab handles signals from SDR devices, the computer's own Wi-Fi and Bluetooth, and saved files with a few clicks
+in a web page, and shows what happened with pictures and formulas. It runs only between your browser and a server on
+your own computer (`127.0.0.1`).
+
+The goal is one place for cellular (5G NR), Wi-Fi and Bluetooth. When it starts it shows the connected devices first and lets you pick what to do with each.
+
+The user interface is in Korean by default; an English translation is included.
+
+## What it does
 
 - **Follow a 5G NR base station** (NTN included): scan → SSB → MIB → SIB1 → SIB19, in order. Every value on screen can be expanded into "raw value → formula → result → clause of the standard".
 - **Look at the spectrum**: pick a center frequency and width to see the spectrum, and keep watching per-channel power on Wi-Fi 2.4 / 5 / 6 GHz.
+- **Wi-Fi**: channel power monitor. Pro also decodes nearby APs, frame types and bandwidth.
 - **Bluetooth**: receive and decode BLE advertisements (broadcasts meant for anyone to receive).
 - **Nearby**: even without an SDR, see the channels and strength of nearby networks and the advertisements of nearby devices with the computer's own Wi-Fi and Bluetooth (no connection is made).
+- **Experimental transmit** (Pro): send a test tone, standard test signals or your own waveform, and receive while sending to check that it really went out.
 - **Practice mode**: replays saved results, so you can go through the whole flow without any device.
 
 This public edition (Basic) is **receive-only**.
 
-The user interface is in Korean by default; an English translation is included.
+## Devices
+
+| Kind | Examples | What you can do |
+|---|---|---|
+| Plug-in device (SDR) | USRP B200mini / B210 (Pro, registered automatically through MATLAB), SoapySDR devices | Follow a base station, spectrum, channel monitor, Bluetooth reception, transmit (Pro) |
+| The computer's Wi-Fi adapter (built-in or external) | Laptop Wi-Fi, USB Wi-Fi adapter | Channel, width and strength of nearby networks |
+| The computer's Bluetooth adapter (built-in or external) | Built-in Bluetooth, USB dongle | Advertisements of nearby devices (name, maker, strength) |
+| No device | — | Practice mode, opening saved files |
 
 ## Basic and Pro
 
@@ -27,7 +42,9 @@ The user interface is in Korean by default; an English translation is included.
 | 5G NR signal-processing engine for real signals (based on MATLAB 5G Toolbox) | — | ✓ |
 | Automatic USRP registration and reception (MATLAB) | — | ✓ |
 | Wi-Fi beacon and preamble decoding (nearby APs, bandwidth) | — | ✓ |
-| Experimental transmit (a responsibility confirmation is required every time), receive-while-sending check | — | ✓ |
+| Experimental transmit (a responsibility confirmation is required every time) | — | ✓ |
+| Receive-while-sending check (one or two USRPs) | — | ✓ |
+| A slot for your own signal generators (`plugins/tx/`) | — | ✓ |
 | OAI NTN simulator testbed | — | ✓ |
 
 Pro is an overlay on top of this repository and requires MATLAB with the relevant toolboxes.
