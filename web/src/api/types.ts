@@ -109,7 +109,15 @@ export interface TxStatus {
   default_gain_db?: number;
   sending?: boolean;
   /** 만들 수 있는 표준 시험 신호와 그 샘플레이트 */
-  standards?: { id: string; sample_rate_hz: number }[];
+  standards?: {
+    id: string;
+    sample_rate_hz: number;
+    /** builtin: 이 도구가 만든다 · plugin: 사용자가 넣은 생성기 · planned: 아직 생성기가 없는 칸 */
+    source?: "builtin" | "plugin" | "planned";
+    label?: string;
+    description?: string;
+    error?: string | null;
+  }[];
 }
 
 export interface TxRequest {

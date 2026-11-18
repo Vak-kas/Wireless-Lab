@@ -512,5 +512,12 @@
   "tx.standard.wifi-eht": "Wi-Fi 7 frame (EHT)",
   "tx.standard.ble-adv": "Bluetooth test advert",
   "tx.standard.hint.wifi": "Ten 20 MHz data frames repeated with 1 ms gaps. Pick a Wi-Fi channel above.",
-  "tx.standard.hint.ble": "A test advert named 'nrtrail-test' repeated every 5 ms. Pick a Bluetooth advertising channel (ch37, ch38, ch39) above."
+  "tx.standard.hint.ble": "A test advert named 'nrtrail-test' repeated every 5 ms. Pick a Bluetooth advertising channel (ch37, ch38, ch39) above.",
+  "tx.planned.wifi-mgmt": "Wi-Fi management frames (beacon, channel switch announcement…)",
+  "tx.planned.nr-broadcast": "5G base-station broadcast",
+  "tx.planned.badge": "not built",
+  "tx.planned.note": "'Not built' slots have no generator in this tool. Put a generator (Python or MATLAB) with the same id in plugins/tx/ to enable one; the _template files there show how.",
+  "tx.plugin.badge": "my generator",
+  "tx.plugin.hint": "A signal made by a generator you placed in plugins/tx/.",
+  "tx.plugin.error": "Could not load generator {file}: {message}"
 }

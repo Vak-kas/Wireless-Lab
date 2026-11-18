@@ -18,6 +18,9 @@ function api() {
     standards: [
       { id: "wifi-he", sample_rate_hz: 20e6 },
       { id: "ble-adv", sample_rate_hz: 4e6 },
+      { id: "my-sig", sample_rate_hz: 2e6, source: "plugin" as const, label: "내 실험 신호", description: "내가 넣은 설명" },
+      { id: "wifi-mgmt", sample_rate_hz: 0, source: "planned" as const },
+      { id: "!bad.py", sample_rate_hz: 0, source: "plugin" as const, label: "bad.py", error: "SyntaxError: 틀림" },
     ],
   });
   a.surveyDevice = async () => ({
@@ -138,4 +141,23 @@ test("표준 시험 신호를 고르면 샘플레이트가 그 신호의 값으�
   await userEvent.click(screen.getByTestId("tx-closed"));
   await userEvent.click(screen.getByTestId("tx-confirm"));
   await waitFor(() => expect(a.txStart).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 2426e6, sample_rate_hz: 4e6, waveform: { kind: "standard", standard: "ble-adv" } })));
+});
+
+test("미구현 칸은 꺼진 채로 보이고, 내가 넣은 생성기는 이름과 설명이 나오며 고를 수 있다", async () => {
+  const a = api();
+  renderWithStore(<TxScreen />, a);
+  await userEvent.click(await screen.findByRole("button", { name: "표준 시험 신호" }));
+  expect(screen.getByRole("button", { name: /Wi-Fi 관리 프레임.*미구현/ })).toBeDisabled();
+  expect(screen.getByTestId("tx-planned-note")).toHaveTextContent("plugins/tx/");
+  expect(screen.getByTestId("tx-plugin-error")).toHaveTextContent("bad.py");
+  await userEvent.click(screen.getByRole("button", { name: /내 실험 신호.*내 생성기/ }));
+  expect(screen.getByText("내가 넣은 설명")).toBeInTheDocument();
+  expect(screen.getByTestId("tx-rate")).toHaveValue("2");
+  await userEvent.type(screen.getByTestId("tx-center"), "5180");
+  await userEvent.click(screen.getByTestId("tx-ask"));
+  expect(within(screen.getByRole("alertdialog")).getByText("내 실험 신호")).toBeInTheDocument(); // 확인 창에도 생성기 이름이 나온다
+  await userEvent.click(screen.getByTestId("tx-agree"));
+  await userEvent.click(screen.getByTestId("tx-closed"));
+  await userEvent.click(screen.getByTestId("tx-confirm"));
+  await waitFor(() => expect(a.txStart).toHaveBeenCalledWith(expect.objectContaining({ sample_rate_hz: 2e6, waveform: { kind: "standard", standard: "my-sig" } })));
 });

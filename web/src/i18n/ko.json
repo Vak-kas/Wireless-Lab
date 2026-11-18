@@ -512,5 +512,12 @@
   "tx.standard.wifi-eht": "Wi-Fi 7 프레임 (EHT)",
   "tx.standard.ble-adv": "블루투스 시험 광고",
   "tx.standard.hint.wifi": "20 MHz 폭 데이터 프레임 10개를 1 ms 간격으로 되풀이합니다. 위에서 Wi-Fi 채널을 고르세요.",
-  "tx.standard.hint.ble": "이름이 'nrtrail-test'인 시험 광고를 5 ms 간격으로 되풀이합니다. 위에서 블루투스 광고 채널(ch37, ch38, ch39)을 고르세요."
+  "tx.standard.hint.ble": "이름이 'nrtrail-test'인 시험 광고를 5 ms 간격으로 되풀이합니다. 위에서 블루투스 광고 채널(ch37, ch38, ch39)을 고르세요.",
+  "tx.planned.wifi-mgmt": "Wi-Fi 관리 프레임 (비콘·채널 전환 알림 등)",
+  "tx.planned.nr-broadcast": "5G 기지국 방송",
+  "tx.planned.badge": "미구현",
+  "tx.planned.note": "'미구현' 칸은 이 도구에 생성기가 없는 자리입니다. plugins/tx/ 폴더에 같은 id의 생성기(Python 또는 MATLAB)를 직접 넣으면 켜집니다. 그 폴더의 _template 파일에 쓰는 법이 있습니다.",
+  "tx.plugin.badge": "내 생성기",
+  "tx.plugin.hint": "plugins/tx/ 에 직접 넣은 생성기가 만드는 신호입니다.",
+  "tx.plugin.error": "생성기 {file} 을(를) 읽지 못했습니다: {message}"
 }

@@ -72,6 +72,13 @@ export function TxScreen() {
   }, [api, device]);
 
   const standards = status?.standards ?? [];
+  const usable = standards.filter((x) => x.source !== "planned" && !x.error);
+  const chosen = standards.find((x) => x.id === standard);
+  /** 내장 신호는 번역 문구로, 사용자가 넣은 생성기는 그 생성기가 알려 준 이름으로 */
+  const nameOf = (id: string) => {
+    const x = standards.find((y) => y.id === id);
+    return x?.source === "plugin" ? (x.label ?? id) : x?.source === "planned" ? t(`tx.planned.${id}`) : t(`tx.standard.${id}`);
+  };
   const standardRate = standards.find((x) => x.id === standard)?.sample_rate_hz;
   // 표준 시험 신호는 샘플레이트가 정해져 있다
   const rateMhz = kind === "standard" && standardRate ? show(standardRate / 1e6) : rate;
@@ -212,7 +219,7 @@ export function TxScreen() {
               </Field>
             </div>
             <div className="chips" role="group" aria-label={t("tx.waveform")}>
-              {(["tone", ...(standards.length > 0 ? (["standard"] as const) : []), "file"] as const).map((k) => (
+              {(["tone", ...(usable.length > 0 ? (["standard"] as const) : []), "file"] as const).map((k) => (
                 <Chip key={k} selected={k === kind} onSelect={() => setKind(k)} disabled={sending}>
                   {t(`tx.waveform.${k}`)}
                 </Chip>
@@ -225,12 +232,32 @@ export function TxScreen() {
               <>
                 <div className="chips" role="group" aria-label={t("tx.waveform.standard")}>
                   {standards.map((x) => (
-                    <Chip key={x.id} selected={x.id === standard} onSelect={() => setStandard(x.id)} disabled={sending}>
-                      {t(`tx.standard.${x.id}`)}
+                    <Chip
+                      key={x.id}
+                      selected={x.id === standard}
+                      onSelect={() => setStandard(x.id)}
+                      disabled={sending || x.source === "planned" || Boolean(x.error)}
+                    >
+                      {nameOf(x.id)}
+                      {x.source === "planned" ? ` · ${t("tx.planned.badge")}` : x.source === "plugin" ? ` · ${t("tx.plugin.badge")}` : ""}
                     </Chip>
                   ))}
                 </div>
-                <p className="t-caption muted">{t(`tx.standard.hint.${STANDARD_HINT[standard] ?? "wifi"}`)}</p>
+                <p className="t-caption muted">
+                  {chosen?.source === "plugin" ? chosen.description || t("tx.plugin.hint") : t(`tx.standard.hint.${STANDARD_HINT[standard] ?? "wifi"}`)}
+                </p>
+                {standards.some((x) => x.source === "planned") && (
+                  <p className="t-caption muted" data-testid="tx-planned-note">
+                    {t("tx.planned.note")}
+                  </p>
+                )}
+                {standards
+                  .filter((x) => x.error)
+                  .map((x) => (
+                    <p key={x.id} className="t-caption" data-testid="tx-plugin-error">
+                      ! {t("tx.plugin.error", { file: x.label ?? x.id, message: x.error ?? "" })}
+                    </p>
+                  ))}
               </>
             ) : kind === "tone" ? (
               <div className="row">
@@ -284,7 +311,7 @@ export function TxScreen() {
                   ["center", `${asking.center_hz / 1e6} MHz`],
                   ["gain", `${asking.gain_db} dB`],
                   ["seconds", `${asking.seconds} s`],
-                  ["waveform", asking.waveform.kind === "tone" ? t("tx.waveform.tone") : asking.waveform.kind === "standard" ? t(`tx.standard.${asking.waveform.standard}`) : asking.waveform.path],
+                  ["waveform", asking.waveform.kind === "tone" ? t("tx.waveform.tone") : asking.waveform.kind === "standard" ? nameOf(asking.waveform.standard) : asking.waveform.path],
                 ] as const
               ).map(([k, v]) => (
                 <div key={k}>
