@@ -13,7 +13,7 @@ export function ApTable({ aps, onPick }: { aps: WifiAp[]; onPick: (ap: WifiAp) =
           <tr>
             {["ssid", "bssid", "primary", "width", "eht", "power", "pick"].map((c) => (
               <th key={c} scope="col" className="t-caption-strong">
-                {t(`wifi.col.${c}`)}
+                {c === "pick" ? <span className="sr-only">{t("wifi.pick")}</span> : t(`wifi.col.${c}`)}
               </th>
             ))}
           </tr>

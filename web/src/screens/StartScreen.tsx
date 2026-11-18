@@ -1,27 +1,74 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { DoctorReport, Scenario, Session } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
-import { useUsableDevices } from "../devices/DeviceHub";
-import { DevicePicker } from "./DevicePicker";
+import { DeviceCard, useUsableDevices } from "../devices/DeviceHub";
+import { saveIntent, type SpectrumIntent } from "../devices/intent";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
 
 const DOCTOR_LEVEL = { ok: "ok", warn: "warn", missing: "error" } as const;
 
 /** 1. 시작: 입력 소스 선택(연습 / 파일 / 장비), 장비 상태, 최근 세션. */
+const TASK_ICONS: Record<string, React.ReactNode> = {
+  // 기지국 탑과 퍼지는 신호
+  nr: (
+    <>
+      <path d="M12 21V10M8 21l4-11 4 11M9.5 17h5" />
+      <path d="M8.5 7.5a5 5 0 0 1 7 0M6 5a8.5 8.5 0 0 1 12 0" />
+    </>
+  ),
+  // 부채꼴로 퍼지는 무선 신호
+  wifi: (
+    <>
+      <path d="M4 10a11.5 11.5 0 0 1 16 0M7 13.5a7.5 7.5 0 0 1 10 0M10 17a3.2 3.2 0 0 1 4 0" />
+      <circle cx="12" cy="19.5" r="0.8" />
+    </>
+  ),
+  // 주파수별 세기 곡선
+  view: <path d="M3 19h18M4 16l3-1 2-8 2 8 2-3 2 3 2-5 3 6" />,
+  // 근거리 무선: 이어진 두 점
+  bt: (
+    <>
+      <circle cx="7" cy="12" r="2.5" />
+      <circle cx="17" cy="12" r="2.5" />
+      <path d="M9.5 12h5M12 6v2M12 16v2" />
+    </>
+  ),
+  // 내보내는 신호: 위로 향한 화살표와 파동
+  tx: (
+    <>
+      <path d="M12 20V8M8 12l4-4 4 4" />
+      <path d="M6 6a8.5 8.5 0 0 1 12 0" />
+    </>
+  ),
+};
+
+/** "이 장비로 할 일" 한 칸. soon 이면 아직 없는 기능이라 누를 수 없다. */
+function Task({ id, onClick, disabled, soon, note }: { id: string; onClick?: () => void; disabled?: boolean; soon?: boolean; note?: string }) {
+  return (
+    <button type="button" className="task" onClick={onClick} disabled={disabled || soon} data-testid={`task-${id}`} data-soon={soon ? "true" : undefined}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        {TASK_ICONS[id]}
+      </svg>
+      <span className="t-body-strong">{t(`home.task.${id}`)}</span>
+      <span className="t-caption muted">{t(`home.task.${id}.desc`)}</span>
+      {soon && <span className="t-caption task-soon">{t("home.soon")}</span>}
+      {note && <span className="t-fine-print muted">{note}</span>}
+    </button>
+  );
+}
+
 export function StartScreen() {
   const { api, start, stageDef } = useStore();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenario, setScenario] = useState<string>("");
   const hub = useUsableDevices();
   const devices = hub.devices ?? [];
-  /** 사용자가 장비를 직접 골랐는가 (모의 실험을 켠 것 포함) */
-  const chosen = useRef(false);
-  const [device, setDevice] = useState<string>("");
+  const [simPick, setSim] = useState<string>("");
   const [doctor, setDoctor] = useState<DoctorReport | null>(null);
   const [recent, setRecent] = useState<Session[]>([]);
   const [path, setPath] = useState("");
@@ -38,13 +85,15 @@ export function StartScreen() {
     void api.listSessions().then(setRecent);
   }, [api]);
 
-  // 실제 장비가 (늦게라도) 나타나면 기본으로 고른다. 직접 고른 뒤에는 건드리지 않는다.
-  const deviceIds = devices.map((d) => `${d.driver}:${d.id}`).join();
-  useEffect(() => {
-    if (chosen.current) return;
-    setDevice(devices.find((d) => d.driver !== "simulated")?.id ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 목록의 내용이 바뀔 때만
-  }, [deviceIds]);
+  const real = devices.filter((d) => d.driver !== "simulated");
+  const sims = devices.filter((d) => d.driver === "simulated");
+  const sim = sims.some((d) => d.id === simPick) ? simPick : (sims[0]?.id ?? "");
+
+  /** 주파수 상태 화면으로 넘어가며 "이 장비로, 이 대역을" 미리 골라 둔다. */
+  const openSpectrum = (intent: SpectrumIntent) => {
+    saveIntent(intent);
+    go("spectrum");
+  };
 
   const begin = async (fn: () => Promise<Session>) => {
     setBusy(true);
@@ -71,7 +120,41 @@ export function StartScreen() {
     <>
       <SubNav title={t("nav.start")} />
       <Tile tone="light">
-        <TileHead title={t("start.title")} lead={t("start.lead")} />
+        <TileHead title={t("home.title")} lead={t("home.lead")} />
+        {real.length === 0 ? (
+          <div className="card home-empty" data-testid="home-no-device">
+            <p className="t-body">{hub.mode === "none" ? t("hub.none_mode") : t("sim.no_real")}</p>
+            <div>
+              <Button variant="secondary" onClick={hub.connect} data-testid="home-connect">
+                {t("hub.mine.reconnect")}
+              </Button>
+            </div>
+            <p className="t-caption muted">{t("home.empty_hint")}</p>
+          </div>
+        ) : (
+          real.map((d) => (
+            <div className="card home-device" key={d.id} data-testid={`home-device-${d.id}`}>
+              <DeviceCard device={d} />
+              <h3 className="t-tagline">{t("home.tasks")}</h3>
+              <div className="tasks">
+                <Task
+                  id="nr"
+                  disabled={busy}
+                  onClick={() => void begin(() => start({ kind: "device", device: d.id, device_label: d.label }))}
+                  note={Object.values(d.stages ?? {}).some((v) => v !== "ok") ? d.note : undefined}
+                />
+                <Task id="wifi" disabled={busy} onClick={() => openSpectrum({ device: d.id, plan: "wifi-5g" })} />
+                <Task id="view" disabled={busy} onClick={() => openSpectrum({ device: d.id, focus: "view" })} />
+                <Task id="bt" soon />
+                <Task id="tx" soon />
+              </div>
+            </div>
+          ))
+        )}
+      </Tile>
+
+      <Tile tone="parchment" id="without-device">
+        <TileHead eyebrow={t("home.without.eyebrow")} title={t("home.without.title")} lead={t("home.without.lead")} />
         <div className="source-grid">
           <div className="card" data-testid="source-practice">
             <h3 className="t-tagline">{t("start.practice.title")}</h3>
@@ -122,60 +205,45 @@ export function StartScreen() {
 
           <OaiCard />
 
-          <div className="card" data-testid="source-device">
-            <h3 className="t-tagline">{t("start.device.title")}</h3>
-            <p className="t-caption muted">{t("start.device.desc")}</p>
-            {devices.length === 0 ? (
-              <Empty action={<a href={href("settings")}>{t("start.device.check")}</a>}>{t("start.device.none")}</Empty>
-            ) : (
-              <>
-                {hub.mode === "none" && (
-                  <p className="t-caption muted" data-testid="no-device-mode">
-                    {t("hub.none_mode")}{" "}
-                    <Button variant="link" onClick={hub.connect}>
-                      {t("hub.mine.reconnect")}
-                    </Button>
-                  </p>
-                )}
-                <DevicePicker
-                  devices={devices}
-                  device={device}
-                  disabled={busy}
-                  onPick={(id) => {
-                    chosen.current = true;
-                    setDevice(id);
-                  }}
-                />
-                {devices
-                  .filter((d) => d.id === device)
-                  .map((d) => (
-                    <div key={d.id} className="t-caption" data-testid="device-capability">
-                      <p className="muted">{d.note}</p>
-                      <div className="row">
-                        {Object.entries(d.stages ?? {}).map(([stage, level]) => (
-                          <Badge key={stage} level={level === "ok" ? "ok" : level === "limited" ? "warn" : "error"}>
-                            {stageDef(stage)?.label ?? stage} · {t(`device.stage.${level}`)}
-                          </Badge>
-                        ))}
-                      </div>
+          {sims.length > 0 && (
+            <div className="card" data-testid="source-device">
+              <h3 className="t-tagline">{t("home.sim.title")}</h3>
+              <p className="t-caption muted">{t("home.sim.desc")}</p>
+              <div className="chips" role="group" aria-label={t("start.device.pick")}>
+                {sims.map((d) => (
+                  <Chip key={d.id} selected={d.id === sim} onSelect={() => setSim(d.id)}>
+                    {d.id.replace(/^simulated:/, "")}
+                  </Chip>
+                ))}
+              </div>
+              {sims
+                .filter((d) => d.id === sim)
+                .map((d) => (
+                  <div key={d.id} className="t-caption" data-testid="device-capability">
+                    <div className="row">
+                      {Object.entries(d.stages ?? {}).map(([stage, level]) => (
+                        <Badge key={stage} level={level === "ok" ? "ok" : level === "limited" ? "warn" : "error"}>
+                          {stageDef(stage)?.label ?? stage} · {t(`device.stage.${level}`)}
+                        </Badge>
+                      ))}
                     </div>
-                  ))}
-                <div className="row">
-                  <Button
-                    variant="secondary"
-                    data-testid="start-device"
-                    disabled={busy || !device}
-                    onClick={() => void begin(() => start({ kind: "device", device, device_label: devices.find((d) => d.id === device)?.label }))}
-                  >
-                    {t("start.device.button")}
-                  </Button>
-                  <a href={href("spectrum")} data-testid="start-spectrum">
-                    {t("start.device.spectrum")}
-                  </a>
-                </div>
-              </>
-            )}
-          </div>
+                  </div>
+                ))}
+              <div className="row">
+                <Button
+                  variant="secondary"
+                  data-testid="start-device"
+                  disabled={busy || !sim}
+                  onClick={() => void begin(() => start({ kind: "device", device: sim, device_label: sims.find((d) => d.id === sim)?.label }))}
+                >
+                  {t("home.sim.follow")}
+                </Button>
+                <Button variant="link" disabled={busy || !sim} onClick={() => openSpectrum({ device: sim })} data-testid="start-spectrum">
+                  {t("home.sim.spectrum")}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </Tile>
 

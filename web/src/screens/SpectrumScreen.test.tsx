@@ -228,3 +228,19 @@ test("모의 장비는 평소에 보이지 않고, '모의 실험하기'를 눌�
     vi.useRealTimers();
   }
 });
+
+test("첫 화면에서 'Wi-Fi 보기'로 넘어오면 그 장비와 대역이 골라진 채 열린다", async () => {
+  const { saveIntent } = await import("../devices/intent");
+  const a = api();
+  const other = { id: "driver=other", label: "다른 장비", driver: "x" };
+  a.devices = async () => [other, { id: "driver=uhd", label: "USRP B210", driver: "uhd" }];
+  const asked: string[] = [];
+  const describe = a.surveyDevice;
+  a.surveyDevice = async (id) => (asked.push(id), describe(id));
+  saveIntent({ device: "driver=uhd", plan: "wifi-5g" });
+  renderWithStore(<SpectrumScreen />, a);
+  await waitFor(() => expect(screen.getByRole("button", { name: "USRP B210" })).toHaveAttribute("aria-pressed", "true"));
+  expect(new Set(asked)).toEqual(new Set(["driver=uhd"])); // 맨 앞 장비가 아니라 넘겨받은 장비만 물었다
+  expect(await screen.findByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "true");
+  expect(sessionStorage.getItem("nrtrail.spectrumIntent")).toBeNull(); // 한 번 쓰면 지운다
+});

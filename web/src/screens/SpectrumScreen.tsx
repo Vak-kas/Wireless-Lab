@@ -6,6 +6,7 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { useUsableDevices } from "../devices/DeviceHub";
+import { takeIntent } from "../devices/intent";
 import { DevicePicker } from "./DevicePicker";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
 import { ApTable, BandwidthWatch, countByWidth, dominant, type UsigSample } from "./WifiPanels";
@@ -185,7 +186,6 @@ function ChannelMap({ plan, picked, onChange, disabled }: { plan: SurveyPlan; pi
  */
 export function SpectrumScreen() {
   const { api, fail } = useStore();
-  const [device, setDevice] = useState("");
   const [info, setInfo] = useState<SurveyDevice | null>(null);
   const [plan, setPlan] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -195,8 +195,11 @@ export function SpectrumScreen() {
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const alive = useRef(false);
-  /** 사용자가 장비를 직접 골랐는가 */
-  const chosen = useRef(false);
+  /** 첫 화면에서 넘어올 때 받은 쪽지(어느 장비로, 어느 대역을) */
+  const [intent] = useState(takeIntent);
+  /** 사용자가 장비를 직접 골랐는가 (쪽지로 넘어온 것도 고른 것으로 친다) */
+  const chosen = useRef(intent !== null);
+  const [device, setDevice] = useState(intent?.device ?? "");
   const [wifi, setWifi] = useState(false);
   const [aps, setAps] = useState<WifiAp[] | null>(null);
   const [finding, setFinding] = useState(false);
@@ -232,11 +235,15 @@ export function SpectrumScreen() {
     void api.surveyDevice(device).then(
       (i) => {
         setInfo(i);
-        choosePlan(i.plans.find((p) => p.available));
+        const wanted = intent?.device === i.device.id ? i.plans.find((p) => p.id === intent.plan && p.available) : undefined;
+        choosePlan(wanted ?? i.plans.find((p) => p.available));
+        if (intent?.device === i.device.id && intent.focus === "view") {
+          setTimeout(() => document.getElementById("spectrum-view")?.scrollIntoView?.({ block: "start" }), 50);
+        }
       },
       (e: unknown) => fail(String(e instanceof Error ? e.message : e)),
     );
-  }, [api, device, fail, choosePlan]);
+  }, [api, device, fail, choosePlan, intent]);
 
   // 모니터링: 한 바퀴가 끝나면 잠깐 쉬고 다음 바퀴를 잰다. 화면을 떠나면 멈추고 서버의 모니터를 지운다.
   const monId = mon?.id;
@@ -389,7 +396,12 @@ export function SpectrumScreen() {
             {rows.some((r) => r.clipped) && <Badge level="warn">{t("spectrum.clipped")}</Badge>}
             {mon.baseline_note && <Badge level="ok">{t(`monitor.baseline.${mon.baseline_note}`)}</Badge>}
             {mon.forced.length > 0 && <Badge level="warn">{t("monitor.forced", { names: mon.forced.join(", ") })}</Badge>}
-            {waiting.length > 0 && <Badge level="info">{t("monitor.settling", { s: Math.ceil(Math.max(...waiting.map((r) => r.settle_s ?? 0))) })}</Badge>}
+            {waiting.length > 0 &&
+              (Math.max(...waiting.map((r) => r.settle_s ?? 0)) > 0 ? (
+                <Badge level="info">{t("monitor.settling", { s: Math.ceil(Math.max(...waiting.map((r) => r.settle_s ?? 0))) })}</Badge>
+              ) : (
+                <Badge level="info">{t("monitor.shaky", { names: waiting.map((r) => r.name).join(", ") })}</Badge>
+              ))}
           </div>
           <div className="row center-row">
             <label className="t-caption">
@@ -421,7 +433,7 @@ export function SpectrumScreen() {
                     <tr>
                       {["name", "center", "median", "mean", "peak", "rise", ...(real ? ["look"] : [])].map((c) => (
                         <th key={c} scope="col" className={`t-caption-strong ${c === "name" ? "" : "right"}`}>
-                          {t(`spectrum.col.${c}`)}
+                          {c === "look" ? <span className="sr-only">{t("spectrum.look")}</span> : t(`spectrum.col.${c}`)}
                         </th>
                       ))}
                     </tr>
