@@ -100,6 +100,20 @@ export interface SurveyPlan {
   groups?: Record<string, string[][]>;
 }
 
+/** 장비 찾기의 지금 상태 (찾는 중인지, 왜 못 찾았는지) */
+export interface DeviceSearch {
+  backends: {
+    backend: string;
+    searching: boolean;
+    found: number;
+    error: string;
+    /** 꽂혀 있지만 다른 프로그램이 쓰는 중인 장비 */
+    busy_devices?: string[];
+    searching_for_s?: number | null;
+    checked_s_ago?: number | null;
+  }[];
+}
+
 export interface TxStatus {
   /** 송신 기능이 이 설치에 있는가 */
   available: boolean;
@@ -363,6 +377,8 @@ export interface Api {
   monitorSweep(id: string): Promise<MonitorState>;
   monitorPatch(id: string, body: { auto?: boolean; stat?: string; baseline?: "save" | "clear" }): Promise<MonitorState>;
   monitorStop(id: string): Promise<void>;
+  deviceSearch(): Promise<DeviceSearch>;
+  deviceRescan(): Promise<DeviceSearch>;
   txStatus(): Promise<TxStatus>;
   txStart(req: TxRequest): Promise<{ seconds: number; stopped: boolean; underruns: number }>;
   txStop(): Promise<{ stopping: boolean }>;

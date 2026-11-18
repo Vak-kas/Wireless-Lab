@@ -83,6 +83,8 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     monitorSweep: no,
     monitorPatch: no,
     monitorStop: async () => undefined,
+    deviceSearch: async () => ({ backends: [] }),
+    deviceRescan: async () => ({ backends: [] }),
     txStatus: async () => ({ available: false }),
     txStart: no,
     txStop: async () => ({ stopping: false }),

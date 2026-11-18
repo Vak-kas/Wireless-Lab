@@ -210,6 +210,8 @@ export const mockApi: Api = {
     throw new Error("mock");
   },
   monitorStop: async () => undefined,
+  deviceSearch: async () => ({ backends: [] }),
+  deviceRescan: async () => ({ backends: [] }),
   txStatus: async () => ({ available: false }),
   txStart: async () => {
     throw new Error("mock");

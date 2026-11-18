@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { DeviceInfo } from "../api";
+import type { DeviceInfo, DeviceSearch } from "../api";
 import { Badge, Button } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
@@ -16,6 +16,10 @@ interface Hub {
   mode: DeviceMode;
   /** 장비 연결 창을 다시 연다 */
   connect(): void;
+  /** 장비 찾기의 지금 상태 (없으면 아직 모름) */
+  search: DeviceSearch | null;
+  /** 지금 다시 찾는다 */
+  rescan(): void;
 }
 const Ctx = createContext<Hub | null>(null);
 
@@ -24,7 +28,7 @@ export function useUsableDevices(): Hub {
   const hub = useContext(Ctx);
   const { api } = useStore();
   const own = useDevices(api, hub === null);
-  return hub ?? { devices: own, mode: "device", connect: () => undefined };
+  return hub ?? { devices: own, mode: "device", connect: () => undefined, search: null, rescan: () => undefined };
 }
 
 const mhz = (hz?: number) => (hz === undefined ? "" : (hz / 1e6).toFixed(0));
@@ -42,6 +46,44 @@ function DevicePicture() {
       <path d="M44 52v6h8v-6" />
       <path d="M36 32h4M36 38h4M56 32h4M56 38h4" />
     </svg>
+  );
+}
+
+/**
+ * 실제 장비가 하나도 없을 때 보여 주는 한 줄: 찾는 중인지, 다른 프로그램이 쓰는 중인지, 왜 못 찾았는지. 그리고 "다시 찾기".
+ */
+export function SearchNote({ search, onRescan }: { search: DeviceSearch | null; onRescan: () => void }) {
+  const b = search?.backends ?? [];
+  const searching = b.some((x) => x.searching);
+  const busy = b.flatMap((x) => x.busy_devices ?? []);
+  const error = b.map((x) => x.error).find(Boolean);
+  const ago = b.map((x) => x.checked_s_ago).find((x) => x !== null && x !== undefined);
+  const forS = b.map((x) => x.searching_for_s).find((x) => x !== null && x !== undefined);
+  return (
+    <div className="search-note" data-testid="search-note">
+      {searching ? (
+        <p className="searching t-caption" data-testid="connect-searching">
+          <span className="spinner" aria-hidden="true" /> {t("hub.search.searching", { s: Math.round(forS ?? 0) })}
+        </p>
+      ) : busy.length > 0 ? (
+        <p className="t-caption" data-testid="search-busy">
+          ! {t("hub.search.busy", { list: busy.join(", ") })}
+        </p>
+      ) : error ? (
+        <p className="t-caption" data-testid="search-error">
+          ! {t("hub.search.error", { message: error })}
+        </p>
+      ) : (
+        <p className="t-caption muted" data-testid="search-none">
+          {b.length === 0 ? t("hub.search.unsupported") : t("hub.search.none", { s: Math.round(ago ?? 0) })}
+        </p>
+      )}
+      {b.length > 0 && (
+        <Button variant="link" onClick={onRescan} disabled={searching} data-testid="search-rescan">
+          {t("hub.search.rescan")}
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -100,6 +142,20 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [arrived, setArrived] = useState<DeviceInfo[]>([]);
   const known = useRef<Set<string> | null>(null);
+  const [search, setSearch] = useState<DeviceSearch | null>(null);
+
+  // 찾기 상태를 함께 읽는다(찾는 중인지, 왜 못 찾았는지를 보여 주려고)
+  useEffect(() => {
+    let alive = true;
+    const load = () => void api.deviceSearch().then((x) => alive && setSearch(x), () => undefined);
+    load();
+    const timer = setInterval(load, 3000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [api]);
+  const rescan = useCallback(() => void api.deviceRescan().then(setSearch, () => undefined), [api]);
 
   const real = useMemo(() => (all ?? []).filter((d) => !isSim(d)), [all]);
   const setMode = useCallback((m: DeviceMode) => {
@@ -126,7 +182,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   }, [all, real, asking]);
 
   const usable = useMemo(() => (all === null ? null : mode === "none" ? all.filter(isSim) : all), [all, mode]);
-  const hub = useMemo<Hub>(() => ({ devices: usable, mode, connect: () => setConnecting(true) }), [usable, mode]);
+  const hub = useMemo<Hub>(() => ({ devices: usable, mode, connect: () => setConnecting(true), search, rescan }), [usable, mode, search, rescan]);
 
   return (
     <Ctx.Provider value={hub}>
@@ -146,9 +202,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
                 ))}
               </div>
             ) : (
-              <p className="searching t-caption" data-testid="connect-searching">
-                <span className="spinner" aria-hidden="true" /> {t("hub.connect.searching")}
-              </p>
+              <SearchNote search={search} onRescan={rescan} />
             )}
             <div className="dialog-actions">
               <Button onClick={() => setMode("device")} disabled={real.length === 0} data-testid="connect-start" autoFocus>
@@ -193,7 +247,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
           <div className="t-caption-strong">{t("hub.mine.title")}</div>
           {mode === "none" && <p className="t-caption muted">{t("hub.mine.none_mode")}</p>}
           {real.length === 0 ? (
-            <p className="t-caption muted">{t("hub.mine.empty")}</p>
+            <SearchNote search={search} onRescan={rescan} />
           ) : (
             real.map((d) => <DeviceCard key={d.id} device={d} />)
           )}

@@ -5,7 +5,7 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
-import { DeviceCard, useUsableDevices } from "../devices/DeviceHub";
+import { DeviceCard, SearchNote, useUsableDevices } from "../devices/DeviceHub";
 import { saveIntent, saveTxDevice, type SpectrumIntent } from "../devices/intent";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
@@ -125,7 +125,7 @@ export function StartScreen() {
         <TileHead title={t("home.title")} lead={t("home.lead")} />
         {real.length === 0 ? (
           <div className="card home-empty" data-testid="home-no-device">
-            <p className="t-body">{hub.mode === "none" ? t("hub.none_mode") : t("sim.no_real")}</p>
+            {hub.mode === "none" ? <p className="t-body">{t("hub.none_mode")}</p> : <SearchNote search={hub.search} onRescan={hub.rescan} />}
             <div>
               <Button variant="secondary" onClick={hub.connect} data-testid="home-connect">
                 {t("hub.mine.reconnect")}

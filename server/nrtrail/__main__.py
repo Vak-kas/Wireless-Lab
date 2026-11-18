@@ -40,6 +40,12 @@ def main() -> None:
     parser.add_argument("--mock-delay", type=float, default=0.35, help="연습 모드에서 진행 문구마다 쉬는 시간(초)")
     args = parser.parse_args()
     app = create_app(build_engines(args.engine, args.mock_delay), default_engine="matlab" if args.engine == "matlab" else None)
+    try:
+        from . import usrp_matlab
+
+        usrp_matlab.warm()          # USRP 찾기를 미리 시작한다(MATLAB 을 띄우는 데 시간이 걸린다)
+    except ImportError:
+        pass
     print(f"nrtrail 서버: http://{HOST}:{args.port}")
     uvicorn.run(app, host=HOST, port=args.port, log_level="warning")
 

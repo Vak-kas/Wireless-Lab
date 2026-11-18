@@ -91,6 +91,27 @@ def list_devices() -> list[dict[str, Any]]:
     return sorted(out, key=lambda d: d["driver"] == "simulated")
 
 
+def search_status() -> list[dict[str, Any]]:
+    """장비를 뒤에서 찾는 쪽들의 상태(찾는 중인지, 마지막에 왜 못 찾았는지)."""
+    out = []
+    for backend in BACKENDS.values():
+        if hasattr(backend, "status"):
+            try:
+                out.append(backend.status())
+            except Exception as e:  # noqa: BLE001
+                out.append({"backend": "?", "searching": False, "found": 0, "error": str(e)})
+    return out
+
+
+def rescan() -> None:
+    """지금 다시 찾기 시작한다(기다리지 않는다)."""
+    for backend in BACKENDS.values():
+        try:
+            backend.list_found(force=True, wait_s=0)
+        except Exception:  # noqa: BLE001, S110 — 실패 이유는 search_status 에 남는다
+            pass
+
+
 def find_device(dev_id: str) -> dict[str, Any]:
     for d in list_devices():
         if d["id"] == dev_id:

@@ -394,7 +394,6 @@
   "sim.no_real": "연결된 장비가 없습니다. USRP를 꽂으면 몇 초 뒤 여기에 나타납니다.",
   "hub.connect.title": "장비를 연결하세요",
   "hub.connect.lead": "SDR 장비(USRP 등)를 USB로 꽂으면 몇 초 뒤 아래에 나타납니다.",
-  "hub.connect.searching": "장비를 찾는 중… 꽂은 뒤 10초쯤 걸릴 수 있습니다.",
   "hub.connect.start": "이 장비로 시작",
   "hub.connect.start_many": "장비 {n}대로 시작",
   "hub.connect.skip": "장비 없이 시작하기",
@@ -519,5 +518,11 @@
   "tx.planned.note": "'미구현' 칸은 이 도구에 생성기가 없는 자리입니다. plugins/tx/ 폴더에 같은 id의 생성기(Python 또는 MATLAB)를 직접 넣으면 켜집니다. 그 폴더의 _template 파일에 쓰는 법이 있습니다.",
   "tx.plugin.badge": "내 생성기",
   "tx.plugin.hint": "plugins/tx/ 에 직접 넣은 생성기가 만드는 신호입니다.",
-  "tx.plugin.error": "생성기 {file} 을(를) 읽지 못했습니다: {message}"
+  "tx.plugin.error": "생성기 {file} 을(를) 읽지 못했습니다: {message}",
+  "hub.search.searching": "장비를 찾는 중… ({s}초째. 프로그램을 연 직후에는 30초쯤 걸릴 수 있습니다)",
+  "hub.search.busy": "USRP가 꽂혀 있지만 다른 프로그램이 쓰는 중입니다: {list}. 그 프로그램을 닫고 다시 찾아 보세요.",
+  "hub.search.error": "장비를 찾지 못했습니다: {message}",
+  "hub.search.none": "연결된 장비가 없습니다 ({s}초 전에 확인). USB 케이블과 포트를 확인해 보세요.",
+  "hub.search.unsupported": "연결된 장비가 없습니다.",
+  "hub.search.rescan": "다시 찾기"
 }

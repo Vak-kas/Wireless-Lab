@@ -1,22 +1,27 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type { DeviceInfo } from "../api";
+import type { Api, DeviceInfo, DeviceSearch } from "../api";
 import { fakeApi, renderWithStore } from "../test-utils";
 import { DeviceHub, useUsableDevices } from "./DeviceHub";
 
 const usrp: DeviceInfo = { id: "usrp:B200:S1", label: "USRP B200 (S1)", driver: "uhd", serial: "S1", freq_min_hz: 70e6, freq_max_hz: 6e9, max_sample_rate_hz: 56e6 };
 const sim: DeviceInfo = { id: "simulated:x", label: "모의 장비 · x", driver: "simulated" };
 
+let lastApi: Api;
+
 function Probe() {
   const { devices, mode } = useUsableDevices();
   return <div data-testid="probe">{`${mode}:${(devices ?? []).map((d) => d.id).join(",")}`}</div>;
 }
 
-function setup(first: DeviceInfo[]) {
+function setup(first: DeviceInfo[], search: DeviceSearch = { backends: [] }) {
   const api = fakeApi();
   let list = first;
   api.devices = async () => list;
+  api.deviceSearch = async () => search;
+  api.deviceRescan = vi.fn(async () => search);
+  lastApi = api;
   renderWithStore(
     <DeviceHub>
       <Probe />
@@ -53,8 +58,8 @@ test("처음 열면 장비 연결 창이 뜨고, 찾은 장비를 카드(이름�
 });
 
 test("장비가 없으면 찾는 중이라고 알리고 시작 단추를 막는다. 창이 떠 있는 동안 꽂으면 바로 나타난다", async () => {
-  const { set } = setup([sim]);
-  expect(await screen.findByTestId("connect-searching")).toBeInTheDocument();
+  const { set } = setup([sim], { backends: [{ backend: "usrp-matlab", searching: true, found: 0, error: "", searching_for_s: 4 }] });
+  expect(await screen.findByTestId("connect-searching")).toHaveTextContent("4초째");
   expect(screen.getByTestId("connect-start")).toBeDisabled();
   await set([usrp, sim]);
   expect(await screen.findByTestId("device-card-usrp:B200:S1")).toBeInTheDocument();
@@ -96,4 +101,16 @@ test("내 장비 단추: 누르면 장비 카드가 펼쳐지고, 연결 창을 
 
   await user.click(screen.getByTestId("my-devices-connect"));
   expect(screen.getByRole("dialog", { name: "장비를 연결하세요" })).toBeInTheDocument();
+});
+
+test("못 찾은 이유를 알려 주고(다른 프로그램이 쓰는 중, 오류) 다시 찾을 수 있다", async () => {
+  const { user } = setup([], { backends: [{ backend: "usrp-matlab", searching: false, found: 0, error: "", busy_devices: ["B200 S1: Busy"], checked_s_ago: 3 }] });
+  expect(await screen.findByTestId("search-busy")).toHaveTextContent("B200 S1: Busy");
+  await user.click(screen.getByTestId("search-rescan"));
+  expect(lastApi.deviceRescan).toHaveBeenCalled();
+});
+
+test("찾기가 실패하면 오류 내용을, 그냥 없으면 언제 확인했는지를 보여 준다", async () => {
+  setup([], { backends: [{ backend: "usrp-matlab", searching: false, found: 0, error: "RuntimeError: MATLAB 을 띄우지 못했다", checked_s_ago: 2 }] });
+  expect(await screen.findByTestId("search-error")).toHaveTextContent("MATLAB 을 띄우지 못했다");
 });

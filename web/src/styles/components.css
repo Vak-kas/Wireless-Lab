@@ -1298,3 +1298,11 @@ details.fold > .fold-body {
 .tab-toggle {
   margin-left: auto;
 }
+.search-note {
+  display: grid;
+  gap: var(--space-xxs);
+  justify-items: center;
+}
+.home-empty .search-note {
+  justify-items: start;
+}

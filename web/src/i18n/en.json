@@ -394,7 +394,6 @@
   "sim.no_real": "No device connected. A USRP appears here a few seconds after you plug it in.",
   "hub.connect.title": "Connect a device",
   "hub.connect.lead": "Plug in an SDR (such as a USRP) over USB; it appears below after a few seconds.",
-  "hub.connect.searching": "Looking for devices… this can take about 10 s after plugging in.",
   "hub.connect.start": "Start with this device",
   "hub.connect.start_many": "Start with {n} devices",
   "hub.connect.skip": "Start without a device",
@@ -519,5 +518,11 @@
   "tx.planned.note": "'Not built' slots have no generator in this tool. Put a generator (Python or MATLAB) with the same id in plugins/tx/ to enable one; the _template files there show how.",
   "tx.plugin.badge": "my generator",
   "tx.plugin.hint": "A signal made by a generator you placed in plugins/tx/.",
-  "tx.plugin.error": "Could not load generator {file}: {message}"
+  "tx.plugin.error": "Could not load generator {file}: {message}",
+  "hub.search.searching": "Looking for devices… ({s} s so far; right after opening the program this can take about 30 s)",
+  "hub.search.busy": "A USRP is plugged in but another program is using it: {list}. Close that program and search again.",
+  "hub.search.error": "Could not find devices: {message}",
+  "hub.search.none": "No device connected (checked {s} s ago). Check the USB cable and port.",
+  "hub.search.unsupported": "No device connected.",
+  "hub.search.rescan": "Search again"
 }
