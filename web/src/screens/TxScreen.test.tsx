@@ -9,7 +9,25 @@ const usrp = { id: "usrp:B200:S1", label: "USRP B200 (S1)", driver: "uhd" };
 function api() {
   const a = fakeApi();
   a.devices = async () => [usrp, { id: "simulated:x", label: "모의 장비 · x", driver: "simulated" }];
-  a.txStatus = async () => ({ available: true, warning_version: "v1", max_seconds: 30, max_gain_db: 89.75, default_gain_db: 0 });
+  a.txStatus = async () => ({
+    available: true,
+    warning_version: "v1",
+    max_seconds: 30,
+    max_gain_db: 89.75,
+    default_gain_db: 0,
+    standards: [
+      { id: "wifi-he", sample_rate_hz: 20e6 },
+      { id: "ble-adv", sample_rate_hz: 4e6 },
+    ],
+  });
+  a.surveyDevice = async () => ({
+    device: usrp,
+    plans: [
+      { id: "wifi-5g", available: true, channels: 2, map: [{ name: "ch36", center_hz: 5180e6, width_hz: 20e6, reachable: true }, { name: "ch40", center_hz: 5200e6, width_hz: 20e6, reachable: false }] },
+      { id: "ble", available: true, channels: 1, map: [{ name: "ch38", center_hz: 2426e6, width_hz: 2e6, reachable: true }] },
+      { id: "custom", available: true, channels: 0 },
+    ],
+  });
   a.txStart = vi.fn(async () => ({ seconds: 2.01, stopped: false, underruns: 0 }));
   a.txStop = vi.fn(async () => ({ stopping: true }));
   return a;
@@ -89,4 +107,35 @@ test("송신 기능이 없는 설치에서는 안내만 보인다", async () => 
   renderWithStore(<TxScreen />, a);
   expect(await screen.findByText("이 설치에는 송신 기능이 없습니다.")).toBeInTheDocument();
   expect(screen.queryByTestId("tx-form")).toBeNull();
+});
+
+test("대역과 채널을 눌러 주파수를 고르면 가운데 주파수와 샘플레이트가 채워지고, 신호 종류마다 설명이 나온다", async () => {
+  const a = api();
+  renderWithStore(<TxScreen />, a);
+  expect(await screen.findByTestId("tx-kind-desc")).toHaveTextContent("아무 내용도 싣지 않은 사인파"); // 시험 톤이 무엇인지
+  await userEvent.click(await screen.findByRole("button", { name: "Wi-Fi 5 GHz" }));
+  expect(screen.getByTestId("tx-cell-ch40")).toBeDisabled(); // 장비가 닿지 않는 채널
+  await userEvent.click(screen.getByTestId("tx-cell-ch36"));
+  expect(screen.getByTestId("tx-center")).toHaveValue("5180");
+  expect(screen.getByTestId("tx-rate")).toHaveValue("20");
+  await userEvent.click(screen.getByRole("button", { name: "5 MHz" }));
+  expect(screen.getByTestId("tx-rate")).toHaveValue("5");
+  expect(screen.queryByRole("button", { name: "직접 지정" })).toBeNull(); // 채널 맵이 없는 대역은 고르기에 없다
+});
+
+test("표준 시험 신호를 고르면 샘플레이트가 그 신호의 값으로 정해져 요청에 실린다", async () => {
+  const a = api();
+  renderWithStore(<TxScreen />, a);
+  await userEvent.click(await screen.findByRole("button", { name: "블루투스 (BLE)" }));
+  await userEvent.click(screen.getByTestId("tx-cell-ch38"));
+  await userEvent.click(screen.getByRole("button", { name: "표준 시험 신호" }));
+  await userEvent.click(screen.getByRole("button", { name: "블루투스 시험 광고" }));
+  expect(screen.getByTestId("tx-rate")).toHaveValue("4");
+  expect(screen.getByTestId("tx-rate")).toBeDisabled();
+  await userEvent.click(screen.getByTestId("tx-ask"));
+  expect(within(screen.getByRole("alertdialog")).getByText("블루투스 시험 광고")).toBeInTheDocument();
+  await userEvent.click(screen.getByTestId("tx-agree"));
+  await userEvent.click(screen.getByTestId("tx-closed"));
+  await userEvent.click(screen.getByTestId("tx-confirm"));
+  await waitFor(() => expect(a.txStart).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 2426e6, sample_rate_hz: 4e6, waveform: { kind: "standard", standard: "ble-adv" } })));
 });

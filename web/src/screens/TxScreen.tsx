@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { TxRequest, TxStatus } from "../api";
+import type { SurveyPlan, TxRequest, TxStatus } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { isSim, useUsableDevices } from "../devices/DeviceHub";
@@ -7,7 +7,12 @@ import { takeTxDevice } from "../devices/intent";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 
-type Kind = "tone" | "file";
+type Kind = "tone" | "standard" | "file";
+/** 주파수를 눌러 고를 수 있는 대역 (주파수 상태 화면의 채널 맵과 같은 자료) */
+const BANDS = ["wifi-2g4", "wifi-5g", "wifi-6g", "ble"];
+const RATES = [1, 2, 5, 10, 20];
+const STANDARD_HINT: Record<string, string> = { "wifi-nonht": "wifi", "wifi-he": "wifi", "wifi-eht": "wifi", "ble-adv": "ble" };
+const show = (v: number) => Number(v.toFixed(3)).toString();
 const n = (s: string) => Number(s);
 
 /**
@@ -30,6 +35,9 @@ export function TxScreen() {
   const [offset, setOffset] = useState("100");
   const [amplitude, setAmplitude] = useState("0.3");
   const [path, setPath] = useState("");
+  const [standard, setStandard] = useState("wifi-he");
+  const [plans, setPlans] = useState<SurveyPlan[]>([]);
+  const [band, setBand] = useState("");
   const [asking, setAsking] = useState<TxRequest | null>(null);
   const [agree, setAgree] = useState(false);
   const [closed, setClosed] = useState(false);
@@ -54,16 +62,36 @@ export function TxScreen() {
     };
   }, [api]);
 
+  // 대역·채널을 눌러 고르기 위한 채널 맵
+  useEffect(() => {
+    if (!device) return;
+    void api.surveyDevice(device).then(
+      (i) => setPlans(i.plans.filter((p) => BANDS.includes(p.id) && (p.map?.length ?? 0) > 0)),
+      () => setPlans([]),
+    );
+  }, [api, device]);
+
+  const standards = status?.standards ?? [];
+  const standardRate = standards.find((x) => x.id === standard)?.sample_rate_hz;
+  // 표준 시험 신호는 샘플레이트가 정해져 있다
+  const rateMhz = kind === "standard" && standardRate ? show(standardRate / 1e6) : rate;
+  const cells = plans.find((p) => p.id === band)?.map ?? [];
+
+  const pickCell = (c: { center_hz: number; width_hz: number }) => {
+    setCenter(show(c.center_hz / 1e6));
+    setRate(show(c.width_hz / 1e6));
+  };
+
   const gainDb = gain.trim() ? n(gain) : (status?.default_gain_db ?? 0);
 
   const ask = () => {
     const req: TxRequest = {
       device,
       center_hz: n(center) * 1e6,
-      sample_rate_hz: n(rate) * 1e6,
+      sample_rate_hz: n(rateMhz) * 1e6,
       gain_db: gainDb,
       seconds: n(seconds),
-      waveform: kind === "tone" ? { kind, offset_hz: n(offset) * 1e3, amplitude: n(amplitude) } : { kind, path: path.trim() },
+      waveform: kind === "tone" ? { kind, offset_hz: n(offset) * 1e3, amplitude: n(amplitude) } : kind === "standard" ? { kind, standard } : { kind, path: path.trim() },
     };
     if (!device || !(req.center_hz > 0) || !(req.sample_rate_hz > 0) || !(req.seconds > 0) || !Number.isFinite(req.gain_db) || (kind === "file" && !path.trim())) {
       setError(t("tx.error.inputs"));
@@ -123,12 +151,56 @@ export function TxScreen() {
                 </Chip>
               ))}
             </div>
+            <div>
+              <div className="t-caption-strong">{t("tx.pick.title")}</div>
+              <div className="chips" role="group" aria-label={t("tx.pick.title")}>
+                <Chip selected={band === ""} onSelect={() => setBand("")} disabled={sending}>
+                  {t("tx.pick.manual")}
+                </Chip>
+                {plans.map((p) => (
+                  <Chip key={p.id} selected={p.id === band} onSelect={() => setBand(p.id)} disabled={sending}>
+                    {t(`spectrum.plan.${p.id}`)}
+                  </Chip>
+                ))}
+              </div>
+              {cells.length > 0 && (
+                <div className="chmap" role="group" aria-label={t("monitor.map")} data-testid="tx-map">
+                  {cells.map((c) => (
+                    <button
+                      key={c.name}
+                      type="button"
+                      className="chmap-cell t-caption"
+                      aria-pressed={show(c.center_hz / 1e6) === center}
+                      disabled={sending || !c.reachable}
+                      title={`${show(c.center_hz / 1e6)} MHz`}
+                      onClick={() => pickCell(c)}
+                      data-testid={`tx-cell-${c.name}`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {band !== "" && <p className="t-caption muted">{t("tx.pick.hint")}</p>}
+            </div>
             <div className="row">
               <Field label={t("view.center")} error={error || undefined}>
                 {(f) => <input {...f} inputMode="decimal" value={center} onChange={(e) => setCenter(e.target.value)} disabled={sending} data-testid="tx-center" />}
               </Field>
-              <Field label={t("tx.rate")}>{(f) => <input {...f} inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} disabled={sending} data-testid="tx-rate" />}</Field>
+              <Field label={t("tx.rate")}>
+                {(f) => <input {...f} inputMode="decimal" value={rateMhz} onChange={(e) => setRate(e.target.value)} disabled={sending || kind === "standard"} data-testid="tx-rate" />}
+              </Field>
             </div>
+            {kind !== "standard" && (
+              <div className="chips" role="group" aria-label={t("tx.rate")}>
+                {RATES.map((r) => (
+                  <Chip key={r} selected={String(r) === rate} onSelect={() => setRate(String(r))} disabled={sending}>
+                    {r} MHz
+                  </Chip>
+                ))}
+              </div>
+            )}
+            <p className="t-caption muted">{t("tx.rate.hint")}</p>
             <div className="row">
               <Field label={t("tx.gain", { max: status.max_gain_db ?? 0 })}>
                 {(f) => (
@@ -140,13 +212,27 @@ export function TxScreen() {
               </Field>
             </div>
             <div className="chips" role="group" aria-label={t("tx.waveform")}>
-              {(["tone", "file"] as const).map((k) => (
+              {(["tone", ...(standards.length > 0 ? (["standard"] as const) : []), "file"] as const).map((k) => (
                 <Chip key={k} selected={k === kind} onSelect={() => setKind(k)} disabled={sending}>
                   {t(`tx.waveform.${k}`)}
                 </Chip>
               ))}
             </div>
-            {kind === "tone" ? (
+            <p className="t-caption muted" data-testid="tx-kind-desc">
+              {t(`tx.waveform.${kind}.desc`)}
+            </p>
+            {kind === "standard" ? (
+              <>
+                <div className="chips" role="group" aria-label={t("tx.waveform.standard")}>
+                  {standards.map((x) => (
+                    <Chip key={x.id} selected={x.id === standard} onSelect={() => setStandard(x.id)} disabled={sending}>
+                      {t(`tx.standard.${x.id}`)}
+                    </Chip>
+                  ))}
+                </div>
+                <p className="t-caption muted">{t(`tx.standard.hint.${STANDARD_HINT[standard] ?? "wifi"}`)}</p>
+              </>
+            ) : kind === "tone" ? (
               <div className="row">
                 <Field label={t("tx.tone.offset")}>{(f) => <input {...f} inputMode="decimal" value={offset} onChange={(e) => setOffset(e.target.value)} disabled={sending} />}</Field>
                 <Field label={t("tx.tone.amplitude")}>{(f) => <input {...f} inputMode="decimal" value={amplitude} onChange={(e) => setAmplitude(e.target.value)} disabled={sending} />}</Field>
@@ -198,7 +284,7 @@ export function TxScreen() {
                   ["center", `${asking.center_hz / 1e6} MHz`],
                   ["gain", `${asking.gain_db} dB`],
                   ["seconds", `${asking.seconds} s`],
-                  ["waveform", asking.waveform.kind === "tone" ? t("tx.waveform.tone") : (asking.waveform.path ?? "")],
+                  ["waveform", asking.waveform.kind === "tone" ? t("tx.waveform.tone") : asking.waveform.kind === "standard" ? t(`tx.standard.${asking.waveform.standard}`) : asking.waveform.path],
                 ] as const
               ).map(([k, v]) => (
                 <div key={k}>

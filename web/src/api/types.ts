@@ -108,6 +108,8 @@ export interface TxStatus {
   max_gain_db?: number;
   default_gain_db?: number;
   sending?: boolean;
+  /** 만들 수 있는 표준 시험 신호와 그 샘플레이트 */
+  standards?: { id: string; sample_rate_hz: number }[];
 }
 
 export interface TxRequest {
@@ -116,7 +118,7 @@ export interface TxRequest {
   sample_rate_hz: number;
   gain_db: number;
   seconds: number;
-  waveform: { kind: "tone"; offset_hz: number; amplitude: number } | { kind: "file"; path: string };
+  waveform: { kind: "tone"; offset_hz: number; amplitude: number } | { kind: "standard"; standard: string } | { kind: "file"; path: string };
   /** 경고창에서 확인한 내용. 없으면 서버가 거부한다 */
   confirm?: { accepted: boolean; closed_setup: boolean; version: string; shown: { device: string; center_hz: number; gain_db: number; seconds: number } };
 }

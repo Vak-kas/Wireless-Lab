@@ -91,7 +91,7 @@ _SYNC_PM = SYNC_BITS.astype(np.float32) * 2 - 1
 
 
 def modulate(pdu: bytes, channel: int, sps: int = SPS, amplitude: float = 0.5) -> np.ndarray:
-    """광고 패킷 하나를 GFSK 기저대역으로 만든다(테스트와 연습용. 장비로 내보내는 데 쓰지 않는다)."""
+    """광고 패킷 하나를 GFSK 기저대역으로 만든다(테스트용. 실험용 송신 모듈이 시험 광고를 만들 때도 쓴다)."""
     bits = np.concatenate([SYNC_BITS, _bits(whiten(pdu + crc24(pdu), channel))])
     nrz = np.repeat(bits.astype(np.float64) * 2 - 1, sps)
     t = np.arange(-2 * sps, 2 * sps + 1) / sps
