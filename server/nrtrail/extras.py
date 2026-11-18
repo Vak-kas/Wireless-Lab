@@ -41,6 +41,24 @@ class SurveyBody(BaseModel):
     step_hz: float | None = None
 
 
+class MonitorBody(BaseModel):
+    device: str
+    plan: str
+    channels: list[str] | None = None
+    gain_db: float | None = None
+    center_hz: float | None = None
+    span_hz: float | None = None
+    step_hz: float | None = None
+    auto: bool = True
+    stat: str = "median_dbfs"
+
+
+class MonitorPatch(BaseModel):
+    auto: bool | None = None
+    stat: str | None = None
+    baseline: str | None = None      # "save" | "clear"
+
+
 class SpectrumBody(BaseModel):
     device: str
     center_hz: float | None = None
@@ -104,6 +122,52 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
                                                gain_db=body.gain_db)
             except survey.SurveyError as e:
                 raise HTTPException(400, str(e)) from e
+
+    from . import monitor as monitor_mod
+    monitors = monitor_mod.Registry()
+
+    @app.post("/api/monitor")
+    async def monitor_start(body: MonitorBody) -> dict[str, Any]:
+        from . import survey
+        try:
+            m = monitor_mod.Monitor(body.device, body.plan, body.channels, gain_db=body.gain_db, center_hz=body.center_hz,
+                                    span_hz=body.span_hz, step_hz=body.step_hz, auto=body.auto, stat=body.stat)
+        except survey.SurveyError as e:
+            raise HTTPException(400, str(e)) from e
+        return monitors.add(m).state()
+
+    @app.post("/api/monitor/{mid}/sweep")
+    async def monitor_sweep(mid: str) -> dict[str, Any]:
+        from . import survey
+        try:
+            m = monitors.get(mid)
+        except survey.SurveyError as e:
+            raise HTTPException(404, str(e)) from e
+        if survey_lock.locked():
+            raise HTTPException(409, "이미 재는 중입니다.")
+        async with survey_lock:
+            try:
+                return await asyncio.to_thread(m.sweep)
+            except survey.SurveyError as e:
+                raise HTTPException(400, str(e)) from e
+
+    @app.patch("/api/monitor/{mid}")
+    async def monitor_patch(mid: str, body: MonitorPatch) -> dict[str, Any]:
+        from . import survey
+        try:
+            m = monitors.get(mid)
+            m.configure(auto=body.auto, stat=body.stat)
+        except survey.SurveyError as e:
+            raise HTTPException(404, str(e)) from e
+        if body.baseline == "save":
+            m.save_baseline()
+        elif body.baseline == "clear":
+            m.clear_baseline()
+        return m.state()
+
+    @app.delete("/api/monitor/{mid}", status_code=204)
+    async def monitor_stop(mid: str) -> None:
+        monitors.remove(mid)
 
     try:
         from . import testbed_oai

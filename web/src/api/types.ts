@@ -88,9 +88,66 @@ export interface SurveyResult {
   fixed_tuning: boolean;
 }
 
+export interface SurveyPlan {
+  id: string;
+  available: boolean;
+  channels: number;
+  /** 누르는 단위로 고를 수 있는 폭 (MHz) */
+  widths?: number[];
+  /** 채널 맵의 칸. reachable=false 면 장비가 닿지 않는 주파수 */
+  map?: { name: string; center_hz: number; width_hz: number; reachable: boolean }[];
+  /** 폭(MHz) → 함께 쓰이는 채널 묶음들 */
+  groups?: Record<string, string[][]>;
+}
+
+export interface MonitorChannel {
+  name: string;
+  center_hz: number;
+  width_hz: number;
+  measured: boolean;
+  mean_dbfs?: number;
+  median_dbfs?: number;
+  peak_dbfs?: number | null;
+  clipped?: boolean;
+  baseline_dbfs?: number;
+  rise_db?: number;
+  /** 기준보다 rise_threshold_db 이상 올랐는가 */
+  raised?: boolean;
+  forced?: boolean;
+  /** 자동 기준값까지 남은 시간 (초) */
+  settle_s?: number;
+}
+
+export interface MonitorState {
+  id: string;
+  device: string;
+  plan: string;
+  stat: "median_dbfs" | "mean_dbfs";
+  auto: boolean;
+  sweeps: number;
+  sweep_s: number | null;
+  channels: MonitorChannel[];
+  baseline_note: "" | "manual" | "auto";
+  has_baseline: boolean;
+  forced: string[];
+  raised: string[];
+  smooth: number;
+  rise_threshold_db: number;
+}
+
+export interface MonitorRequest {
+  device: string;
+  plan: string;
+  channels?: string[];
+  gain_db?: number;
+  center_hz?: number;
+  span_hz?: number;
+  step_hz?: number;
+}
+
 export interface SurveyDevice {
   device: DeviceInfo;
-  plans: { id: string; available: boolean; channels: number }[];
+  plans: SurveyPlan[];
   /** 장비가 직접 알려 준 값 (실제 장비일 때만) */
   reported?: {
     antennas?: string[];
@@ -221,6 +278,10 @@ export interface OaiRecording {
 export interface Api {
   surveyDevice(id: string): Promise<SurveyDevice>;
   surveyRun(req: SurveyRequest): Promise<SurveyResult>;
+  monitorStart(req: MonitorRequest): Promise<MonitorState>;
+  monitorSweep(id: string): Promise<MonitorState>;
+  monitorPatch(id: string, body: { auto?: boolean; stat?: string; baseline?: "save" | "clear" }): Promise<MonitorState>;
+  monitorStop(id: string): Promise<void>;
   surveySpectrum(req: { device: string; center_hz?: number; bandwidth_hz?: number; gain_db?: number }): Promise<SpectrumView>;
   oaiStatus(): Promise<OaiStatus>;
   oaiRecord(seconds: number): Promise<OaiRecording>;

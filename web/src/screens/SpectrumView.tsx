@@ -41,7 +41,8 @@ function plots(v: View): { line: Plot; fall: Plot } {
 }
 
 /** 가운데 주파수와 대역폭을 정해 그 대역을 들여다본다: 주파수별 세기(평균·최대)와 시간에 따른 변화. */
-export function SpectrumView({ info, gain, ref }: { info: SurveyDevice; gain: string; ref?: Ref<SpectrumViewHandle> }) {
+/** paused: 채널 모니터가 장비를 쓰는 중이면 여기서 따로 받을 수 없다(장비는 하나). */
+export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; gain: string; ref?: Ref<SpectrumViewHandle>; paused?: boolean }) {
   const { api, fail } = useStore();
   const sim = info.device.driver === "simulated";
   const [center, setCenter] = useState(sim && info.capture ? mhz(info.capture.center_freq_hz) : "");
@@ -56,6 +57,11 @@ export function SpectrumView({ info, gain, ref }: { info: SurveyDevice; gain: st
   const look = useCallback(
     async (c: string, w: string) => {
       if (running.current) return;
+      if (paused) {
+        setError(t("view.error.paused"));
+        setRepeat(false);
+        return;
+      }
       if (!sim && !(Number(c) > 0 && Number(w) > 0)) {
         setError(t("view.error.inputs"));
         setRepeat(false);
@@ -81,7 +87,7 @@ export function SpectrumView({ info, gain, ref }: { info: SurveyDevice; gain: st
         setBusy(false);
       }
     },
-    [api, fail, gain, info.device.id, sim],
+    [api, fail, gain, info.device.id, sim, paused],
   );
 
   useImperativeHandle(ref, () => ({

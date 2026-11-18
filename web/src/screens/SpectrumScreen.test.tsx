@@ -1,15 +1,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
-import type { SurveyChannel } from "../api";
+import type { MonitorChannel, MonitorState } from "../api";
 import { fakeApi, renderWithStore } from "../test-utils";
 import { SpectrumScreen } from "./SpectrumScreen";
 
-const ch = (name: string, median: number, extra: Partial<SurveyChannel> = {}): SurveyChannel => ({
+const cell = (n: number, reachable = true) => ({ name: `ch${n}`, center_hz: (5000 + 5 * n) * 1e6, width_hz: 20e6, reachable });
+const row = (name: string, median: number, extra: Partial<MonitorChannel> = {}): MonitorChannel => ({
   name,
   center_hz: 5.18e9,
   width_hz: 20e6,
-  coverage: 1,
   measured: true,
   mean_dbfs: median + 1,
   median_dbfs: median,
@@ -17,25 +17,45 @@ const ch = (name: string, median: number, extra: Partial<SurveyChannel> = {}): S
   clipped: false,
   ...extra,
 });
+const state = (channels: MonitorChannel[], extra: Partial<MonitorState> = {}): MonitorState => ({
+  id: "m1",
+  device: "driver=uhd",
+  plan: "wifi-5g",
+  stat: "median_dbfs",
+  auto: true,
+  sweeps: 1,
+  sweep_s: 0.4,
+  channels,
+  baseline_note: "",
+  has_baseline: false,
+  forced: [],
+  raised: [],
+  smooth: 5,
+  rise_threshold_db: 6,
+  ...extra,
+});
 
-function api(rows: SurveyChannel[][]) {
+function api(sweeps: MonitorState[] = [state([])]) {
   const a = fakeApi();
   a.devices = async () => [{ id: "driver=uhd", label: "USRP B210", driver: "uhd", serial: "ABC123" }];
   a.surveyDevice = async () => ({
     device: { id: "driver=uhd", label: "USRP B210", driver: "uhd", serial: "ABC123", freq_min_hz: 70e6, freq_max_hz: 6e9, max_sample_rate_hz: 56e6, bits: 12 },
     plans: [
       { id: "capture", available: false, channels: 0 },
-      { id: "wifi-5g", available: true, channels: 25 },
+      { id: "wifi-5g", available: true, channels: 5, widths: [20, 40, 80], map: [cell(36), cell(40), cell(44), cell(48), cell(52, false)], groups: { "40": [["ch36", "ch40"], ["ch44", "ch48"]], "80": [["ch36", "ch40", "ch44", "ch48"]] } },
     ],
     reported: { antennas: ["RX2", "TX/RX"], gain_range_db: [0, 76] },
   });
   let i = 0;
-  a.surveyRun = vi.fn(async (req) => ({ device: req.device, plan: req.plan, unit: "dBFS", dwell_s: 0.02, fixed_tuning: false, channels: rows[Math.min(i++, rows.length - 1)]! }));
+  a.monitorStart = vi.fn(async () => state([], { sweeps: 0, sweep_s: null }));
+  a.monitorSweep = vi.fn(async () => sweeps[Math.min(i++, sweeps.length - 1)]!);
+  a.monitorPatch = vi.fn(async (_id, body) => state([row("ch36", -70, { baseline_dbfs: -70, rise_db: 0 })], { baseline_note: body.baseline === "save" ? "manual" : "", has_baseline: body.baseline === "save" }));
+  a.monitorStop = vi.fn(async () => undefined);
   return a;
 }
 
-test("장비를 고르면 장비 정보가 나오고, 쓸 수 없는 방식은 막혀 있다", async () => {
-  renderWithStore(<SpectrumScreen />, api([[]]));
+test("장비를 고르면 장비 정보가 나오고, 쓸 수 없는 대역은 막혀 있다", async () => {
+  renderWithStore(<SpectrumScreen />, api());
   const card = await screen.findByTestId("survey-device");
   expect(within(card).getByText("ABC123")).toBeInTheDocument();
   expect(within(card).getByText("70 ~ 6000 MHz")).toBeInTheDocument();
@@ -43,27 +63,54 @@ test("장비를 고르면 장비 정보가 나오고, 쓸 수 없는 방식은 �
   expect(within(card).getByText("0 ~ 76 dB")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "파일에 담긴 대역" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("monitor-start")).toBeDisabled(); // 채널을 아직 고르지 않았다
 });
 
-test("재면 가장 센 채널과 막대·표가 나오고, 잴 수 없는 채널과 포화를 구분해 보여 준다", async () => {
-  const a = api([[ch("ch36", -70), ch("ch40", -35, { clipped: true }), { name: "ch44", center_hz: 5.22e9, width_hz: 20e6, coverage: 0, measured: false }]]);
+test("채널 맵: 누르는 단위에 따라 묶음째 고르고, 닿지 않는 채널은 누를 수 없다", async () => {
+  const a = api();
   renderWithStore(<SpectrumScreen />, a);
-  await userEvent.click(await screen.findByTestId("survey-run"));
-  expect(await screen.findByText(/가장 센 곳: ch40/)).toBeInTheDocument();
-  expect(a.surveyRun).toHaveBeenCalledWith(expect.objectContaining({ device: "driver=uhd", plan: "wifi-5g" }));
-  expect(screen.getByTestId("survey-bar-ch36")).toHaveAttribute("data-state", "ok");
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
+  expect(screen.getByTestId("cell-ch36")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("cell-ch40")).toHaveAttribute("aria-pressed", "false");
+  await userEvent.click(screen.getByRole("button", { name: "80 MHz" }));
+  await userEvent.click(screen.getByTestId("cell-ch44"));
+  for (const n of [36, 40, 44, 48]) expect(screen.getByTestId(`cell-ch${n}`)).toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(screen.getByTestId("cell-ch40")); // 다 골라진 묶음을 다시 누르면 풀린다
+  expect(screen.getByTestId("cell-ch36")).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByTestId("cell-ch52")).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "40 MHz" }));
+  await userEvent.click(screen.getByTestId("cell-ch48"));
+  await userEvent.click(screen.getByTestId("monitor-start"));
+  expect(a.monitorStart).toHaveBeenCalledWith(expect.objectContaining({ device: "driver=uhd", plan: "wifi-5g", channels: ["ch44", "ch48"] }));
+});
+
+test("모니터링: 세기·증가량·경고를 보여 주고, 설정으로 돌아가면 멈추고 다시 고를 수 있다", async () => {
+  const a = api([
+    state([
+      row("ch36", -70, { baseline_dbfs: -70, rise_db: 0, raised: false }),
+      row("ch40", -52, { baseline_dbfs: -70, rise_db: 18, raised: true, clipped: true }),
+      { name: "ch44", center_hz: 5.22e9, width_hz: 20e6, measured: false },
+    ], { sweeps: 7, baseline_note: "auto", has_baseline: true, raised: ["ch40"] }),
+  ]);
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(screen.getByTestId("monitor-start"));
+  const status = await screen.findByTestId("monitor-status");
+  await waitFor(() => expect(within(status).getByText(/ch40 이\(가\) 기준보다 6 dB 넘게/)).toBeInTheDocument());
+  expect(within(status).getByText("기준값: 자동 저장됨")).toBeInTheDocument();
   expect(screen.getByTestId("survey-bar-ch40")).toHaveAttribute("data-state", "clipped");
   expect(screen.getByTestId("survey-bar-ch44")).toHaveAttribute("data-state", "missing");
-  expect(screen.getByText(/입력이 포화된 채널/)).toBeInTheDocument();
-  expect(within(screen.getByTestId("survey-table")).getByText("잴 수 없음")).toBeInTheDocument();
-});
+  expect(screen.getByTestId("rise-bar-ch40")).toHaveAttribute("data-state", "raised");
+  const table = screen.getByTestId("survey-table");
+  expect(within(table).getByText("+18.0")).toBeInTheDocument();
+  expect(within(table).getByText("잴 수 없음")).toBeInTheDocument();
 
-test("기준을 저장한 뒤 다시 재면 기준 대비 얼마나 올랐는지 보여 준다", async () => {
-  renderWithStore(<SpectrumScreen />, api([[ch("ch36", -70)], [ch("ch36", -58.5)]]));
-  await userEvent.click(await screen.findByTestId("survey-run"));
-  await userEvent.click(await screen.findByTestId("survey-baseline"));
-  await userEvent.click(screen.getByTestId("survey-run"));
-  await waitFor(() => expect(within(screen.getByTestId("survey-table")).getByText("+11.5")).toBeInTheDocument());
+  await userEvent.click(screen.getByTestId("monitor-save"));
+  expect(a.monitorPatch).toHaveBeenCalledWith("m1", { baseline: "save" });
+
+  await userEvent.click(screen.getByTestId("monitor-back"));
+  await waitFor(() => expect(a.monitorStop).toHaveBeenCalledWith("m1"));
+  expect(await screen.findByTestId("cell-ch36")).toHaveAttribute("aria-pressed", "true"); // 고른 채널은 그대로
 });
 
 const VIEW = {
@@ -83,7 +130,7 @@ const VIEW = {
 };
 
 test("가운데 주파수와 대역폭을 넣고 보면 그 대역의 그림과 실제로 맞춘 값이 나온다", async () => {
-  const a = api([[]]);
+  const a = api();
   a.surveySpectrum = vi.fn(async () => VIEW);
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("view-run"));
@@ -100,12 +147,17 @@ test("가운데 주파수와 대역폭을 넣고 보면 그 대역의 그림과 
   expect(screen.getByRole("img", { name: "시간에 따른 변화" })).toBeInTheDocument();
 });
 
-test("채널 표에서 들여다보기를 누르면 그 채널의 주파수와 폭으로 바로 본다", async () => {
-  const a = api([[ch("ch36", -70)]]);
+test("모니터를 멈춘 뒤 표에서 들여다보기를 누르면 그 채널의 주파수와 폭으로 바로 본다", async () => {
+  const a = api([state([row("ch36", -70)])]);
   a.surveySpectrum = vi.fn(async () => VIEW);
   renderWithStore(<SpectrumScreen />, a);
-  await userEvent.click(await screen.findByTestId("survey-run"));
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(screen.getByTestId("monitor-start"));
   await userEvent.click(await screen.findByTestId("survey-look-ch36"));
+  expect(await screen.findByText(/채널 모니터가 장비를 쓰는 중/)).toBeInTheDocument(); // 장비는 하나라 동시에 못 쓴다
+  expect(a.surveySpectrum).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByTestId("monitor-toggle"));
+  await userEvent.click(screen.getByTestId("survey-look-ch36"));
   await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 5180e6, bandwidth_hz: 20e6 })));
   expect(screen.getByTestId("view-center")).toHaveValue("5180");
 });

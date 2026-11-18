@@ -53,6 +53,25 @@ def test_wifi_channel_numbers_map_to_centre_frequencies():
     assert two["ch1"] == 2412e6 and two["ch6"] == 2437e6 and two["ch13"] == 2472e6
     assert five["ch36"] == 5180e6 and five["ch100"] == 5500e6 and five["ch165"] == 5825e6
     assert len(five) == 25
+    six = dict((c[0], c[1]) for c in survey.PLANS["wifi-6g"]["channels"])
+    assert six["ch1"] == 5955e6 and six["ch5"] == 5975e6 and six["ch233"] == 7115e6 and len(six) == 59
+
+
+def test_channel_groups_follow_the_band_blocks():
+    assert survey.groups("wifi-5g", 160)[:1] == [["ch36", "ch40", "ch44", "ch48", "ch52", "ch56", "ch60", "ch64"]]
+    assert ["ch36", "ch40", "ch44", "ch48"] in survey.groups("wifi-5g", 80)
+    assert ["ch149", "ch153", "ch157", "ch161"] in survey.groups("wifi-5g", 80)
+    assert not any("ch165" in g for g in survey.groups("wifi-5g", 40))       # 짝이 없는 끝 채널
+    assert survey.groups("wifi-6g", 40)[0] == ["ch1", "ch5"] and survey.groups("wifi-2g4", 40) == []
+
+
+def test_a_band_is_offered_when_the_device_reaches_part_of_it():
+    dev = {"driver": "uhd", "freq_min_hz": 70e6, "freq_max_hz": 6e9}
+    plans = {p["id"]: p for p in survey.plans_for(dev)}
+    assert plans["wifi-2g4"]["available"] and plans["wifi-5g"]["available"] and plans["wifi-6g"]["available"]
+    reach = {c["name"]: c["reachable"] for c in plans["wifi-6g"]["map"]}
+    assert reach["ch1"] and reach["ch9"] and not reach["ch13"]               # 5995 MHz 까지만 닿는다
+    assert not {p["id"]: p for p in survey.plans_for(dev | {"freq_max_hz": 3e9})}["wifi-5g"]["available"]
 
 
 def simulated_id() -> str:
@@ -66,7 +85,11 @@ def test_simulated_device_surveys_the_band_in_its_file(tmp_path, monkeypatch):
     monkeypatch.setattr(survey, "sessions_dir", lambda: tmp_path)
     dev = simulated_id()
     info = survey.describe(dev)
-    assert {p["id"]: p["available"] for p in info["plans"]} == {"capture": True, "wifi-2g4": False, "wifi-5g": False, "custom": False}
+    assert {p["id"]: p["available"] for p in info["plans"]} == {"capture": True, "wifi-2g4": False, "wifi-5g": False, "wifi-6g": False,
+                                                                 "custom": False}
+    assert len(next(p for p in info["plans"] if p["id"] == "capture")["map"]) == 16
+    picked = survey.run(dev, "capture", only=[info["plans"][0]["map"][3]["name"], info["plans"][0]["map"][4]["name"]])
+    assert len(picked["channels"]) == 2
     assert info["capture"]["sample_rate_hz"] > 0
     out = survey.run(dev, "capture")
     rows = out["channels"]

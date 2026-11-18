@@ -200,6 +200,16 @@ export const mockApi: Api = {
     plans: [{ id: "capture", available: true, channels: 0 }],
     capture: { center_freq_hz: 2e9, sample_rate_hz: 15.36e6, duration_s: 0.1 },
   }),
+  monitorStart: async () => {
+    throw new Error("mock");
+  },
+  monitorSweep: async () => {
+    throw new Error("mock");
+  },
+  monitorPatch: async () => {
+    throw new Error("mock");
+  },
+  monitorStop: async () => undefined,
   surveySpectrum: async (req) => {
     const n = 256;
     const mean = Array.from({ length: n }, (_, i) => -80 + (i > 90 && i < 170 ? 28 : 0) + Math.random() * 2);

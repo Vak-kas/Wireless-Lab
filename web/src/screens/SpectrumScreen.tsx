@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DeviceInfo, SurveyChannel, SurveyDevice, SurveyResult } from "../api";
+import type { DeviceInfo, MonitorState, SurveyDevice, SurveyPlan } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
@@ -8,27 +8,39 @@ import { useStore } from "../state/store";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
 
 type Stat = "median_dbfs" | "mean_dbfs";
-/** 기준: 채널 이름 → 그때의 중앙값·평균. 어느 값을 보고 있든 같은 종류끼리 비교한다. */
-type Baseline = Record<string, Record<Stat, number>>;
-const REPEAT_MS = 2000;
+const PAUSE_MS = 200;
 
 const mhz = (hz: number) => (hz / 1e6).toFixed(hz % 1e6 === 0 ? 0 : 2);
-const num = (v: number | undefined) => (v === undefined ? "—" : v.toFixed(1));
+const num = (v: number | null | undefined, sign = false) => (v === undefined || v === null ? "—" : `${sign && v >= 0 ? "+" : ""}${(Math.round(v * 10) / 10 || 0).toFixed(1)}`);
 
-/** 채널별 세기 막대 그림. 기준이 있으면 막대마다 기준 높이에 가로선을 긋는다. */
-export function SurveyBars({ rows, stat, baseline }: { rows: SurveyChannel[]; stat: Stat; baseline: Baseline | null }) {
+export interface Bar {
+  name: string;
+  value?: number;
+  /** 기준선 높이 (세기 그림) */
+  base?: number;
+  state: "ok" | "clipped" | "missing" | "raised";
+  title: string;
+}
+
+/** 채널별 막대 그림. zero=true 면 0 을 가운데 둔 증가량 그림, 아니면 아래에서 솟는 세기 그림. */
+export function Bars({ bars, label, yLabel, zero, testid }: { bars: Bar[]; label: string; yLabel: string; zero?: boolean; testid: string }) {
   const W = 720;
-  const H = 300;
+  const H = zero ? 220 : 300;
   const m = { l: 48, r: 12, t: 16, b: 44 };
-  const values = [...rows.flatMap((r) => (r.measured ? [r[stat] ?? 0] : [])), ...Object.values(baseline ?? {}).map((b) => b[stat])];
-  const lo = values.length ? Math.floor(Math.min(...values) / 10) * 10 - 10 : -100;
-  const hi = values.length ? Math.max(lo + 20, Math.ceil(Math.max(...values) / 10) * 10) : 0;
+  const values = bars.flatMap((b) => [...(b.value !== undefined ? [b.value] : []), ...(b.base !== undefined ? [b.base] : [])]);
+  let lo = values.length ? Math.floor(Math.min(...values) / 10) * 10 - (zero ? 0 : 10) : zero ? -10 : -100;
+  let hi = values.length ? Math.ceil(Math.max(...values) / 10) * 10 : zero ? 10 : 0;
+  if (zero) {
+    lo = Math.min(lo, -10);
+    hi = Math.max(hi, 10);
+  } else hi = Math.max(hi, lo + 20);
   const y = linear(lo, hi, H - m.b, m.t);
-  const slot = (W - m.l - m.r) / Math.max(1, rows.length);
+  const floor = zero ? 0 : lo;
+  const slot = (W - m.l - m.r) / Math.max(1, bars.length);
   const bar = Math.max(4, slot * 0.7);
-  const every = Math.ceil(rows.length / 14);
+  const every = Math.ceil(bars.length / 14);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("spectrum.chart.label")} data-testid="survey-chart" className="survey-chart">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} data-testid={testid} className="survey-chart">
       {ticks(lo, hi, 5).map((v) => (
         <g key={v} className="plot-axis">
           <line className="plot-gridline" x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} />
@@ -37,25 +49,25 @@ export function SurveyBars({ rows, stat, baseline }: { rows: SurveyChannel[]; st
           </text>
         </g>
       ))}
-      {rows.map((r, i) => {
+      {bars.map((b, i) => {
         const x = m.l + i * slot + (slot - bar) / 2;
-        const v = r[stat];
-        const base = baseline?.[r.name]?.[stat];
+        const top = b.value !== undefined ? Math.min(y(b.value), y(floor)) : 0;
+        const height = b.value !== undefined ? Math.max(1, Math.abs(y(b.value) - y(floor))) : 0;
         return (
-          <g key={r.name} data-testid={`survey-bar-${r.name}`} data-state={!r.measured ? "missing" : r.clipped ? "clipped" : "ok"}>
-            {r.measured && v !== undefined ? (
-              <rect className="survey-bar" x={x} y={y(v)} width={bar} height={Math.max(1, y(lo) - y(v))}>
-                <title>{`${r.name} · ${mhz(r.center_hz)} MHz · ${v.toFixed(1)} dBFS`}</title>
+          <g key={b.name} data-testid={`${testid}-${b.name}`} data-state={b.state}>
+            {b.value !== undefined ? (
+              <rect className="survey-bar" x={x} y={top} width={bar} height={height}>
+                <title>{b.title}</title>
               </rect>
             ) : (
               <rect className="survey-bar-missing" x={x} y={m.t} width={bar} height={H - m.b - m.t}>
-                <title>{`${r.name} · ${t("spectrum.unmeasured")}`}</title>
+                <title>{b.title}</title>
               </rect>
             )}
-            {base !== undefined && <line className="survey-base" x1={x - 2} x2={x + bar + 2} y1={y(base)} y2={y(base)} />}
+            {b.base !== undefined && <line className="survey-base" x1={x - 2} x2={x + bar + 2} y1={y(b.base)} y2={y(b.base)} />}
             {i % every === 0 && (
               <text className="plot-label" x={x + bar / 2} y={H - m.b + 16} textAnchor="middle">
-                {r.name}
+                {b.name}
               </text>
             )}
           </g>
@@ -65,7 +77,7 @@ export function SurveyBars({ rows, stat, baseline }: { rows: SurveyChannel[]; st
         {t("spectrum.axis.x")}
       </text>
       <text className="plot-label" x={W - m.r} y={H - 6} textAnchor="end">
-        {t("spectrum.axis.y")}
+        {yLabel}
       </text>
     </svg>
   );
@@ -111,21 +123,73 @@ function DeviceFacts({ info }: { info: SurveyDevice }) {
   );
 }
 
-/** 주파수 상태: 장비를 고르면 장비 정보가 나오고, 채널별 수신 세기를 잰다. */
+/** 채널 맵: 칸을 누르면 그 칸이 속한 묶음(누르는 단위)을 한꺼번에 고르거나 푼다. */
+function ChannelMap({ plan, picked, onChange, disabled }: { plan: SurveyPlan; picked: string[]; onChange: (names: string[]) => void; disabled?: boolean }) {
+  const [unit, setUnit] = useState(20);
+  const cells = plan.map ?? [];
+  const reachable = new Set(cells.filter((c) => c.reachable).map((c) => c.name));
+  const click = (name: string) => {
+    const group = (plan.groups?.[String(unit)]?.find((g) => g.includes(name)) ?? [name]).filter((n) => reachable.has(n));
+    const all = group.every((n) => picked.includes(n));
+    onChange(all ? picked.filter((n) => !group.includes(n)) : [...picked, ...group.filter((n) => !picked.includes(n))]);
+  };
+  return (
+    <div data-testid="channel-map">
+      {(plan.widths?.length ?? 0) > 1 && (
+        <div className="chips" role="group" aria-label={t("monitor.unit")}>
+          {plan.widths!.map((w) => (
+            <Chip key={w} selected={w === unit} onSelect={() => setUnit(w)} disabled={disabled}>
+              {t("monitor.unit.mhz", { w })}
+            </Chip>
+          ))}
+        </div>
+      )}
+      <div className="chmap" role="group" aria-label={t("monitor.map")}>
+        {cells.map((c) => (
+          <button
+            key={c.name}
+            type="button"
+            className="chmap-cell t-caption"
+            aria-pressed={picked.includes(c.name)}
+            disabled={disabled || !c.reachable}
+            title={`${mhz(c.center_hz)} MHz`}
+            onClick={() => click(c.name)}
+            data-testid={`cell-${c.name}`}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
+      <div className="row">
+        <Button variant="link" onClick={() => onChange([...reachable])} disabled={disabled}>
+          {t("monitor.pick_all")}
+        </Button>
+        <Button variant="link" onClick={() => onChange([])} disabled={disabled}>
+          {t("monitor.pick_none")}
+        </Button>
+        <span className="t-caption muted">{t("monitor.picked", { n: picked.length })}</span>
+      </div>
+      {cells.some((c) => !c.reachable) && <p className="t-caption muted">{t("monitor.unreachable")}</p>}
+    </div>
+  );
+}
+
+/**
+ * 주파수 상태: ① 장비와 대역·채널을 고르고 ② 모니터링한다. 모니터링 중에 "설정으로 돌아가기"로 다시 고를 수 있다.
+ */
 export function SpectrumScreen() {
   const { api, fail } = useStore();
   const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
   const [device, setDevice] = useState("");
   const [info, setInfo] = useState<SurveyDevice | null>(null);
   const [plan, setPlan] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
   const [custom, setCustom] = useState({ center: "", span: "", step: "" });
   const [gain, setGain] = useState("");
-  const [stat, setStat] = useState<Stat>("median_dbfs");
-  const [result, setResult] = useState<SurveyResult | null>(null);
-  const [baseline, setBaseline] = useState<Baseline | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [repeat, setRepeat] = useState(false);
-  const running = useRef(false);
+  const [mon, setMon] = useState<MonitorState | null>(null);
+  const [running, setRunning] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const alive = useRef(false);
   const viewer = useRef<SpectrumViewHandle>(null);
 
   useEffect(() => {
@@ -138,57 +202,214 @@ export function SpectrumScreen() {
     );
   }, [api]);
 
+  const choosePlan = useCallback((p: SurveyPlan | undefined) => {
+    setPlan(p?.id ?? "");
+    // 파일 대역은 전부, 나머지는 사용자가 채널 맵에서 고른다
+    setPicked(p?.id === "capture" ? (p.map ?? []).map((c) => c.name) : []);
+  }, []);
+
   useEffect(() => {
     if (!device) return;
     setInfo(null);
-    setResult(null);
-    setBaseline(null);
-    setRepeat(false);
     void api.surveyDevice(device).then(
       (i) => {
         setInfo(i);
-        setPlan(i.plans.find((p) => p.available)?.id ?? "");
+        choosePlan(i.plans.find((p) => p.available));
       },
       (e: unknown) => fail(String(e instanceof Error ? e.message : e)),
     );
-  }, [api, device, fail]);
+  }, [api, device, fail, choosePlan]);
 
-  const measure = useCallback(async () => {
-    if (running.current || !device || !plan) return;
-    running.current = true;
-    setBusy(true);
+  // 모니터링: 한 바퀴가 끝나면 잠깐 쉬고 다음 바퀴를 잰다. 화면을 떠나면 멈추고 서버의 모니터를 지운다.
+  const monId = mon?.id;
+  useEffect(() => {
+    if (!running || !monId) return;
+    alive.current = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      try {
+        const next = await api.monitorSweep(monId);
+        if (!alive.current) return;
+        setMon(next);
+        timer = setTimeout(() => void tick(), PAUSE_MS);
+      } catch (e) {
+        if (!alive.current) return;
+        setRunning(false);
+        fail(String(e instanceof Error ? e.message : e));
+      }
+    };
+    void tick();
+    return () => {
+      alive.current = false;
+      clearTimeout(timer);
+    };
+  }, [api, fail, monId, running]);
+
+  useEffect(
+    () => () => {
+      if (monId) void api.monitorStop(monId).catch(() => undefined);
+    },
+    [api, monId],
+  );
+
+  const current = info?.plans.find((p) => p.id === plan);
+  const real = info?.device.driver !== "simulated";
+  const mhzIn = (s: string) => (s.trim() ? Number(s) * 1e6 : undefined);
+  const canStart = Boolean(plan) && (plan === "custom" ? Boolean(custom.center && custom.span && custom.step) : picked.length > 0);
+
+  const begin = async () => {
+    setStarting(true);
     try {
-      const mhzIn = (s: string) => (s.trim() ? Number(s) * 1e6 : undefined);
-      setResult(
-        await api.surveyRun({
+      const order = (current?.map ?? []).map((c) => c.name);
+      setMon(
+        await api.monitorStart({
           device,
           plan,
+          channels: plan === "custom" ? undefined : [...picked].sort((a, b) => order.indexOf(a) - order.indexOf(b)),
           gain_db: gain.trim() ? Number(gain) : undefined,
           center_hz: mhzIn(custom.center),
           span_hz: mhzIn(custom.span),
           step_hz: mhzIn(custom.step),
         }),
       );
+      setRunning(true);
     } catch (e) {
-      setRepeat(false);
       fail(String(e instanceof Error ? e.message : e));
     } finally {
-      running.current = false;
-      setBusy(false);
+      setStarting(false);
     }
-  }, [api, custom, device, fail, gain, plan]);
+  };
 
-  useEffect(() => {
-    if (!repeat) return;
-    void measure();
-    const timer = setInterval(() => void measure(), REPEAT_MS);
-    return () => clearInterval(timer);
-  }, [repeat, measure]);
+  const back = () => {
+    setRunning(false);
+    setMon(null);
+  };
 
-  const rows = result?.channels ?? [];
-  const measured = rows.filter((r) => r.measured);
-  const strongest = measured.reduce<SurveyChannel | null>((a, r) => (!a || (r[stat] ?? -999) > (a[stat] ?? -999) ? r : a), null);
-  const real = info?.device.driver !== "simulated";
+  const patch = (body: { auto?: boolean; stat?: Stat; baseline?: "save" | "clear" }) => {
+    if (!mon) return;
+    void api.monitorPatch(mon.id, body).then(setMon, (e: unknown) => fail(String(e instanceof Error ? e.message : e)));
+  };
+
+  if (mon && info) {
+    const stat = mon.stat;
+    const rows = mon.channels;
+    const waiting = rows.filter((r) => r.settle_s !== undefined && r.rise_db === undefined);
+    const levelBars: Bar[] = rows.map((r) => ({
+      name: r.name,
+      value: r.measured ? (r[stat] ?? undefined) : undefined,
+      base: r.baseline_dbfs,
+      state: !r.measured ? "missing" : r.clipped ? "clipped" : "ok",
+      title: r.measured ? `${r.name} · ${mhz(r.center_hz)} MHz · ${num(r[stat])} dBFS` : `${r.name} · ${t("spectrum.unmeasured")}`,
+    }));
+    const riseBars: Bar[] = rows.map((r) => ({
+      name: r.name,
+      value: r.rise_db,
+      state: r.rise_db === undefined ? "missing" : r.raised ? "raised" : "ok",
+      title: r.rise_db === undefined ? `${r.name} · ${t("monitor.no_baseline")}` : `${r.name} · ${num(r.rise_db, true)} dB`,
+    }));
+    return (
+      <>
+        <SubNav title={t("nav.spectrum")} action={<Button variant="secondary" onClick={back} data-testid="monitor-back">{`← ${t("monitor.back")}`}</Button>} />
+        <Tile tone="light">
+          <TileHead eyebrow={`${info.device.label} · ${t(`spectrum.plan.${mon.plan}`)}`} title={t("monitor.title", { n: rows.length })} lead={t("monitor.lead", { n: mon.smooth })}>
+            <Button onClick={() => setRunning(!running)} data-testid="monitor-toggle">
+              {running ? t("spectrum.repeat.stop") : t("monitor.resume")}
+            </Button>
+            <div className="chips" role="group" aria-label={t("spectrum.stat.label")}>
+              {(["median_dbfs", "mean_dbfs"] as const).map((s) => (
+                <Chip key={s} selected={s === stat} onSelect={() => patch({ stat: s })}>
+                  {t(`spectrum.stat.${s}`)}
+                </Chip>
+              ))}
+            </div>
+          </TileHead>
+          <div className="row center-row" data-testid="monitor-status">
+            <Badge level="info">{t("monitor.sweeps", { n: mon.sweeps, s: mon.sweep_s ?? "—" })}</Badge>
+            {mon.raised.length > 0 && <Badge level="warn">{t("monitor.raised", { names: mon.raised.join(", "), db: mon.rise_threshold_db })}</Badge>}
+            {rows.some((r) => r.clipped) && <Badge level="warn">{t("spectrum.clipped")}</Badge>}
+            {mon.baseline_note && <Badge level="ok">{t(`monitor.baseline.${mon.baseline_note}`)}</Badge>}
+            {mon.forced.length > 0 && <Badge level="warn">{t("monitor.forced", { names: mon.forced.join(", ") })}</Badge>}
+            {waiting.length > 0 && <Badge level="info">{t("monitor.settling", { s: Math.ceil(Math.max(...waiting.map((r) => r.settle_s ?? 0))) })}</Badge>}
+          </div>
+          <div className="row center-row">
+            <label className="t-caption">
+              <input type="checkbox" checked={mon.auto} onChange={(e) => patch({ auto: e.target.checked })} data-testid="monitor-auto" /> {t("monitor.auto")}
+            </label>
+            <Button variant="secondary" onClick={() => patch({ baseline: "save" })} disabled={mon.sweeps === 0} data-testid="monitor-save">
+              {t("spectrum.baseline.save")}
+            </Button>
+            <Button variant="link" onClick={() => patch({ baseline: "clear" })} disabled={!mon.has_baseline} data-testid="monitor-clear">
+              {t("spectrum.baseline.clear")}
+            </Button>
+          </div>
+          {mon.sweeps === 0 ? (
+            <Empty>{t("monitor.first")}</Empty>
+          ) : (
+            <>
+              <div className="card">
+                <Bars bars={levelBars} label={t("spectrum.chart.label")} yLabel={t("spectrum.axis.y")} testid="survey-bar" />
+                <p className="t-caption muted center">{mon.has_baseline ? t("spectrum.chart.caption_base") : t("spectrum.chart.caption")}</p>
+              </div>
+              <div className="card stack-gap">
+                <Bars bars={riseBars} label={t("monitor.rise.label")} yLabel={t("monitor.rise.axis")} zero testid="rise-bar" />
+                <p className="t-caption muted center">{mon.has_baseline ? t("monitor.rise.caption", { db: mon.rise_threshold_db }) : t("monitor.rise.none")}</p>
+              </div>
+              <div className="table-wrap">
+                <table className="data t-caption" data-testid="survey-table">
+                  <caption className="sr-only">{t("spectrum.chart.label")}</caption>
+                  <thead>
+                    <tr>
+                      {["name", "center", "median", "mean", "peak", "rise", ...(real ? ["look"] : [])].map((c) => (
+                        <th key={c} scope="col" className={`t-caption-strong ${c === "name" ? "" : "right"}`}>
+                          {t(`spectrum.col.${c}`)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.name}>
+                        <td>{r.name}</td>
+                        <td className="right">{mhz(r.center_hz)}</td>
+                        {r.measured ? (
+                          <>
+                            <td className="right">{num(r.median_dbfs)}</td>
+                            <td className="right">{num(r.mean_dbfs)}</td>
+                            <td className="right">{num(r.peak_dbfs)}</td>
+                          </>
+                        ) : (
+                          <td className="right muted" colSpan={3}>
+                            {t("spectrum.unmeasured")}
+                          </td>
+                        )}
+                        <td className="right">{num(r.rise_db, true)}</td>
+                        {real && (
+                          <td className="right">
+                            <Button variant="link" onClick={() => viewer.current?.look(r.center_hz, r.width_hz)} data-testid={`survey-look-${r.name}`}>
+                              {t("spectrum.look")}
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          <details className="fold">
+            <summary className="t-body">{t("spectrum.how.title")}</summary>
+            <div className="fold-body t-caption">
+              {["dwell", "mean", "median", "peak", "unit", "smooth", "auto"].map((k) => (
+                <p key={k}>{t(`spectrum.how.${k}`, { ms: 20, n: mon.smooth })}</p>
+              ))}
+            </div>
+          </details>
+        </Tile>
+        {real && <SpectrumView key={info.device.id} info={info} gain={gain} ref={viewer} paused={running} />}
+      </>
+    );
+  }
 
   return (
     <>
@@ -199,7 +420,7 @@ export function SpectrumScreen() {
         {devices && devices.length > 0 && (
           <div className="chips center-row" role="group" aria-label={t("start.device.pick")}>
             {devices.map((d) => (
-              <Chip key={d.id} selected={d.id === device} onSelect={() => setDevice(d.id)} disabled={busy}>
+              <Chip key={d.id} selected={d.id === device} onSelect={() => setDevice(d.id)} disabled={starting}>
                 {d.label}
               </Chip>
             ))}
@@ -212,12 +433,13 @@ export function SpectrumScreen() {
               <h3 className="t-tagline">{t("spectrum.plan.title")}</h3>
               <div className="chips" role="group" aria-label={t("spectrum.plan.title")}>
                 {info.plans.map((p) => (
-                  <Chip key={p.id} selected={p.id === plan} onSelect={() => setPlan(p.id)} disabled={busy || !p.available}>
+                  <Chip key={p.id} selected={p.id === plan} onSelect={() => choosePlan(p)} disabled={starting || !p.available}>
                     {t(`spectrum.plan.${p.id}`)}
                   </Chip>
                 ))}
               </div>
               <p className="t-caption muted">{real ? t("spectrum.plan.hint_real") : t("spectrum.plan.hint_sim")}</p>
+              {current && plan !== "custom" && <ChannelMap key={plan} plan={current} picked={picked} onChange={setPicked} disabled={starting} />}
               {plan === "custom" && (
                 <div className="row">
                   {(["center", "span", "step"] as const).map((k) => (
@@ -232,104 +454,16 @@ export function SpectrumScreen() {
                   {(p) => <input {...p} inputMode="decimal" value={gain} onChange={(e) => setGain(e.target.value)} />}
                 </Field>
               )}
-              <div className="row">
-                <Button onClick={() => void measure()} disabled={busy || repeat || !plan} data-testid="survey-run">
-                  {busy && !repeat ? t("spectrum.busy") : t("spectrum.run")}
-                </Button>
-                <Button variant="secondary" onClick={() => setRepeat(!repeat)} disabled={!plan} data-testid="survey-repeat" aria-pressed={repeat}>
-                  {repeat ? t("spectrum.repeat.stop") : t("spectrum.repeat.start")}
+              <div>
+                <Button onClick={() => void begin()} disabled={starting || !canStart} data-testid="monitor-start">
+                  {t("monitor.start")}
                 </Button>
               </div>
             </div>
           </div>
         )}
       </Tile>
-
       {info && <SpectrumView key={info.device.id} info={info} gain={gain} ref={viewer} />}
-
-      {result && (
-        <Tile tone="parchment">
-          <TileHead
-            eyebrow={t("spectrum.result.eyebrow")}
-            title={strongest ? t(strongest.name === mhz(strongest.center_hz) ? "spectrum.result.title_freq" : "spectrum.result.title", { name: strongest.name, mhz: mhz(strongest.center_hz) }) : t("spectrum.result.none")}
-            lead={t("spectrum.result.lead")}
-          >
-            <div className="chips" role="group" aria-label={t("spectrum.stat.label")}>
-              {(["median_dbfs", "mean_dbfs"] as const).map((s) => (
-                <Chip key={s} selected={s === stat} onSelect={() => setStat(s)}>
-                  {t(`spectrum.stat.${s}`)}
-                </Chip>
-              ))}
-            </div>
-            <Button
-              variant="secondary"
-              data-testid="survey-baseline"
-              onClick={() => setBaseline(baseline ? null : Object.fromEntries(measured.map((r) => [r.name, { median_dbfs: r.median_dbfs ?? 0, mean_dbfs: r.mean_dbfs ?? 0 }])))}
-            >
-              {baseline ? t("spectrum.baseline.clear") : t("spectrum.baseline.save")}
-            </Button>
-          </TileHead>
-          {rows.some((r) => r.clipped) && <Badge level="warn">{t("spectrum.clipped")}</Badge>}
-          <div className="card">
-            <SurveyBars rows={rows} stat={stat} baseline={baseline} />
-            <p className="t-caption muted center">{baseline ? t("spectrum.chart.caption_base") : t("spectrum.chart.caption")}</p>
-          </div>
-          <div className="table-wrap">
-            <table className="data t-caption" data-testid="survey-table">
-              <caption className="sr-only">{t("spectrum.chart.label")}</caption>
-              <thead>
-                <tr>
-                  {["name", "center", "median", "mean", "peak", ...(baseline ? ["rise"] : []), ...(real ? ["look"] : [])].map((c) => (
-                    <th key={c} scope="col" className={`t-caption-strong ${c === "name" ? "" : "right"}`}>
-                      {t(`spectrum.col.${c}`)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const base = baseline?.[r.name]?.[stat];
-                  const v = r[stat];
-                  const rise = base !== undefined && v !== undefined ? Math.round((v - base) * 10) / 10 : undefined;
-                  return (
-                    <tr key={r.name}>
-                      <td>{r.name}</td>
-                      <td className="right">{mhz(r.center_hz)}</td>
-                      {r.measured ? (
-                        <>
-                          <td className="right">{num(r.median_dbfs)}</td>
-                          <td className="right">{num(r.mean_dbfs)}</td>
-                          <td className="right">{num(r.peak_dbfs)}</td>
-                        </>
-                      ) : (
-                        <td className="right muted" colSpan={3}>
-                          {t("spectrum.unmeasured")}
-                        </td>
-                      )}
-                      {baseline && <td className="right">{rise !== undefined ? `${rise >= 0 ? "+" : ""}${(rise === 0 ? 0 : rise).toFixed(1)}` : "—"}</td>}
-                      {real && (
-                        <td className="right">
-                          <Button variant="link" onClick={() => viewer.current?.look(r.center_hz, r.width_hz)} data-testid={`survey-look-${r.name}`}>
-                            {t("spectrum.look")}
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <details className="fold">
-            <summary className="t-body">{t("spectrum.how.title")}</summary>
-            <div className="fold-body t-caption">
-              {["dwell", "mean", "median", "peak", "unit"].map((k) => (
-                <p key={k}>{t(`spectrum.how.${k}`, { ms: Math.round(result.dwell_s * 1000) })}</p>
-              ))}
-            </div>
-          </details>
-        </Tile>
-      )}
     </>
   );
 }

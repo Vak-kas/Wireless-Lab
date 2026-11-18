@@ -8,7 +8,9 @@
     피크   : I/Q 중 가장 큰 샘플. 0 dB 에 가까우면 입력이 포화된 것이다.
 - 모의 장비는 주파수를 바꿀 수 없다(저장 파일을 흘려보낼 뿐). 그래서 한 번 받은 것에서 채널들을 잘라 재고,
   파일에 담기지 않은 채널은 "잴 수 없음"으로 돌려준다.
-채널 번호 → 중심 주파수: 2.4 GHz 는 2407 + 5·ch MHz, 5 GHz 는 5000 + 5·ch MHz (IEEE 802.11 의 채널 번호 규칙. 조항 번호는 원문으로 확인하지 못함).
+채널 번호 → 중심 주파수: 2.4 GHz 는 2407 + 5·ch MHz, 5 GHz 는 5000 + 5·ch MHz, 6 GHz 는 5950 + 5·ch MHz
+(IEEE 802.11 의 채널 번호 규칙. 조항 번호는 원문으로 확인하지 못함).
+묶음(40/80/160 MHz): 5 GHz 는 36, 100, 149 에서, 6 GHz 는 1 에서 차례로 센다. 2.4 GHz 는 채널이 5 MHz 간격으로 겹쳐서 묶지 않는다.
 실제 장비로는 검증하지 못했다.
 """
 
@@ -38,13 +40,28 @@ FALL_ROWS = 64            # 워터폴의 주파수 칸 수
 FALL_COLS = 40            # 워터폴의 시간 칸 수(최대)
 MIN_BANDWIDTH_HZ = 200e3
 
-WIFI_5G = [*range(36, 65, 4), *range(100, 145, 4), *range(149, 166, 4)]
+WIFI_5G_BLOCKS = [list(range(36, 65, 4)), list(range(100, 145, 4)), list(range(149, 166, 4))]
+WIFI_5G = [c for block in WIFI_5G_BLOCKS for c in block]
+WIFI_6G = list(range(1, 234, 4))
 PLANS: dict[str, dict[str, Any]] = {
     "capture": {"simulated_only": True},
-    "wifi-2g4": {"channels": [(f"ch{c}", (2407 + 5 * c) * 1e6, 20e6) for c in range(1, 14)]},
-    "wifi-5g": {"channels": [(f"ch{c}", (5000 + 5 * c) * 1e6, 20e6) for c in WIFI_5G]},
+    "wifi-2g4": {"channels": [(f"ch{c}", (2407 + 5 * c) * 1e6, 20e6) for c in range(1, 14)], "widths": [20], "blocks": []},
+    "wifi-5g": {"channels": [(f"ch{c}", (5000 + 5 * c) * 1e6, 20e6) for c in WIFI_5G], "widths": [20, 40, 80, 160],
+                "blocks": WIFI_5G_BLOCKS},
+    "wifi-6g": {"channels": [(f"ch{c}", (5950 + 5 * c) * 1e6, 20e6) for c in WIFI_6G], "widths": [20, 40, 80, 160],
+                "blocks": [WIFI_6G]},
     "custom": {},
 }
+
+
+def groups(plan: str, width_mhz: int) -> list[list[str]]:
+    """width_mhz 폭으로 함께 쓰이는 20 MHz 채널 묶음. 묶음을 다 채우지 못하는 끝 채널(예: 5 GHz ch165)은 빠진다."""
+    count = width_mhz // 20
+    out: list[list[str]] = []
+    for block in PLANS.get(plan, {}).get("blocks", []):
+        for i in range(0, len(block) - count + 1, count):
+            out.append([f"ch{c}" for c in block[i:i + count]])
+    return out
 
 
 class SurveyError(ValueError):
@@ -105,13 +122,17 @@ def plans_for(dev: dict[str, Any]) -> list[dict[str, Any]]:
     out = []
     for pid, plan in PLANS.items():
         chans = plan.get("channels", [])
+        reach = [dev["freq_min_hz"] <= c[1] <= dev["freq_max_hz"] for c in chans]
         if pid == "capture":
             ok = sim
         elif sim:
             ok = False       # 모의 장비는 파일에 담긴 대역만 볼 수 있다
         else:
-            ok = all(dev["freq_min_hz"] <= c[1] <= dev["freq_max_hz"] for c in chans)
-        out.append({"id": pid, "available": ok, "channels": len(chans)})
+            ok = any(reach) or not chans   # 일부만 닿아도 고를 수 있다. 닿지 않는 채널은 채널 맵에서 막는다
+        out.append({"id": pid, "available": ok, "channels": len(chans), "widths": plan.get("widths", [20]),
+                    "map": [{"name": c[0], "center_hz": c[1], "width_hz": c[2], "reachable": bool(r and not sim)}
+                            for c, r in zip(chans, reach, strict=True)],
+                    "groups": {str(w): groups(pid, w) for w in plan.get("widths", []) if w > 20}})
     return out
 
 
@@ -138,8 +159,8 @@ def channels_for(plan: str, dev: dict[str, Any], center_hz: float | None, span_h
 
 
 def run(dev_id: str, plan: str, *, gain_db: float | None = None, center_hz: float | None = None, span_hz: float | None = None,
-        step_hz: float | None = None) -> dict[str, Any]:
-    """채널별 세기를 한 바퀴 잰다."""
+        step_hz: float | None = None, only: list[str] | None = None) -> dict[str, Any]:
+    """채널별 세기를 한 바퀴 잰다. only 가 있으면 그 이름의 채널만 잰다."""
     try:
         dev = devices.find_device(dev_id)
     except devices.DeviceError as e:
@@ -159,6 +180,10 @@ def run(dev_id: str, plan: str, *, gain_db: float | None = None, center_hz: floa
 
         fixed_iq, fixed = receive(0.0, 0.0) if sim else (None, None)
         channels = channels_for(plan, dev, center_hz, span_hz, step_hz, fixed)
+        if only is not None:
+            channels = [c for c in channels if c.name in set(only)]
+            if not channels:
+                raise SurveyError("잴 채널을 하나 이상 고르세요.")
         rows: list[dict[str, Any]] = []
         if fixed is not None and fixed_iq is not None:
             spectra, peak = block_spectra(fixed_iq, fixed.sample_rate_hz), _peak_dbfs(fixed_iq)
@@ -183,6 +208,12 @@ def describe(dev_id: str) -> dict[str, Any]:
         raise SurveyError("장비를 찾을 수 없습니다.") from e
     out: dict[str, Any] = {"device": dev, "plans": plans_for(dev), "reported": {}, "capture": None}
     if dev["driver"] == "simulated":
+        fixed = sigmf.read_meta(devices.GOLDEN / dev_id[len(devices.SIM_PREFIX):] / "capture.sigmf-meta")
+        for plan in out["plans"]:
+            if plan["id"] == "capture":
+                plan["map"] = [{"name": c.name, "center_hz": c.center_hz, "width_hz": c.width_hz, "reachable": True}
+                               for c in channels_for("capture", dev, None, None, None, fixed)]
+                plan["channels"] = len(plan["map"])
         src = sigmf.read_meta(devices.GOLDEN / dev_id[len(devices.SIM_PREFIX):] / "capture.sigmf-meta")
         out["capture"] = {"center_freq_hz": src.center_freq_hz, "sample_rate_hz": src.sample_rate_hz, "duration_s": round(src.duration_s, 3)}
     else:
