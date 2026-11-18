@@ -117,3 +117,35 @@ test("찾기가 실패하면 오류 내용을, 그냥 없으면 언제 확인했
   setup([], { backends: [{ backend: "usrp-matlab", searching: false, found: 0, error: "RuntimeError: MATLAB 을 띄우지 못했다", checked_s_ago: 2 }] });
   expect(await screen.findByTestId("search-error")).toHaveTextContent("MATLAB 을 띄우지 못했다");
 });
+
+test("SDR 이 없어도 컴퓨터의 어댑터가 있으면 연결 창에 보이고 그것으로 시작할 수 있다. 장비 없이 시작하면 어댑터도 감춘다", async () => {
+  const api = fakeApi();
+  api.devices = async () => [sim];
+  api.adapters = async () => [{ id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: { interface: "en0" } }];
+  function AdapterProbe() {
+    const { adapters, mode } = useUsableDevices();
+    return <div data-testid="aprobe">{`${mode}:${adapters.map((a) => a.id).join(",")}`}</div>;
+  }
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  renderWithStore(
+    <DeviceHub>
+      <AdapterProbe />
+    </DeviceHub>,
+    api,
+  );
+  const dialog = await screen.findByRole("dialog", { name: "장비를 연결하세요" });
+  const card = await within(dialog).findByTestId("adapter-card-wifi:en0");
+  expect(within(card).getByText("내장")).toBeInTheDocument();
+  const start = within(dialog).getByTestId("connect-start");
+  expect(start).toBeEnabled();
+  expect(start).toHaveTextContent("이 컴퓨터의 장비로 시작");
+  await user.click(start);
+  expect(screen.getByTestId("aprobe")).toHaveTextContent("device:wifi:en0");
+  expect(screen.getByTestId("my-devices-button")).toHaveTextContent("1");
+
+  await user.click(screen.getByTestId("my-devices-button"));
+  await user.click(screen.getByTestId("my-devices-connect"));
+  await user.click(screen.getByTestId("connect-skip"));
+  expect(screen.getByTestId("aprobe")).toHaveTextContent("none:");
+  expect(screen.getByTestId("aprobe")).not.toHaveTextContent("wifi:en0");
+});

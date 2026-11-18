@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
-import type { DeviceInfo } from "../api";
+import type { Adapter, DeviceInfo } from "../api";
 import { fakeApi, renderWithStore } from "../test-utils";
 import { StartScreen } from "./StartScreen";
 
@@ -55,4 +55,26 @@ test("장비가 없으면 연결하라고 안내하고, 장비 없이 하는 구
   expect(await screen.findByTestId("home-no-device")).toHaveTextContent("연결된 장비가 없습니다");
   expect(screen.queryByTestId("task-nr")).toBeNull();
   expect(screen.getByTestId("start-practice")).toBeInTheDocument();
+});
+
+test("컴퓨터의 Wi-Fi·블루투스 어댑터는 내장/외장 표시와 함께 따로 나오고, 누르면 주변 보기로 간다", async () => {
+  const api = fakeApi();
+  api.devices = async () => [usrp];
+  const found: Adapter[] = [
+    { id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: { interface: "en0" } },
+    { id: "bt:usb", kind: "bluetooth", attach: "external", label: "Bluetooth", detail: {} },
+  ];
+  api.adapters = async () => found;
+  renderWithStore(<StartScreen />, api);
+  const wifi = await screen.findByTestId("home-adapter-wifi:en0");
+  expect(within(wifi).getByText("내장")).toBeInTheDocument();
+  const bt = screen.getByTestId("home-adapter-bt:usb");
+  expect(within(bt).getByText("외장")).toBeInTheDocument();
+  expect(within(bt).getByTestId("task-near-bt")).toBeEnabled();
+  // SDR 장비의 할 일(스펙트럼·송신)은 어댑터 카드에 없다
+  expect(within(wifi).queryByTestId("task-view")).toBeNull();
+  expect(within(wifi).queryByTestId("task-tx")).toBeNull();
+  await userEvent.click(within(wifi).getByTestId("task-near-wifi"));
+  expect(window.location.hash).toBe("#/nearby");
+  expect(sessionStorage.getItem("nrtrail.nearbyAdapter")).toBe("wifi:en0");
 });

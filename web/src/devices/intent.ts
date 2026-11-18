@@ -28,6 +28,27 @@ export function takeIntent(): SpectrumIntent | null {
   }
 }
 
+const NEARBY_KEY = "nrtrail.nearbyAdapter";
+
+/** 첫 화면에서 누른 어댑터(컴퓨터의 Wi-Fi·블루투스). */
+export function saveNearby(id: string): void {
+  try {
+    sessionStorage.setItem(NEARBY_KEY, id);
+  } catch {
+    /* 못 쓰면 주변 보기 화면에서 다시 고른다 */
+  }
+}
+
+export function takeNearby(): string {
+  try {
+    const v = sessionStorage.getItem(NEARBY_KEY) ?? "";
+    sessionStorage.removeItem(NEARBY_KEY);
+    return v;
+  } catch {
+    return "";
+  }
+}
+
 const TX_KEY = "nrtrail.txDevice";
 
 /** 첫 화면의 "송신"을 누른 장비. */

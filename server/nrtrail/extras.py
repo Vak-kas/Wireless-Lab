@@ -183,6 +183,9 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
     else:
         usrp_matlab.install()   # MATLAB 엔진이 있으면 USRP 를 장비 목록에 끼운다
 
+    from . import adapters
+    adapters.register(app)      # 컴퓨터의 Wi-Fi·블루투스 어댑터(내장·외장)
+
     @app.post("/api/ble/scan")
     async def ble_scan(body: BleBody) -> dict[str, Any]:
         from . import ble

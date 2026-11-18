@@ -210,6 +210,13 @@ export const mockApi: Api = {
     throw new Error("mock");
   },
   monitorStop: async () => undefined,
+  adapters: async () => [],
+  adapterWifiScan: async () => {
+    throw new Error("mock");
+  },
+  adapterBleScan: async () => {
+    throw new Error("mock");
+  },
   deviceSearch: async () => ({ backends: [] }),
   deviceRescan: async () => ({ backends: [] }),
   deviceReset: async () => ({ backends: [] }),

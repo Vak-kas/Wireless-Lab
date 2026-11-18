@@ -1,4 +1,4 @@
-import type { Api, JobEvent, StageResult } from "./types";
+import type { Adapter, Api, JobEvent, StageResult } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -77,6 +77,9 @@ export const httpApi: Api = {
   monitorSweep: (id) => call(`/monitor/${id}/sweep`, "POST", {}),
   monitorPatch: (id, body) => call(`/monitor/${id}`, "PATCH", body),
   monitorStop: (id) => call(`/monitor/${id}`, "DELETE"),
+  adapters: () => call<{ adapters: Adapter[] }>("/adapters").then((r) => r.adapters),
+  adapterWifiScan: (device) => call("/adapters/wifi/scan", "POST", { device }),
+  adapterBleScan: (device, seconds = 4) => call("/adapters/bluetooth/scan", "POST", { device, seconds }),
   deviceSearch: () => call("/devices/status"),
   deviceRescan: () => call("/devices/rescan", "POST", {}),
   deviceReset: () => call("/devices/reset", "POST", {}),

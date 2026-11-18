@@ -9,6 +9,7 @@ computer (`127.0.0.1`).
 - **Follow a 5G NR base station** (NTN included): scan → SSB → MIB → SIB1 → SIB19, in order. Every value on screen can be expanded into "raw value → formula → result → clause of the standard".
 - **Look at the spectrum**: pick a center frequency and width to see the spectrum, and keep watching per-channel power on Wi-Fi 2.4 / 5 / 6 GHz.
 - **Bluetooth**: receive and decode BLE advertisements (broadcasts meant for anyone to receive).
+- **Nearby**: even without an SDR, see the channels and strength of nearby networks and the advertisements of nearby devices with the computer's own Wi-Fi and Bluetooth (no connection is made).
 - **Practice mode**: replays saved results, so you can go through the whole flow without any device.
 
 This public edition (Basic) is **receive-only**.
@@ -22,6 +23,7 @@ The user interface is in Korean by default; an English translation is included.
 | Web UI, local server, practice mode | ✓ | ✓ |
 | Broadcast information decoding (MIB, SIB1, SIB19), satellite (NTN) calculations, tracking, report | ✓ | ✓ |
 | Channel power monitor, spectrum, BLE advertisement reception | ✓ | ✓ |
+| Look around with the computer's own Wi-Fi and Bluetooth (built-in or external adapters) | ✓ | ✓ |
 | 5G NR signal-processing engine for real signals (based on MATLAB 5G Toolbox) | — | ✓ |
 | Automatic USRP registration and reception (MATLAB) | — | ✓ |
 | Wi-Fi beacon and preamble decoding (nearby APs, bandwidth) | — | ✓ |

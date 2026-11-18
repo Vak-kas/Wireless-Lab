@@ -5,8 +5,8 @@ import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
-import { DeviceCard, SearchNote, useUsableDevices } from "../devices/DeviceHub";
-import { saveIntent, saveTxDevice, type SpectrumIntent } from "../devices/intent";
+import { AdapterCard, DeviceCard, SearchNote, useUsableDevices } from "../devices/DeviceHub";
+import { saveIntent, saveNearby, saveTxDevice, type SpectrumIntent } from "../devices/intent";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
 
@@ -36,6 +36,25 @@ const TASK_ICONS: Record<string, React.ReactNode> = {
       <circle cx="7" cy="12" r="2.5" />
       <circle cx="17" cy="12" r="2.5" />
       <path d="M9.5 12h5M12 6v2M12 16v2" />
+    </>
+  ),
+  // 주변 Wi-Fi 망: 부채꼴과 목록
+  "near-wifi": (
+    <>
+      <path d="M3 9a9 9 0 0 1 12 0M5.5 12a5.5 5.5 0 0 1 7 0" />
+      <circle cx="9" cy="15" r="0.8" />
+      <path d="M15 14h6M15 17h6M15 20h4" />
+    </>
+  ),
+  // 주변 블루투스 기기: 가운데 점과 둘레의 점들
+  "near-bt": (
+    <>
+      <circle cx="12" cy="12" r="2.2" />
+      <circle cx="5" cy="7" r="1.2" />
+      <circle cx="19" cy="8" r="1.2" />
+      <circle cx="18" cy="18" r="1.2" />
+      <circle cx="6" cy="18" r="1.2" />
+      <path d="M12 12m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0" strokeDasharray="2 3" />
     </>
   ),
   // 내보내는 신호: 위로 향한 화살표와 파동
@@ -160,6 +179,30 @@ export function StartScreen() {
               </div>
             </div>
           ))
+        )}
+        {hub.adapters.length > 0 && (
+          <>
+            <h3 className="t-tagline home-group" data-testid="home-adapters">
+              {t("home.adapters.title")}
+            </h3>
+            <p className="t-caption muted">{t("home.adapters.lead")}</p>
+            {hub.adapters.map((a) => (
+              <div className="card home-device" key={a.id} data-testid={`home-adapter-${a.id}`}>
+                <AdapterCard adapter={a} />
+                <h3 className="t-tagline">{t("home.tasks")}</h3>
+                <div className="tasks">
+                  <Task
+                    id={a.kind === "wifi" ? "near-wifi" : "near-bt"}
+                    disabled={busy}
+                    onClick={() => {
+                      saveNearby(a.id);
+                      go("nearby");
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </Tile>
 

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { DeviceInfo, DeviceSearch } from "../api";
+import type { Adapter, DeviceInfo, DeviceSearch } from "../api";
 import { Badge, Button } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
@@ -13,6 +13,8 @@ export const isSim = (d: DeviceInfo) => d.driver === "simulated";
 interface Hub {
   /** 화면이 쓸 수 있는 장비. 장비 없이 시작했으면 모의 장비만 */
   devices: DeviceInfo[] | null;
+  /** 컴퓨터의 Wi-Fi·블루투스 어댑터(내장·외장). 장비 없이 시작했으면 비어 있다 */
+  adapters: Adapter[];
   mode: DeviceMode;
   /** 장비 연결 창을 다시 연다 */
   connect(): void;
@@ -30,7 +32,86 @@ export function useUsableDevices(): Hub {
   const hub = useContext(Ctx);
   const { api } = useStore();
   const own = useDevices(api, hub === null);
-  return hub ?? { devices: own, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
+  const ownAdapters = useAdapters(hub === null);
+  return hub ?? { devices: own, adapters: ownAdapters, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
+}
+
+const ADAPTER_POLL_MS = 20000;
+
+/** 컴퓨터의 어댑터 목록. 꽂고 빼는 일이 드물어 천천히 다시 읽는다. */
+function useAdapters(active = true): Adapter[] {
+  const { api } = useStore();
+  const [list, setList] = useState<Adapter[]>([]);
+  useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    const load = () => void api.adapters().then((x) => alive && setList((old) => (old.map((a) => a.id).join() === x.map((a) => a.id).join() ? old : x)), () => undefined);
+    load();
+    const timer = setInterval(load, ADAPTER_POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [api, active]);
+  return list;
+}
+
+/** 어댑터 그림: Wi-Fi 는 퍼지는 부채꼴, 블루투스는 이어진 두 점(특정 제품·상표 모양이 아니다). */
+function AdapterPicture({ kind }: { kind: Adapter["kind"] }) {
+  return (
+    <svg className="device-picture" viewBox="0 0 96 64" aria-hidden="true">
+      <rect x="22" y="40" width="52" height="16" rx="4" />
+      {kind === "wifi" ? (
+        <>
+          <path d="M30 26a26 26 0 0 1 36 0M36 32a17 17 0 0 1 24 0M42 38a8 8 0 0 1 12 0" />
+          <circle cx="32" cy="48" r="2" />
+        </>
+      ) : (
+        <>
+          <circle cx="36" cy="22" r="6" />
+          <circle cx="60" cy="22" r="6" />
+          <path d="M42 22h12M48 10v4M48 30v4" />
+          <circle cx="32" cy="48" r="2" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** 어댑터 카드: 그림, 이름, 내장/외장, 종류. */
+export function AdapterCard({ adapter, action }: { adapter: Adapter; action?: ReactNode }) {
+  const d = adapter.detail;
+  return (
+    <div className="device-card" data-testid={`adapter-card-${adapter.id}`}>
+      <AdapterPicture kind={adapter.kind} />
+      <div className="device-card-body">
+        <div className="row">
+          <span className="t-body-strong">{adapter.label}</span>
+          <Badge level="info">{t(`hub.attach.${adapter.attach}`)}</Badge>
+        </div>
+        <dl className="t-caption">
+          <div>
+            <dt className="muted">{t("hub.kind")}</dt>
+            <dd>{t(`hub.kind.${adapter.kind}`)}</dd>
+          </div>
+          {d.interface !== undefined && (
+            <div>
+              <dt className="muted">{t("hub.interface")}</dt>
+              <dd>{String(d.interface)}</dd>
+            </div>
+          )}
+          {d.chipset !== undefined && (
+            <div>
+              <dt className="muted">{t("hub.chipset")}</dt>
+              <dd>{String(d.chipset)}</dd>
+            </div>
+          )}
+        </dl>
+        {d.power === false && <p className="t-caption muted">{t("hub.power_off")}</p>}
+        {action}
+      </div>
+    </div>
+  );
 }
 
 const mhz = (hz?: number) => (hz === undefined ? "" : (hz / 1e6).toFixed(0));
@@ -152,6 +233,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   const [arrived, setArrived] = useState<DeviceInfo[]>([]);
   const known = useRef<Set<string> | null>(null);
   const [search, setSearch] = useState<DeviceSearch | null>(null);
+  const adaptersAll = useAdapters();
 
   // 찾기 상태를 함께 읽는다(찾는 중인지, 왜 못 찾았는지를 보여 주려고)
   useEffect(() => {
@@ -192,7 +274,8 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   }, [all, real, asking]);
 
   const usable = useMemo(() => (all === null ? null : mode === "none" ? all.filter(isSim) : all), [all, mode]);
-  const hub = useMemo<Hub>(() => ({ devices: usable, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, mode, search, rescan, reset]);
+  const adapters = useMemo(() => (mode === "none" ? [] : adaptersAll), [mode, adaptersAll]);
+  const hub = useMemo<Hub>(() => ({ devices: usable, adapters, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, adapters, mode, search, rescan, reset]);
 
   return (
     <Ctx.Provider value={hub}>
@@ -214,9 +297,17 @@ export function DeviceHub({ children }: { children: ReactNode }) {
             ) : (
               <SearchNote search={search} onRescan={rescan} onReset={reset} />
             )}
+            {adaptersAll.length > 0 && (
+              <div className="device-list" data-testid="connect-adapters">
+                <div className="t-caption-strong">{t("hub.adapters.title")}</div>
+                {adaptersAll.map((a) => (
+                  <AdapterCard key={a.id} adapter={a} />
+                ))}
+              </div>
+            )}
             <div className="dialog-actions">
-              <Button onClick={() => setMode("device")} disabled={real.length === 0} data-testid="connect-start" autoFocus>
-                {real.length > 1 ? t("hub.connect.start_many", { n: real.length }) : t("hub.connect.start")}
+              <Button onClick={() => setMode("device")} disabled={real.length + adaptersAll.length === 0} data-testid="connect-start" autoFocus>
+                {real.length > 1 ? t("hub.connect.start_many", { n: real.length }) : real.length === 0 && adaptersAll.length > 0 ? t("hub.connect.start_builtin") : t("hub.connect.start")}
               </Button>
               <Button variant="secondary" onClick={() => setMode("none")} data-testid="connect-skip">
                 {t("hub.connect.skip")}
@@ -261,6 +352,10 @@ export function DeviceHub({ children }: { children: ReactNode }) {
           ) : (
             real.map((d) => <DeviceCard key={d.id} device={d} />)
           )}
+          {adapters.length > 0 && <div className="t-caption-strong">{t("hub.adapters.title")}</div>}
+          {adapters.map((a) => (
+            <AdapterCard key={a.id} adapter={a} />
+          ))}
           <div className="dialog-actions">
             <Button
               variant="secondary"
@@ -284,8 +379,8 @@ export function DeviceHub({ children }: { children: ReactNode }) {
       {!asking && (
         <button type="button" className="fab t-caption-strong" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="my-devices-button">
           <span aria-hidden="true">{open ? "▼" : "▲"}</span> {t("hub.mine.button")}
-          <span className="fab-count" data-level={real.length > 0 && mode !== "none" ? "on" : "off"}>
-            {real.length}
+          <span className="fab-count" data-level={real.length + adapters.length > 0 && mode !== "none" ? "on" : "off"}>
+            {real.length + adapters.length}
           </span>
         </button>
       )}

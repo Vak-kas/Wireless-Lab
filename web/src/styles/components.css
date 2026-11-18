@@ -1306,3 +1306,34 @@ details.fold > .fold-body {
 .home-empty .search-note {
   justify-items: start;
 }
+
+/* ---------- 주변 보기 (컴퓨터의 Wi-Fi·블루투스 어댑터) ---------- */
+.home-group {
+  text-align: left;
+  margin-top: var(--space-lg);
+}
+.nearby-chart {
+  margin: 0;
+  display: grid;
+  gap: var(--space-xxs);
+}
+.nearby-chart svg {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+}
+.nearby-chart .bar {
+  fill: var(--color-viz-accent);
+  fill-opacity: 0.45;
+}
+.nearby-chart .grid {
+  stroke: var(--color-viz-grid);
+  stroke-width: 1;
+}
+.nearby-chart .axis {
+  fill: var(--color-viz-muted);
+  font-size: 11px;
+}
+.notice {
+  color: var(--color-warning);
+}

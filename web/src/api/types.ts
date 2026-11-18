@@ -100,6 +100,53 @@ export interface SurveyPlan {
   groups?: Record<string, string[][]>;
 }
 
+/** 컴퓨터의 무선 어댑터(Wi-Fi, 블루투스). SDR 과 달리 칩이 풀어 준 결과만 준다. */
+export interface Adapter {
+  id: string;
+  kind: "wifi" | "bluetooth";
+  /** 내장 / 외장(USB 등) / 운영체제가 알려 주지 않음 */
+  attach: "builtin" | "external" | "unknown";
+  label: string;
+  detail: Record<string, string | number | boolean>;
+}
+
+export interface NearbyNetwork {
+  /** 운영체제가 가리면 null (위치 권한이 없을 때) */
+  ssid: string | null;
+  bssid: string | null;
+  rssi_dbm: number | null;
+  channel: number | null;
+  band: "2.4" | "5" | "6" | "";
+  width_mhz: number | null;
+  freq_mhz: number | null;
+}
+
+export interface WifiNearby {
+  device: string;
+  networks: NearbyNetwork[];
+  /** 지금 이어져 있는 망의 채널과 세기 (알 수 있을 때만) */
+  current: { channel: number; band: string; width_mhz: number | null; rssi_dbm: number; noise_dbm: number } | null;
+  took_s: number;
+  names_hidden: boolean;
+}
+
+export interface NearbyBleDevice {
+  address: string;
+  name: string;
+  rssi_dbm: number;
+  company: string;
+  company_ids: number[];
+  services: number;
+  count: number;
+  tx_power_dbm?: number;
+}
+
+export interface BleNearby {
+  device: string;
+  seconds: number;
+  devices: NearbyBleDevice[];
+}
+
 /** 장비 찾기의 지금 상태 (찾는 중인지, 왜 못 찾았는지) */
 export interface DeviceSearch {
   backends: {
@@ -377,6 +424,12 @@ export interface Api {
   monitorSweep(id: string): Promise<MonitorState>;
   monitorPatch(id: string, body: { auto?: boolean; stat?: string; baseline?: "save" | "clear" }): Promise<MonitorState>;
   monitorStop(id: string): Promise<void>;
+  /** 컴퓨터의 Wi-Fi·블루투스 어댑터 */
+  adapters(): Promise<Adapter[]>;
+  /** 어댑터로 주변 Wi-Fi 망을 한 번 찾는다 (연결하지 않는다) */
+  adapterWifiScan(device: string): Promise<WifiNearby>;
+  /** 어댑터로 주변 BLE 광고를 듣는다 (연결하지 않는다) */
+  adapterBleScan(device: string, seconds?: number): Promise<BleNearby>;
   deviceSearch(): Promise<DeviceSearch>;
   deviceRescan(): Promise<DeviceSearch>;
   /** 장비 연결을 처음부터 다시 (MATLAB 을 닫았다가 새로 띄워 찾는다) */
