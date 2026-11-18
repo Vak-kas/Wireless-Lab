@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import type { DeviceInfo, DoctorReport, Scenario, Session } from "../api";
+import { useEffect, useRef, useState } from "react";
+import type { DoctorReport, Scenario, Session } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
+import { useDevices } from "../state/useDevices";
 import { DevicePicker } from "./DevicePicker";
 import { OaiCard } from "./OaiCard";
 import { PhoneTile } from "./PhoneTile";
@@ -16,7 +17,9 @@ export function StartScreen() {
   const { api, start, stageDef } = useStore();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenario, setScenario] = useState<string>("");
-  const [devices, setDevices] = useState<DeviceInfo[]>([]);
+  const devices = useDevices(api) ?? [];
+  /** 사용자가 장비를 직접 골랐는가 (모의 실험을 켠 것 포함) */
+  const chosen = useRef(false);
   const [device, setDevice] = useState<string>("");
   const [doctor, setDoctor] = useState<DoctorReport | null>(null);
   const [recent, setRecent] = useState<Session[]>([]);
@@ -30,13 +33,17 @@ export function StartScreen() {
       setScenarios(list);
       setScenario((list.find((s) => s.recommended) ?? list[0])?.id ?? "");
     });
-    void api.devices().then((list) => {
-      setDevices(list);
-      setDevice(list.find((d) => d.driver !== "simulated")?.id ?? "");
-    });
     void api.doctor(true).then(setDoctor);
     void api.listSessions().then(setRecent);
   }, [api]);
+
+  // 실제 장비가 (늦게라도) 나타나면 기본으로 고른다. 직접 고른 뒤에는 건드리지 않는다.
+  const deviceIds = devices.map((d) => `${d.driver}:${d.id}`).join();
+  useEffect(() => {
+    if (chosen.current) return;
+    setDevice(devices.find((d) => d.driver !== "simulated")?.id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 목록의 내용이 바뀔 때만
+  }, [deviceIds]);
 
   const begin = async (fn: () => Promise<Session>) => {
     setBusy(true);
@@ -121,7 +128,15 @@ export function StartScreen() {
               <Empty action={<a href={href("settings")}>{t("start.device.check")}</a>}>{t("start.device.none")}</Empty>
             ) : (
               <>
-                <DevicePicker devices={devices} device={device} onPick={setDevice} disabled={busy} />
+                <DevicePicker
+                  devices={devices}
+                  device={device}
+                  disabled={busy}
+                  onPick={(id) => {
+                    chosen.current = true;
+                    setDevice(id);
+                  }}
+                />
                 {devices
                   .filter((d) => d.id === device)
                   .map((d) => (
@@ -136,7 +151,7 @@ export function StartScreen() {
                       </div>
                     </div>
                   ))}
-                <div>
+                <div className="row">
                   <Button
                     variant="secondary"
                     data-testid="start-device"
@@ -144,7 +159,7 @@ export function StartScreen() {
                     onClick={() => void begin(() => start({ kind: "device", device, device_label: devices.find((d) => d.id === device)?.label }))}
                   >
                     {t("start.device.button")}
-                  </Button>{" "}
+                  </Button>
                   <a href={href("spectrum")} data-testid="start-spectrum">
                     {t("start.device.spectrum")}
                   </a>

@@ -56,9 +56,9 @@ export function DevicePicker({
           <Button variant="link" onClick={toggle} disabled={disabled} data-testid="sim-toggle">
             {sim ? `← ${t("sim.leave")}` : t("sim.enter")}
           </Button>
-          {!sim && <span className="t-caption muted"> {t("sim.hint")}</span>}
         </p>
       )}
+      {hasSim && !sim && <p className="t-caption muted">{t("sim.hint")}</p>}
     </div>
   );
 }

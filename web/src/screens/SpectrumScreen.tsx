@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DeviceInfo, MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
+import type { MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { useDevices } from "../state/useDevices";
 import { DevicePicker } from "./DevicePicker";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
 import { ApTable, BandwidthWatch, countByWidth, dominant, type UsigSample } from "./WifiPanels";
 
 type Stat = "median_dbfs" | "mean_dbfs";
 const PAUSE_MS = 200;
-const DEVICE_POLL_MS = 5000;
 const USIG_KEEP_MS = 60_000;
 /** 처음 자리 잡은 폭을 정할 때 필요한 PPDU 수 */
 const USIG_REFERENCE_MIN = 10;
@@ -185,7 +185,6 @@ function ChannelMap({ plan, picked, onChange, disabled }: { plan: SurveyPlan; pi
  */
 export function SpectrumScreen() {
   const { api, fail } = useStore();
-  const [devices, setDevices] = useState<DeviceInfo[] | null>(null);
   const [device, setDevice] = useState("");
   const [info, setInfo] = useState<SurveyDevice | null>(null);
   const [plan, setPlan] = useState("");
@@ -207,25 +206,14 @@ export function SpectrumScreen() {
   const usigOn = useRef({ channel: "", plan: "", gain: "" });
   const viewer = useRef<SpectrumViewHandle>(null);
 
-  // 장비 목록은 몇 초마다 다시 읽는다: USRP 는 찾는 데 몇 초 걸려 처음에는 빠져 있을 수 있고, 나중에 꽂을 수도 있다.
-  const monitoring = mon !== null;
+  // 사용자가 직접 고르기 전에는 실제 장비만 기본으로 고른다(모의 장비는 "모의 실험하기"를 눌러야 쓴다).
+  // USRP 는 몇 초 늦게 나타나므로, 나타나면 그때 고른다.
+  const devices = useDevices(api, mon === null);
   useEffect(() => {
-    if (monitoring) return;
-    const load = () =>
-      void api.devices().then(
-        (list) => {
-          setDevices((old) => (old && old.map((d) => d.id).join() === list.map((d) => d.id).join() ? old : list));
-          // 사용자가 직접 고르기 전에는 실제 장비만 기본으로 고른다(모의 장비는 "모의 실험하기"를 눌러야 쓴다).
-          // USRP 는 몇 초 늦게 나타나므로, 나타나면 그때 고른다.
-          const real = list.find((d) => d.driver !== "simulated");
-          setDevice((cur) => (chosen.current && (cur === "" || list.some((d) => d.id === cur)) ? cur : (real?.id ?? "")));
-        },
-        () => setDevices((old) => old ?? []),
-      );
-    load();
-    const timer = setInterval(load, DEVICE_POLL_MS);
-    return () => clearInterval(timer);
-  }, [api, monitoring]);
+    if (!devices) return;
+    const real = devices.find((d) => d.driver !== "simulated");
+    setDevice((cur) => (chosen.current && (cur === "" || devices.some((d) => d.id === cur)) ? cur : (real?.id ?? "")));
+  }, [devices]);
 
   useEffect(() => {
     void api.wifiStatus().then((w) => setWifi(w.available), () => setWifi(false));
