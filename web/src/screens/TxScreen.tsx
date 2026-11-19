@@ -346,6 +346,11 @@ export function TxScreen() {
                 <p className="t-caption muted">
                   {chosen?.source === "plugin" ? chosen.description || t("tx.plugin.hint") : t(`tx.standard.hint.${STANDARD_HINT[standard] ?? "wifi"}`)}
                 </p>
+                {chosen?.frames && (
+                  <p className="t-caption muted" data-testid="tx-frames-hint">
+                    {t("tx.plugin.frames.hint")}
+                  </p>
+                )}
                 {standards.some((x) => x.source === "planned") && (
                   <p className="t-caption muted" data-testid="tx-planned-note">
                     {t("tx.planned.note")}

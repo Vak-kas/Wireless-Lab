@@ -194,6 +194,8 @@ export interface TxStatus {
     label?: string;
     description?: string;
     error?: string | null;
+    /** 사용자 생성기가 프레임 바이트만 돌려주고, 전파 모양은 이 도구가 만드는 종류인가 */
+    frames?: boolean;
   }[];
   /** 보내면서 받기의 한도 */
   receive?: { max_seconds: number; max_samples: number; skip_seconds: number; default_gain_db: number };

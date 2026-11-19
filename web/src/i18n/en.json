@@ -659,5 +659,6 @@
   "home.pro_hint": "Plug-and-use USRP support (automatic registration, reception, Wi-Fi decoding, transmit) is part of Pro. Pro is not installed here.",
   "hub.needs_pro.badge": "Needs Pro",
   "hub.needs_pro": "Using this device requires the Pro edition. Contact: smjgallery.kr · mjseo@smjgallery.kr",
-  "home.tasks.pro": "What Pro can do with this device"
+  "home.tasks.pro": "What Pro can do with this device",
+  "tx.plugin.frames.hint": "This is a frame generator. The Wi-Fi frame bytes it returns get a checksum (FCS) appended and are turned into a 20 MHz non-HT waveform, sent repeatedly."
 }

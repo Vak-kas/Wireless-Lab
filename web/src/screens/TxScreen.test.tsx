@@ -19,6 +19,7 @@ function api() {
       { id: "wifi-he", sample_rate_hz: 20e6 },
       { id: "ble-adv", sample_rate_hz: 4e6 },
       { id: "my-sig", sample_rate_hz: 2e6, source: "plugin" as const, label: "내 실험 신호", description: "내가 넣은 설명" },
+      { id: "my-frame", sample_rate_hz: 20e6, source: "plugin" as const, label: "내 프레임", description: "프레임 설명", frames: true },
       { id: "wifi-mgmt", sample_rate_hz: 0, source: "planned" as const },
       { id: "!bad.py", sample_rate_hz: 0, source: "plugin" as const, label: "bad.py", error: "SyntaxError: 틀림" },
     ],
@@ -241,4 +242,12 @@ test("받기를 켜지 않으면 요청에 receive 가 없다", async () => {
   await waitFor(() => expect(a.txStart).toHaveBeenCalledTimes(1));
   expect(vi.mocked(a.txStart).mock.calls[0]?.[0]).not.toHaveProperty("receive");
   expect(screen.queryByTestId("tx-rx")).toBeNull();
+});
+
+test("프레임 생성기를 고르면 도구가 전파 모양을 만든다는 안내가 나온다", async () => {
+  renderWithStore(<TxScreen />, api());
+  await userEvent.click(await screen.findByRole("button", { name: "표준 시험 신호" }));
+  expect(screen.queryByTestId("tx-frames-hint")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: /내 프레임/ }));
+  expect(screen.getByTestId("tx-frames-hint")).toHaveTextContent("검사값(FCS)을 붙이고");
 });

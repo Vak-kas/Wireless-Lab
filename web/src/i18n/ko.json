@@ -659,5 +659,6 @@
   "home.pro_hint": "USRP 를 꽂아 바로 쓰는 기능(자동 등록, 수신, Wi-Fi 풀이, 송신)은 Pro 에 있습니다. 이 설치에는 Pro 가 없습니다.",
   "hub.needs_pro.badge": "Pro 필요",
   "hub.needs_pro": "이 장비를 사용하려면 Pro 판이 필요합니다. 문의: smjgallery.kr · mjseo@smjgallery.kr",
-  "home.tasks.pro": "Pro 에서 이 장비로 할 수 있는 일"
+  "home.tasks.pro": "Pro 에서 이 장비로 할 수 있는 일",
+  "tx.plugin.frames.hint": "프레임 생성기입니다. 생성기가 돌려준 Wi-Fi 프레임 바이트에 검사값(FCS)을 붙이고, 20 MHz 폭의 기본 형식(non-HT)으로 전파 모양을 만들어 되풀이해 내보냅니다."
 }
