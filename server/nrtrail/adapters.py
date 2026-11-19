@@ -1,5 +1,16 @@
 """컴퓨터의 무선 어댑터(Wi-Fi, 블루투스)를 장비로 다룬다. SDR 과 달리 전파 자체(IQ)가 아니라 칩이 풀어 준 결과만 준다.
 
+구조
+
+    list_adapters() ─▶ 이 운영체제(this_os())에 물어 어댑터 목록 ─▶ 능력(abilities)과 지금 모드를 붙인다
+    wifi_scan()     ─▶ 이 운영체제의 방법으로 주변 망 찾기 ─▶ 같은 모양의 결과
+    ble_scan()      ─▶ 따로 띄운 프로세스(ble_host)가 광고를 듣는다
+
+- **운영체제마다 묻는 법이 다르다.** 그 차이는 Os 의 세 갈래(MacOs, WindowsOs, LinuxOs)에만 있고, 나머지 코드는 운영체제를 모른다.
+  각 갈래는 같은 세 가지에 답한다: list()(어떤 어댑터가 있나), wifi_scan()(주변 망), wifi_facts()(대역·폭·규격·모니터 모드).
+- **어댑터가 주는 것은 SDR 과 다르다.** SDR(devices.py)은 IQ 샘플을, 어댑터는 칩이 풀어 준 결과(망 목록, 광고)를 준다.
+  모니터 모드로 받는 프레임은 세 번째 종류가 된다(아직 읽는 기능은 없다. 모드 전환만 있다).
+
 - 받는 것은 **방송 정보뿐**이다: Wi-Fi 는 운영체제의 주변 망 찾기 결과(비콘), 블루투스는 BLE 광고. 연결하지 않고, 아무것도 보내지 않는다.
 - 내장(builtin)·외장(external) 은 운영체제가 알려 주는 연결 방식으로 가린다. 모르면 unknown.
 - 관리자 권한이 필요한 일(모니터 모드 켜기 등)은 하지 않는다. 다만 어댑터가 **무엇을 할 수 있는지**는 묻기만 해서 보여 준다(abilities):
@@ -260,6 +271,95 @@ def _linux_list() -> list[dict[str, Any]]:
     return out
 
 
+# ---------- 운영체제별 묶음 ----------
+class Os:
+    """운영체제 하나가 어댑터에 대해 답하는 법. 갈래마다 아래 세 가지를 채운다."""
+
+    def list(self) -> list[dict[str, Any]]:
+        """이 컴퓨터의 Wi-Fi·블루투스 어댑터."""
+        raise NotImplementedError
+
+    def wifi_scan(self, name: str) -> dict[str, Any]:
+        """주변 망 찾기: {"networks": [...], "current": 지금 이어진 망 또는 None}."""
+        raise NotImplementedError
+
+    def wifi_facts(self, name: str) -> dict[str, Any]:
+        """어댑터가 할 수 있는 일: bands, width, standards, monitor(yes/no/unknown), capture(yes/admin/unknown). 모르는 것은 뺀다."""
+        return {}
+
+
+class MacOs(Os):
+    """macOS: Wi-Fi 는 CoreWLAN, 규격은 system_profiler, 모니터 모드는 libpcap 에 묻는다."""
+
+    def list(self) -> list[dict[str, Any]]:
+        return _mac_list()
+
+    def wifi_scan(self, name: str) -> dict[str, Any]:
+        return _mac_wifi_scan(name)
+
+    def wifi_facts(self, name: str) -> dict[str, Any]:
+        facts: dict[str, Any] = {}
+        cw = _corewlan()
+        itf = cw.CWWiFiClient.sharedWiFiClient().interfaceWithName_(name) if cw is not None else None
+        if itf is not None:
+            chans = list(itf.supportedWLANChannels() or [])
+            facts["bands"] = [b for k, b in sorted(_MAC_BAND.items()) if any(int(c.channelBand()) == k for c in chans)]
+            facts["width"] = max((_MAC_WIDTH.get(int(c.channelWidth()), 0) for c in chans), default=0) or None
+        try:
+            port = json.loads(_run(["system_profiler", "SPAirPortDataType", "-json"], 30))["SPAirPortDataType"][0]
+            facts["standards"] = next((str(i.get("spairport_supported_phymodes", "")) for i in port.get("spairport_airport_interfaces", [])
+                                       if i.get("_name") == name), "")
+        except (ValueError, KeyError, IndexError):
+            pass
+        facts["monitor"] = pcap_rfmon(name)
+        facts["capture"] = "yes" if os.access("/dev/bpf0", os.R_OK) else "admin"      # 프레임을 잡으려면 bpf 장치를 열 수 있어야 한다
+        return facts
+
+
+class WindowsOs(Os):
+    """Windows: netsh 의 출력을 읽는다."""
+
+    def list(self) -> list[dict[str, Any]]:
+        return _win_list()
+
+    def wifi_scan(self, name: str) -> dict[str, Any]:
+        text = _run(["netsh", "wlan", "show", "networks", "mode=bssid"], 30)
+        if not text:
+            raise AdapterError("주변 Wi-Fi 를 읽지 못했습니다(netsh). Wi-Fi 와 위치 서비스가 켜져 있는지 확인하세요.")
+        return {"networks": parse_netsh_networks(text), "current": None}
+
+    def wifi_facts(self, name: str) -> dict[str, Any]:
+        return {"monitor": parse_netsh_capabilities(_run(["netsh", "wlan", "show", "wirelesscapabilities"]))}
+
+
+class LinuxOs(Os):
+    """Linux: 어댑터는 sysfs, 주변 망은 NetworkManager(nmcli), 능력은 iw 에 묻는다."""
+
+    def list(self) -> list[dict[str, Any]]:
+        return _linux_list()
+
+    def wifi_scan(self, name: str) -> dict[str, Any]:
+        if not shutil.which("nmcli"):
+            raise AdapterError("주변 Wi-Fi 를 읽으려면 NetworkManager(nmcli)가 필요합니다.")
+        text = _run(["nmcli", "-t", "-f", "SSID,BSSID,CHAN,FREQ,SIGNAL", "dev", "wifi", "list", "ifname", name], 30)
+        return {"networks": parse_nmcli_networks(text), "current": None}
+
+    def wifi_facts(self, name: str) -> dict[str, Any]:
+        try:
+            phy = (Path("/sys/class/net") / name / "phy80211" / "name").read_text(encoding="utf-8").strip()
+        except OSError:
+            phy = ""
+        info = parse_iw_phy(_run(["iw", "phy", phy, "info"])) if phy and shutil.which("iw") else {"bands": [], "monitor": "unknown", "max_width_mhz": None}
+        return {"bands": info["bands"], "width": info["max_width_mhz"],
+                "monitor": info["monitor"] if info["monitor"] != "unknown" else pcap_rfmon(name),
+                "capture": "yes" if hasattr(os, "geteuid") and os.geteuid() == 0 else "admin"}
+
+
+def this_os() -> Os:
+    """지금 돌고 있는 운영체제의 갈래. 부를 때마다 정한다."""
+    return MacOs() if sys.platform == "darwin" else WindowsOs() if os.name == "nt" else LinuxOs()
+
+
 # ---------- 능력 ----------
 def pcap_rfmon(name: str) -> str:
     """모니터 모드를 켤 수 있는 어댑터인가: "yes" / "no" / "unknown". 묻기만 하고 아무것도 켜지 않는다(pcap_can_set_rfmon)."""
@@ -304,47 +404,19 @@ def _ability(name: str, state: str = "", value: str = "") -> dict[str, str]:
 
 
 def _wifi_abilities(name: str) -> list[dict[str, str]]:
-    bands: list[str] = []
-    width: int | None = None
-    standards = ""
-    monitor = "unknown"
-    capture = "unknown"
-    if sys.platform == "darwin":
-        cw = _corewlan()
-        itf = cw.CWWiFiClient.sharedWiFiClient().interfaceWithName_(name) if cw is not None else None
-        if itf is not None:
-            chans = list(itf.supportedWLANChannels() or [])
-            bands = [b for k, b in sorted(_MAC_BAND.items()) if any(int(c.channelBand()) == k for c in chans)]
-            width = max((_MAC_WIDTH.get(int(c.channelWidth()), 0) for c in chans), default=0) or None
-        try:
-            port = json.loads(_run(["system_profiler", "SPAirPortDataType", "-json"], 30))["SPAirPortDataType"][0]
-            standards = next((str(i.get("spairport_supported_phymodes", "")) for i in port.get("spairport_airport_interfaces", [])
-                              if i.get("_name") == name), "")
-        except (ValueError, KeyError, IndexError):
-            standards = ""
-        monitor = pcap_rfmon(name)
-        capture = "yes" if os.access("/dev/bpf0", os.R_OK) else "admin"      # 프레임을 잡으려면 bpf 장치를 열 수 있어야 한다
-    elif os.name == "nt":
-        monitor = parse_netsh_capabilities(_run(["netsh", "wlan", "show", "wirelesscapabilities"]))
-    else:
-        try:
-            phy = (Path("/sys/class/net") / name / "phy80211" / "name").read_text(encoding="utf-8").strip()
-        except OSError:
-            phy = ""
-        info = parse_iw_phy(_run(["iw", "phy", phy, "info"])) if phy and shutil.which("iw") else {"bands": [], "monitor": "unknown", "max_width_mhz": None}
-        bands, width = info["bands"], info["max_width_mhz"]
-        monitor = info["monitor"] if info["monitor"] != "unknown" else pcap_rfmon(name)
-        capture = "yes" if hasattr(os, "geteuid") and os.geteuid() == 0 else "admin"
+    """운영체제가 답한 것(wifi_facts)을 화면에 보여 줄 능력 목록으로 바꾼다."""
+    facts = this_os().wifi_facts(name)
+    monitor = str(facts.get("monitor") or "unknown")
     out = [_ability("scan", "yes")]
-    if bands:
-        out.append(_ability("bands", value=" / ".join(bands) + " GHz"))
-    if width:
-        out.append(_ability("width", value=f"{width} MHz"))
-    if standards:
-        out.append(_ability("standards", value=standards))
+    if facts.get("bands"):
+        out.append(_ability("bands", value=" / ".join(facts["bands"]) + " GHz"))
+    if facts.get("width"):
+        out.append(_ability("width", value=f"{facts['width']} MHz"))
+    if facts.get("standards"):
+        out.append(_ability("standards", value=str(facts["standards"])))
     out.append(_ability("monitor", monitor))
     if monitor == "yes":
-        out.append(_ability("capture", capture))
+        out.append(_ability("capture", str(facts.get("capture") or "unknown")))
     return out
 
 
@@ -464,7 +536,7 @@ def list_adapters(force: bool = False) -> list[dict[str, Any]]:
         if not force and _cache is not None and time.monotonic() - _cache[0] < CACHE_S:
             return _cache[1]
         try:
-            found = _mac_list() if sys.platform == "darwin" else _win_list() if os.name == "nt" else _linux_list()
+            found = this_os().list()
         except Exception:  # noqa: BLE001 — 운영체제마다 실패 모양이 달라, 목록만 비운다
             found = []
         found = [a | {"abilities": abilities(a)} for a in found]
@@ -491,18 +563,7 @@ def wifi_scan(dev_id: str) -> dict[str, Any]:
     """주변 Wi-Fi 망(비콘으로 알린 것)을 한 번 찾는다. 연결하지 않는다."""
     name = str(_find(dev_id, "wifi")["detail"].get("interface", dev_id[len(WIFI_PREFIX):]))
     started = time.monotonic()
-    if sys.platform == "darwin":
-        out = _mac_wifi_scan(name)
-    elif os.name == "nt":
-        text = _run(["netsh", "wlan", "show", "networks", "mode=bssid"], 30)
-        if not text:
-            raise AdapterError("주변 Wi-Fi 를 읽지 못했습니다(netsh). Wi-Fi 와 위치 서비스가 켜져 있는지 확인하세요.")
-        out = {"networks": parse_netsh_networks(text), "current": None}
-    else:
-        if not shutil.which("nmcli"):
-            raise AdapterError("주변 Wi-Fi 를 읽으려면 NetworkManager(nmcli)가 필요합니다.")
-        text = _run(["nmcli", "-t", "-f", "SSID,BSSID,CHAN,FREQ,SIGNAL", "dev", "wifi", "list", "ifname", name], 30)
-        out = {"networks": parse_nmcli_networks(text), "current": None}
+    out = this_os().wifi_scan(name)
     nets = sorted(out["networks"], key=lambda r: -(r["rssi_dbm"] if r["rssi_dbm"] is not None else -999))
     hidden = bool(nets) and all(r["ssid"] is None and r["bssid"] is None for r in nets)
     return {"device": dev_id, "networks": nets, "current": out["current"], "took_s": round(time.monotonic() - started, 1),

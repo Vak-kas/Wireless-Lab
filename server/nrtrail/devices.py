@@ -1,8 +1,20 @@
-"""장비 계층(SPEC 9절). **수신 전용**이다.
+"""장비 계층(SPEC 9절): IQ 샘플을 주는 장비(SDR)를 찾고, 받아서 파일로 쓴다. **수신 전용**이다.
 
-- 실제 장비는 SoapySDR로 통일한다. 이 모듈은 수신(RX) 스트림만 열고, 송신(TX) 방향 상수·함수는 어디에서도 쓰지 않는다
+구조 (송신 쪽 tx.py 와 같은 생각이다)
+
+    장비 찾기 list_devices() ─▶ 받는 쪽(Receiver)마다 found() ─▶ 능력표를 붙여 한 목록으로
+    받기      capture()       ─▶ 그 장비를 맡은 Receiver 를 골라 capture() ─▶ SigMF 파일
+
+- **받는 쪽(Receiver)**: 장비 한 종류를 찾고 받는 법. 무엇을 풀지는 모른다(받은 IQ 를 파일로 쓰기만 한다).
+    SimulatedReceiver  저장 파일을 장비처럼 흘려보낸다(장비 없이 시험)
+    SoapyReceiver      SoapySDR 로 붙는 장비(HackRF, Pluto, RTL-SDR 등)
+    (BACKENDS 에 끼우는 것) USRP — MATLAB 으로 찾고 받는다(usrp_matlab), 꽂힌 것만 알아보는 usb_sdr
+  새 장비 종류를 더하려면 found()·capture() 를 가진 것을 하나 쓰고 BACKENDS 에 한 줄을 넣는다.
+- **받은 뒤의 풀이는 여기 없다.** 채널 세기(survey), 블루투스(ble), Wi-Fi(wifi), 기지국(stages)이 각자 capture() 로 받은 파일을 읽는다.
+- IQ 가 아니라 칩이 풀어 준 결과를 주는 장비(컴퓨터의 Wi-Fi·블루투스)는 adapters.py 에 있다.
+- 이 모듈은 수신(RX) 스트림만 열고, 송신(TX) 방향 상수·함수는 어디에서도 쓰지 않는다
   (server/tests/test_devices.py가 소스에서 TX 호출이 없음을 검사한다).
-- SoapySDR이 없어도 가져올 수 있다(모듈은 장비를 쓸 때만 불러온다). 장비가 없어도 시험되도록 SimulatedDevice를 둔다.
+- SoapySDR이 없어도 가져올 수 있다(모듈은 장비를 쓸 때만 불러온다).
 - 받은 IQ는 SigMF(cf32_le)로 디스크에 바로 흘려 쓴다. 긴 수신도 메모리에 다 올리지 않는다.
 """
 
@@ -29,8 +41,9 @@ class DeviceError(RuntimeError):
     """사용자에게 보여줄 수 있는 장비 오류."""
 
 
-# SoapySDR 말고 다른 방식으로 장비를 찾고 받는 쪽을 끼우는 자리(예: MATLAB 의 USRP 지원 패키지).
-# id 머리말 → 모듈. 모듈은 list_found() -> [{"id","label","driver","serial"}], capture(dev_id, req, out_meta) -> Capture 를 갖는다.
+# 다른 방식으로 장비를 찾고 받는 쪽을 끼우는 자리(예: MATLAB 의 USRP 지원 패키지).
+# id 머리말 → 받는 쪽. list_found() -> [{"id","label","driver","serial", …}], capture(dev_id, req, out_meta) -> Capture 를 갖는다.
+# (있으면 쓰는 것: status() 찾기 상태, reset() 연결 새로 하기)
 BACKENDS: dict[str, Any] = {}
 
 
@@ -63,26 +76,26 @@ def _info(dev_id: str, label: str, driver: str, cap: dict[str, Any], serial: str
     return out
 
 
+def _receivers() -> list[tuple[str | None, Any]]:
+    """(id 머리말, 받는 쪽)의 목록. 머리말이 None 인 것은 "나머지 전부"를 맡는다(SoapySDR 의 장비 id 에는 정해진 머리말이 없다)."""
+    return [(SIM_PREFIX, SimulatedReceiver()), *BACKENDS.items(), (None, SoapyReceiver())]
+
+
+def receiver_for(dev_id: str) -> Any:
+    """이 장비를 맡은 받는 쪽."""
+    for prefix, receiver in _receivers():
+        if prefix is None or dev_id.startswith(prefix):
+            return receiver
+    raise DeviceError(f"device not found: {dev_id}")
+
+
 def list_devices() -> list[dict[str, Any]]:
-    """인식된 장비 목록. 모의 장비(골든 캡처마다 하나)가 항상 들어 있다."""
-    sim = capability_for("simulated")
-    out = [_info(f"{SIM_PREFIX}{p.parent.name}", f"{sim['label']} · {p.parent.name}", "simulated", sim)
-           for p in sorted(GOLDEN.glob("*/capture.sigmf-meta"))]
-    if soapy_available():
-        soapy = importlib.import_module("SoapySDR")
+    """인식된 장비 목록. 받는 쪽마다 찾은 것을 모으고, 능력표(capabilities.json)의 값을 붙인다."""
+    out = []
+    for _prefix, receiver in _receivers():
         try:
-            found = [dict(kw) for kw in soapy.Device.enumerate()]
-        except Exception:  # noqa: BLE001 — 드라이버 모듈 문제로 나는 오류는 종류가 여럿이다. 목록만 비운다
-            found = []
-        for kw in found:
-            driver = str(kw.get("driver", ""))
-            label = str(kw.get("label") or kw.get("product") or driver)
-            args = ",".join(f"{k}={v}" for k, v in sorted(kw.items()) if k in ("driver", "serial", "uri", "addr"))
-            out.append(_info(args, label, driver, capability_for(driver, label), str(kw.get("serial", ""))))
-    for backend in BACKENDS.values():
-        try:
-            found = backend.list_found()
-        except Exception:  # noqa: BLE001 — 장비 찾기가 실패해도 나머지 목록은 보여 준다
+            found = receiver.list_found()
+        except Exception:  # noqa: BLE001 — 한 쪽의 장비 찾기가 실패해도 나머지 목록은 보여 준다
             found = []
         for f in found:
             info = _info(f["id"], f["label"], f["driver"], capability_for(f["driver"], f["label"]), f.get("serial", ""))
@@ -162,15 +175,45 @@ class CaptureRequest:
 
 
 def capture(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
-    """장비에서 req.duration_s 만큼 받아 SigMF로 쓴다."""
+    """장비에서 req.duration_s 만큼 받아 SigMF로 쓴다. 그 장비를 맡은 받는 쪽에 맡긴다."""
     out_meta.parent.mkdir(parents=True, exist_ok=True)
-    if dev_id.startswith(SIM_PREFIX):
+    cap: sigmf.Capture = receiver_for(dev_id).capture(dev_id, req, out_meta)
+    return cap
+
+
+class SimulatedReceiver:
+    """모의 장비: 저장해 둔 연습 신호(골든 캡처)마다 하나. 장비 없이 "장비로 받는 흐름"을 시험한다."""
+
+    def list_found(self) -> list[dict[str, Any]]:
+        label = capability_for("simulated")["label"]
+        return [{"id": f"{SIM_PREFIX}{p.parent.name}", "label": f"{label} · {p.parent.name}", "driver": "simulated"}
+                for p in sorted(GOLDEN.glob("*/capture.sigmf-meta"))]
+
+    def capture(self, dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
         return _capture_simulated(dev_id, req, out_meta)
-    for prefix, backend in BACKENDS.items():
-        if dev_id.startswith(prefix):
-            cap: sigmf.Capture = backend.capture(dev_id, req, out_meta)
-            return cap
-    return _capture_soapy(dev_id, req, out_meta)
+
+
+class SoapyReceiver:
+    """SoapySDR 로 붙는 장비. SoapySDR 이 없으면 아무것도 찾지 않는다."""
+
+    def list_found(self) -> list[dict[str, Any]]:
+        if not soapy_available():
+            return []
+        soapy = importlib.import_module("SoapySDR")
+        try:
+            found = [dict(kw) for kw in soapy.Device.enumerate()]
+        except Exception:  # noqa: BLE001 — 드라이버 모듈 문제로 나는 오류는 종류가 여럿이다. 목록만 비운다
+            found = []
+        out = []
+        for kw in found:
+            driver = str(kw.get("driver", ""))
+            args = ",".join(f"{k}={v}" for k, v in sorted(kw.items()) if k in ("driver", "serial", "uri", "addr"))
+            out.append({"id": args, "label": str(kw.get("label") or kw.get("product") or driver), "driver": driver,
+                        "serial": str(kw.get("serial", ""))})
+        return out
+
+    def capture(self, dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
+        return _capture_soapy(dev_id, req, out_meta)
 
 
 def _capture_simulated(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
