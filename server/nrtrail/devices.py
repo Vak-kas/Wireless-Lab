@@ -90,6 +90,8 @@ def list_devices() -> list[dict[str, Any]]:
                 info["needs"] = f["needs"]      # 알아봤지만 이 설치로는 쓸 수 없는 장비(예: "pro")
             if f.get("abilities"):
                 info["abilities"] = f["abilities"]   # 장비가 스스로 알려 준 능력(범위, 기준 신호, GPS 모듈)
+            if f.get("limits"):
+                info["limits"] = f["limits"]         # 장비가 알려 준 숫자 한도(이득·주파수). 능력표의 값보다 이것을 믿는다
             out.append(info)
     # 실제 장비를 앞에 둔다(화면이 맨 앞 장비를 기본으로 고른다). 모의 장비는 뒤로.
     return sorted(out, key=lambda d: d["driver"] == "simulated")

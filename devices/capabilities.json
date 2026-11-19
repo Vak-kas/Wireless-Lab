@@ -8,13 +8,13 @@
       "note": "장비 없이 장비 경로를 시험하기 위한 것입니다.", "verified": true
     },
     {
-      "id": "usrp_b2xx", "label": "USRP B200 / B210", "match": ["uhd:b200", "b200", "b210"],
-      "freq_min_hz": 70000000, "freq_max_hz": 6000000000, "max_sample_rate_hz": 56000000, "bits": 12, "clock_ppm": 2,
+      "id": "usrp_b2xx", "label": "USRP B200 / B210 / E320", "match": ["uhd:b200", "b200", "b210", "e320"],
+      "freq_min_hz": 70000000, "freq_max_hz": 6000000000, "max_sample_rate_hz": 61440000, "bits": 12, "clock_ppm": 2,
       "stages": { "scan": "ok", "ssb": "ok", "mib": "ok", "sib1": "ok", "sib19": "ok" },
-      "note": "전 단계 가능. USB 3.0 포트에 연결해야 높은 샘플레이트를 쓸 수 있습니다.", "verified": false
+      "note": "전 단계 가능. USB 장비는 USB 3.0 포트에 연결해야 높은 샘플레이트를 쓸 수 있습니다.", "verified": false
     },
     {
-      "id": "usrp_nx", "label": "USRP N / X 계열", "match": ["uhd:n", "uhd:x", "n3xx", "x300", "x310", "x410", "n2xx"],
+      "id": "usrp_nx", "label": "USRP N / X 계열", "match": ["uhd:n", "uhd:x", "n3xx", "x300", "x310", "x410", "n2xx", "n200", "n210", "usrp2", "n300", "n310", "n320", "n321"],
       "freq_min_hz": 10000000, "freq_max_hz": 6000000000, "max_sample_rate_hz": 100000000, "bits": 14, "clock_ppm": 2.5,
       "stages": { "scan": "ok", "ssb": "ok", "mib": "ok", "sib1": "ok", "sib19": "ok" },
       "note": "전 단계 가능. 주파수 범위와 최대 샘플레이트는 모델과 도터보드에 따라 다릅니다.", "verified": false

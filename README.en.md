@@ -26,7 +26,7 @@ This public edition (Basic) is **receive-only**.
 
 | Kind | Examples | What you can do |
 |---|---|---|
-| Plug-in device (SDR) | USRP B200mini / B210 (Pro, registered automatically through MATLAB), SoapySDR devices | Follow a base station, spectrum, channel monitor, Bluetooth reception, transmit (Pro) |
+| Plug-in device (SDR) | USRP B, N and X series and E320 (Pro, registered automatically through MATLAB), SoapySDR devices | Follow a base station, spectrum, channel monitor, Bluetooth reception, transmit (Pro) |
 | The computer's Wi-Fi adapter (built-in or external) | Laptop Wi-Fi, USB Wi-Fi adapter | Channel, width and strength of nearby networks |
 | The computer's Bluetooth adapter (built-in or external) | Built-in Bluetooth, USB dongle | Advertisements of nearby devices (name, maker, strength) |
 | No device | — | Practice mode, opening saved files |

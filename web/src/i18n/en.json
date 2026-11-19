@@ -672,5 +672,6 @@
   "hub.ability.ext_pps": "External time signal (PPS)",
   "hub.ability.gpsdo": "GPS module (GPSDO)",
   "hub.ability.gpsdo.yes": "A GPS module is fitted. This device can use a GPS-disciplined reference and time (choosing GPS as the reference is not available in this tool yet).",
-  "hub.ability.gpsdo.no": "No GPS module is fitted. If the device accepts an external reference, a GPS-disciplined 10 MHz / PPS can be fed into its reference port."
+  "hub.ability.gpsdo.no": "No GPS module is fitted. If the device accepts an external reference, a GPS-disciplined 10 MHz / PPS can be fed into its reference port.",
+  "hub.ability.channels": "Channels"
 }
