@@ -57,8 +57,7 @@ def main() -> None:
         try:
             from .engines import matlab as matlab_engine
 
-            if matlab_engine._shared is not None:
-                matlab_engine._shared.close()
+            matlab_engine.close_all()          # 장비마다 띄운 것까지 전부
         except ImportError:
             pass
         procs.forget()

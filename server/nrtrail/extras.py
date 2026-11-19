@@ -96,7 +96,12 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
             raise HTTPException(501, "휴대폰 연동은 아직 구현되지 않았습니다 (M9).") from None
         return await asyncio.to_thread(read_phone)
 
-    survey_lock = asyncio.Lock()
+    from .locks import DeviceLocks
+    locks = DeviceLocks()       # 장비마다 하나. 서로 다른 장비는 동시에 받고 보낼 수 있다
+
+    @app.get("/api/devices/busy")
+    async def devices_busy() -> dict[str, list[str]]:
+        return {"devices": locks.in_use()}
 
     @app.get("/api/survey/device")
     async def survey_device(id: str) -> dict[str, Any]:  # noqa: A002 — 주소의 ?id= 와 이름을 맞춘다
@@ -109,9 +114,9 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
     @app.post("/api/survey/run")
     async def survey_run(body: SurveyBody) -> dict[str, Any]:
         from . import survey
-        if survey_lock.locked():
+        if locks.busy(body.device):
             raise HTTPException(409, "이미 재는 중입니다.")
-        async with survey_lock:
+        async with locks.hold(body.device):
             try:
                 return await asyncio.to_thread(survey.run, body.device, body.plan, gain_db=body.gain_db, center_hz=body.center_hz,
                                                span_hz=body.span_hz, step_hz=body.step_hz)
@@ -121,9 +126,9 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
     @app.post("/api/survey/spectrum")
     async def survey_spectrum(body: SpectrumBody) -> dict[str, Any]:
         from . import survey
-        if survey_lock.locked():
+        if locks.busy(body.device):
             raise HTTPException(409, "이미 재는 중입니다.")
-        async with survey_lock:
+        async with locks.hold(body.device):
             try:
                 return await asyncio.to_thread(survey.spectrum, body.device, center_hz=body.center_hz, bandwidth_hz=body.bandwidth_hz,
                                                gain_db=body.gain_db)
@@ -150,9 +155,9 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
             m = monitors.get(mid)
         except survey.SurveyError as e:
             raise HTTPException(404, str(e)) from e
-        if survey_lock.locked():
+        if locks.busy(m.device):
             raise HTTPException(409, "이미 재는 중입니다.")
-        async with survey_lock:
+        async with locks.hold(m.device):
             try:
                 return await asyncio.to_thread(m.sweep)
             except survey.SurveyError as e:
@@ -194,9 +199,9 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
     @app.post("/api/ble/scan")
     async def ble_scan(body: BleBody) -> dict[str, Any]:
         from . import ble
-        if survey_lock.locked():
+        if locks.busy(body.device):
             raise HTTPException(409, "이미 재는 중입니다.")
-        async with survey_lock:
+        async with locks.hold(body.device):
             try:
                 return await asyncio.to_thread(ble.scan, body.device, body.channel, body.gain_db, body.seconds)
             except ble.BleError as e:
@@ -209,7 +214,7 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         def wifi_unavailable() -> dict[str, Any]:
             return {"available": False}
     else:
-        wifi.register(app, survey_lock)
+        wifi.register(app, locks)
 
     try:
         from . import tx
@@ -218,7 +223,7 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         def tx_unavailable() -> dict[str, Any]:
             return {"available": False}
     else:
-        tx.register(app, survey_lock)
+        tx.register(app, locks)
 
     try:
         from . import testbed_oai

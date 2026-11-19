@@ -106,6 +106,26 @@ def record(**fields: Any) -> None:
     path.write_text(json.dumps(data), encoding="utf-8")
 
 
+def add_matlab(pid: int) -> None:
+    """이 서버가 띄운 MATLAB 하나를 기록에 더한다(장비마다 하나씩 띄울 수 있어 여러 개일 수 있다)."""
+    path = run_dir() / f"{os.getpid()}.json"
+    try:
+        have = list(json.loads(path.read_text(encoding="utf-8")).get("matlab_pids") or []) if path.exists() else []
+    except ValueError:
+        have = []
+    record(matlab_pids=sorted({*have, int(pid)}))
+
+
+def drop_matlab(pid: int) -> None:
+    """끝낸 MATLAB 을 기록에서 뺀다."""
+    path = run_dir() / f"{os.getpid()}.json"
+    try:
+        have = list(json.loads(path.read_text(encoding="utf-8")).get("matlab_pids") or []) if path.exists() else []
+    except ValueError:
+        have = []
+    record(matlab_pids=[p for p in have if p != int(pid)])
+
+
 def forget() -> None:
     (run_dir() / f"{os.getpid()}.json").unlink(missing_ok=True)
 
@@ -114,18 +134,20 @@ def stop_server(server_pid: int, grace_s: float = 8.0) -> list[str]:
     """서버와 그 서버가 띄운 MATLAB 을 끝낸다. 무엇을 했는지 돌려준다."""
     did: list[str] = []
     path = run_dir() / f"{server_pid}.json"
-    matlab_pid = 0
+    matlab_pids: list[int] = []
     if path.exists():
         try:
-            matlab_pid = int(json.loads(path.read_text(encoding="utf-8")).get("matlab_pid") or 0)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            matlab_pids = sorted({int(p) for p in [data.get("matlab_pid") or 0, *(data.get("matlab_pids") or [])] if int(p) > 0})
         except (ValueError, TypeError):
-            matlab_pid = 0
+            matlab_pids = []
     r = stop_pid(server_pid, SERVER_MARK, grace_s)
     if r in ("stopped", "killed"):
         did.append(f"서버 {server_pid}: {r}")
-    r = stop_pid(matlab_pid, MATLAB_MARK, 3.0)          # 서버가 정상 종료했다면 이미 없다
-    if r in ("stopped", "killed"):
-        did.append(f"MATLAB {matlab_pid}: {r}")
+    for matlab_pid in matlab_pids:                      # 서버가 정상 종료했다면 이미 없다
+        r = stop_pid(matlab_pid, MATLAB_MARK, 3.0)
+        if r in ("stopped", "killed"):
+            did.append(f"MATLAB {matlab_pid}: {r}")
     if not alive(server_pid):
         path.unlink(missing_ok=True)
     return did
