@@ -82,3 +82,58 @@ test("어댑터가 없으면 처음 화면으로 돌아가는 길을 준다", as
   renderWithStore(<NearbyScreen />, fakeApi());
   expect(await screen.findByTestId("nearby-none")).toBeInTheDocument();
 });
+
+test("이름이 가려졌고 아직 권한을 물은 적이 없으면 '허용 요청하기'로 운영체제 창을 띄우고, 허용되면 다시 찾는다", async () => {
+  saveNearby(wifi.id);
+  const a = api();
+  let allowed = false;
+  a.adapterWifiScan = vi.fn(async () => ({
+    device: wifi.id,
+    networks: [net(allowed ? { ssid: "lab-ap", bssid: "00:aa:bb:cc:dd:01" } : {})],
+    current: null,
+    took_s: 4,
+    names_hidden: !allowed,
+    location: allowed ? null : ("undetermined" as const),
+  }));
+  a.adapterAskLocation = vi.fn(async () => {
+    allowed = true;
+    return { state: "authorized" };
+  });
+  renderWithStore(<NearbyScreen />, a);
+  await userEvent.click(await screen.findByTestId("perm-ask"));
+  expect(a.adapterAskLocation).toHaveBeenCalledTimes(1);
+  expect(await screen.findByText("lab-ap")).toBeInTheDocument();
+  expect(screen.queryByTestId("nearby-hidden")).toBeNull();
+});
+
+test("권한이 거부돼 있으면 묻는 단추 대신 설정 창을 여는 단추만 나온다", async () => {
+  saveNearby(wifi.id);
+  const a = api();
+  a.adapterWifiScan = async () => ({ device: wifi.id, networks: [net({})], current: null, took_s: 4, names_hidden: true, location: "denied" as const });
+  a.adapterOpenSettings = vi.fn(async (pane: "location" | "bluetooth") => ({ opened: pane }));
+  renderWithStore(<NearbyScreen />, a);
+  await userEvent.click(await screen.findByTestId("perm-open"));
+  expect(screen.queryByTestId("perm-ask")).toBeNull();
+  expect(a.adapterOpenSettings).toHaveBeenCalledWith("location");
+  expect(await screen.findByTestId("perm-note")).toHaveTextContent("설정 창을 열었습니다");
+});
+
+test("Wi-Fi 가 잠깐 바쁜 것(409)은 멈추지 않고 계속 보고, 블루투스 권한 거부(403)는 설정 단추를 보여 준다", async () => {
+  const { ApiError } = await import("../api/http");
+  saveNearby(wifi.id);
+  const a = api();
+  a.adapterWifiScan = vi.fn(async () => {
+    throw new ApiError(409, "Wi-Fi 가 지금 다른 찾기를 하고 있습니다.");
+  });
+  a.adapterBleScan = vi.fn(async () => {
+    throw new ApiError(403, "운영체제가 블루투스 사용을 막았습니다.");
+  });
+  a.adapterOpenSettings = vi.fn(async (pane: "location" | "bluetooth") => ({ opened: pane }));
+  renderWithStore(<NearbyScreen />, a);
+  expect(await screen.findByTestId("nearby-error")).toHaveTextContent("다른 찾기");
+  expect(screen.getByTestId("nearby-toggle")).toHaveTextContent("멈추기"); // 계속 보는 중
+  await userEvent.click(screen.getByRole("button", { name: /Bluetooth/ }));
+  await userEvent.click(await screen.findByTestId("perm-open-bt"));
+  expect(a.adapterOpenSettings).toHaveBeenCalledWith("bluetooth");
+  await waitFor(() => expect(screen.getByTestId("nearby-toggle")).toHaveTextContent("계속 보기"));
+});

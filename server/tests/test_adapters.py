@@ -278,3 +278,46 @@ def test_mode_route_refuses_without_confirmation(fake: list[dict[str, Any]]) -> 
     adapters.register(app)
     r = TestClient(app).post("/api/adapters/wifi/mode", json={"device": "wifi:en0", "mode": "monitor"})
     assert r.status_code == 400 and "확인" in r.json()["detail"]
+
+
+# ---------- 권한 안내 ----------
+def test_settings_pane_is_opened_not_changed(monkeypatch: pytest.MonkeyPatch) -> None:
+    ran: list[list[str]] = []
+    monkeypatch.setattr(adapters.sys, "platform", "darwin")
+    assert adapters.open_settings("location", lambda cmd, timeout=0: (ran.append(cmd), (0, ""))[1]) == {"opened": "location"}
+    assert ran[0][0] == "open" and ran[0][1].endswith("Privacy_LocationServices")     # 설정 창을 여는 것뿐이다(값을 쓰는 명령이 아니다)
+    adapters.open_settings("bluetooth", lambda cmd, timeout=0: (ran.append(cmd), (0, ""))[1])
+    assert ran[1][1].endswith("Privacy_Bluetooth")
+    with pytest.raises(adapters.AdapterError):
+        adapters.open_settings("anything-else", lambda cmd, timeout=0: (0, ""))
+    monkeypatch.setattr(adapters.sys, "platform", "linux")
+    with pytest.raises(adapters.AdapterError, match="대신 열 수 없습니다"):
+        adapters.open_settings("location", lambda cmd, timeout=0: (0, ""))
+
+
+def test_location_is_only_asked_on_macos(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(adapters.sys, "platform", "linux")
+    assert adapters.location_state() == "unknown"
+    with pytest.raises(adapters.AdapterError):
+        adapters.ask_location()
+
+
+def test_location_helper_never_starts_location_updates() -> None:
+    """권한만 묻는다. 위치를 읽는 호출은 소스에 없다."""
+    src = (Path(adapters.__file__).parent / "mac_location.py").read_text(encoding="utf-8")
+    for word in ("startUpdatingLocation", "requestLocation", ".location()", "requestAlwaysAuthorization"):
+        assert word not in src
+
+
+def test_errors_carry_their_status_to_the_route(fake: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch) -> None:
+    app = FastAPI()
+    adapters.register(app)
+    client = TestClient(app)
+
+    def busy(dev_id: str) -> dict[str, Any]:
+        raise adapters.AdapterError("바쁨", 409)
+
+    monkeypatch.setattr(adapters, "wifi_scan", busy)
+    assert client.post("/api/adapters/wifi/scan", json={"device": "wifi:en0"}).status_code == 409
+    _ble(monkeypatch, -6, "")
+    assert client.post("/api/adapters/bluetooth/scan", json={"device": "bt:default", "seconds": 1}).status_code == 403

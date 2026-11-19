@@ -638,5 +638,17 @@
   "hub.mode.agree": "I understand this adapter's connection will drop, and I am doing this on my own device.",
   "hub.mode.confirm": "Switch",
   "hub.mode.no.macos": "On macOS monitor mode is only on while capturing, so there is no button to switch it in advance.",
-  "hub.mode.no.unsupported": "This adapter does not support monitor mode."
+  "hub.mode.no.unsupported": "This adapter does not support monitor mode.",
+  "nearby.perm.ask": "Ask for permission to show names",
+  "nearby.perm.asking": "Choose in the operating system's prompt…",
+  "nearby.perm.open.location": "Open Location Services settings",
+  "nearby.perm.open.bluetooth": "Open Bluetooth permission settings",
+  "nearby.perm.opened": "The settings window is open. Turn on this program (Terminal or Python) in the list, then press 'Once more now'.",
+  "nearby.perm.after": "Allow this program (Terminal) in the settings, then reopen the program.",
+  "nearby.perm.location.undetermined": "This program has not asked for location permission yet. If you ask, the operating system shows a prompt. This tool does not read your location; the permission is only needed to see network names.",
+  "nearby.perm.location.denied": "Location permission is denied. Turn on this program (Terminal or Python) in the list in the settings window.",
+  "nearby.perm.location.restricted": "Location permission is restricted on this computer and cannot be changed.",
+  "nearby.perm.location.off": "Location Services is turned off. Turn it on in the settings window.",
+  "nearby.perm.location.authorized": "Location permission is granted but names are still hidden. Try reopening the program.",
+  "nearby.perm.location.unknown": "Could not read the permission state. Check it in the settings window."
 }

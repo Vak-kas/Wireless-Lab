@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Adapter, BleNearby, NearbyNetwork, WifiNearby } from "../api";
+import { ApiError } from "../api/http";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Button, Chip, Empty } from "../components/ui";
 import { t } from "../i18n";
@@ -61,15 +62,59 @@ function BandChart({ band, networks }: { band: string; networks: NearbyNetwork[]
   );
 }
 
-function WifiResult({ data }: { data: WifiNearby }) {
+/** 망 이름이 가려졌을 때: 권한을 물어볼 수 있으면 묻는 단추, 아니면 설정 창을 여는 단추. */
+function HiddenNote({ data, onAllowed }: { data: WifiNearby; onAllowed: () => void }) {
+  const { api } = useStore();
+  const [state, setState] = useState<string>(data.location ?? "unknown");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  useEffect(() => setState(data.location ?? "unknown"), [data.location]);
+  const ask = async () => {
+    setBusy(true);
+    setNote("");
+    try {
+      const r = await api.adapterAskLocation();
+      setState(r.state);
+      if (r.state === "authorized") onAllowed();
+    } catch (e) {
+      setNote(message(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const open = () =>
+    void api.adapterOpenSettings("location").then(
+      () => setNote(t("nearby.perm.opened")),
+      (e: unknown) => setNote(message(e)),
+    );
+  return (
+    <div className="perm-note" data-testid="nearby-hidden">
+      <p className="t-caption notice">! {t("nearby.wifi.hidden")}</p>
+      <p className="t-caption muted">{t(`nearby.perm.location.${state}`)}</p>
+      <div className="row">
+        {state === "undetermined" && (
+          <Button onClick={() => void ask()} disabled={busy} data-testid="perm-ask">
+            {t(busy ? "nearby.perm.asking" : "nearby.perm.ask")}
+          </Button>
+        )}
+        <Button variant="secondary" onClick={open} data-testid="perm-open">
+          {t("nearby.perm.open.location")}
+        </Button>
+      </div>
+      {note && (
+        <p className="t-caption muted" role="status" data-testid="perm-note">
+          {note}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function WifiResult({ data, onAllowed }: { data: WifiNearby; onAllowed: () => void }) {
   const byBand = BANDS.map((b) => [b, data.networks.filter((n) => n.band === b)] as const).filter(([, list]) => list.length > 0);
   return (
     <div className="stack" data-testid="nearby-wifi">
-      {data.names_hidden && (
-        <p className="t-caption notice" data-testid="nearby-hidden">
-          ! {t("nearby.wifi.hidden")}
-        </p>
-      )}
+      {data.names_hidden && <HiddenNote data={data} onAllowed={onAllowed} />}
       {data.current && (
         <p className="t-caption muted" data-testid="nearby-current">
           {t("nearby.wifi.current", { channel: data.current.channel, band: data.current.band, rssi: data.current.rssi_dbm, noise: data.current.noise_dbm })}
@@ -166,6 +211,8 @@ export function NearbyScreen() {
   const [ble, setBle] = useState<BleNearby | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /** 운영체제 권한 때문에 실패했는가 (설정 창을 여는 단추를 보여 준다) */
+  const [denied, setDenied] = useState(false);
   const [repeat, setRepeat] = useState(true);
   const [rounds, setRounds] = useState(0);
   const running = useRef(false);
@@ -178,10 +225,13 @@ export function NearbyScreen() {
       if (adapter.kind === "wifi") setWifi(await api.adapterWifiScan(adapter.id));
       else setBle(await api.adapterBleScan(adapter.id, BLE_SECONDS));
       setError("");
+      setDenied(false);
       setRounds((n) => n + 1);
     } catch (e) {
       setError(message(e));
-      setRepeat(false); // 권한이 없거나 꺼져 있으면 되풀이해도 같은 오류다
+      setDenied(e instanceof ApiError && e.status === 403);
+      // 잠깐 바쁜 것(409)은 다음 차례에 다시 하면 된다. 그 밖의 실패(권한 없음, 꺼짐)는 되풀이해도 같은 오류다
+      if (!(e instanceof ApiError && e.status === 409)) setRepeat(false);
     } finally {
       running.current = false;
       setBusy(false);
@@ -194,6 +244,7 @@ export function NearbyScreen() {
     setWifi(null);
     setBle(null);
     setError("");
+    setDenied(false);
     setRounds(0);
     setRepeat(true);
   }, [adapterId]);
@@ -245,7 +296,15 @@ export function NearbyScreen() {
                 ! {error}
               </p>
             )}
-            {adapter.kind === "wifi" && wifi && <WifiResult data={wifi} />}
+            {denied && adapter.kind === "bluetooth" && (
+              <div className="row">
+                <Button variant="secondary" onClick={() => void api.adapterOpenSettings("bluetooth").catch(() => undefined)} data-testid="perm-open-bt">
+                  {t("nearby.perm.open.bluetooth")}
+                </Button>
+                <span className="t-caption muted">{t("nearby.perm.after")}</span>
+              </div>
+            )}
+            {adapter.kind === "wifi" && wifi && <WifiResult data={wifi} onAllowed={() => void scan()} />}
             {adapter.kind === "bluetooth" && ble && <BleResult data={ble} />}
             <p className="t-caption muted">{t("nearby.limits")}</p>
           </div>

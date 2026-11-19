@@ -1392,3 +1392,10 @@ details.fold > .fold-body {
   text-align: left;
   white-space: pre-wrap;
 }
+
+/* ---------- 권한 안내 ---------- */
+.perm-note {
+  display: grid;
+  gap: var(--space-xs);
+  text-align: left;
+}

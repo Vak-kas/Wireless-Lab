@@ -18,6 +18,7 @@ dependencies = [
     # 컴퓨터의 블루투스·Wi-Fi 어댑터를 장비로 쓸 때 (server/nrtrail/adapters.py). 없어도 나머지는 돈다.
     "bleak>=0.22",
     "pyobjc-framework-CoreWLAN>=10; sys_platform == 'darwin'",
+    "pyobjc-framework-CoreLocation>=10; sys_platform == 'darwin'",
 ]
 
 [project.optional-dependencies]

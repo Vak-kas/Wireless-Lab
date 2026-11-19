@@ -140,6 +140,8 @@ export interface WifiNearby {
   current: { channel: number; band: string; width_mhz: number | null; rssi_dbm: number; noise_dbm: number } | null;
   took_s: number;
   names_hidden: boolean;
+  /** 이름이 가려졌을 때만: 위치 권한의 상태 (undetermined 면 물어볼 수 있다) */
+  location?: "undetermined" | "authorized" | "denied" | "restricted" | "off" | "unknown" | null;
 }
 
 export interface NearbyBleDevice {
@@ -479,6 +481,10 @@ export interface Api {
   adapterWifiScan(device: string): Promise<WifiNearby>;
   /** 어댑터로 주변 BLE 광고를 듣는다 (연결하지 않는다) */
   adapterBleScan(device: string, seconds?: number): Promise<BleNearby>;
+  /** 운영체제의 위치 권한 창을 띄워 묻는다 (사용자가 고를 때까지 기다린다) */
+  adapterAskLocation(): Promise<{ state: string }>;
+  /** 운영체제의 권한 설정 창을 연다 (허용은 사용자가 그 창에서 한다) */
+  adapterOpenSettings(pane: "location" | "bluetooth"): Promise<{ opened: string }>;
   /** Wi-Fi 어댑터의 모드를 바꾼다. confirmed 가 없으면 서버가 거부한다 */
   adapterSetMode(device: string, mode: "managed" | "monitor", confirmed: boolean): Promise<{ device: string; mode: string; changed: boolean }>;
   deviceSearch(): Promise<DeviceSearch>;

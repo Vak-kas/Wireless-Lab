@@ -34,12 +34,26 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 CACHE_S = 30.0
+EBUSY = 16                  # CoreWLAN 이 "리소스 사용 중"으로 돌려주는 오류 번호(errno EBUSY)
+SCAN_TRIES = 3
+SCAN_RETRY_S = 2.0
+LOCATION_WAIT_S = 60.0      # 권한 창에서 사용자가 고르기를 기다리는 시간
+SETTINGS = {
+    "darwin": {"location": ["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"],
+               "bluetooth": ["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth"]},
+    "win32": {"location": ["cmd", "/c", "start", "ms-settings:privacy-location"],
+              "bluetooth": ["cmd", "/c", "start", "ms-settings:bluetooth"]},
+}
 WIFI_PREFIX, BT_PREFIX = "wifi:", "bt:"
 BLE_MAX_S = 10.0
 
 
 class AdapterError(RuntimeError):
-    """사용자에게 그대로 보여줄 문구."""
+    """사용자에게 그대로 보여줄 문구. status: 400 일반, 403 운영체제 권한이 없음, 409 잠깐 바쁨(다시 하면 됨)."""
+
+    def __init__(self, message: str, status: int = 400):
+        super().__init__(message)
+        self.status = status
 
 
 def _run(cmd: list[str], timeout: float = 20.0) -> str:
@@ -129,8 +143,16 @@ def _mac_wifi_scan(name: str) -> dict[str, Any]:
         raise AdapterError(f"Wi-Fi 장비를 찾지 못했습니다: {name}")
     if not itf.powerOn():
         raise AdapterError("Wi-Fi 가 꺼져 있습니다. 켠 뒤 다시 시도하세요.")
-    nets, err = itf.scanForNetworksWithName_error_(None, None)
+    nets, err = None, None
+    for attempt in range(SCAN_TRIES):
+        nets, err = itf.scanForNetworksWithName_error_(None, None)
+        if err is None or int(err.code()) != EBUSY:
+            break
+        if attempt < SCAN_TRIES - 1:
+            time.sleep(SCAN_RETRY_S)                  # 운영체제가 스스로 찾는 중이면 "리소스 사용 중"이 난다. 잠깐 뒤 다시 한다
     if err is not None:
+        if int(err.code()) == EBUSY:
+            raise AdapterError("Wi-Fi 가 지금 다른 찾기를 하고 있습니다. 잠시 뒤 다시 찾습니다.", 409)
         raise AdapterError(f"주변 Wi-Fi 를 찾지 못했습니다: {err.localizedDescription()}")
     rows = []
     for n in nets or []:
@@ -482,9 +504,45 @@ def wifi_scan(dev_id: str) -> dict[str, Any]:
         text = _run(["nmcli", "-t", "-f", "SSID,BSSID,CHAN,FREQ,SIGNAL", "dev", "wifi", "list", "ifname", name], 30)
         out = {"networks": parse_nmcli_networks(text), "current": None}
     nets = sorted(out["networks"], key=lambda r: -(r["rssi_dbm"] if r["rssi_dbm"] is not None else -999))
+    hidden = bool(nets) and all(r["ssid"] is None and r["bssid"] is None for r in nets)
     return {"device": dev_id, "networks": nets, "current": out["current"], "took_s": round(time.monotonic() - started, 1),
+            # 이름이 가려졌을 때 화면이 "허용 요청"과 "설정 열기" 가운데 무엇을 보여 줄지 정하는 데 쓴다
+            "location": location_state() if hidden else None,
             # 망 이름·주소가 전부 비어 있으면 운영체제가 가린 것이다(macOS·Windows 는 위치 권한이 있어야 보여 준다)
-            "names_hidden": bool(nets) and all(r["ssid"] is None and r["bssid"] is None for r in nets)}
+            "names_hidden": hidden}
+
+
+def _location(*args: str, timeout: float = 15.0) -> str:
+    if sys.platform != "darwin":
+        return "unknown"
+    try:
+        p = subprocess.run([sys.executable, "-m", "nrtrail.mac_location", *args], capture_output=True, text=True, timeout=timeout)
+        return str(json.loads(p.stdout.strip().splitlines()[-1]).get("state", "unknown"))
+    except (OSError, subprocess.TimeoutExpired, ValueError, IndexError):
+        return "unknown"
+
+
+def location_state() -> str:
+    """위치 권한의 지금 상태: undetermined(아직 안 물음) / authorized / denied / restricted / off(위치 서비스 꺼짐) / unknown."""
+    return _location()
+
+
+def ask_location() -> dict[str, str]:
+    """운영체제의 권한 창을 띄워 묻는다(아직 묻지 않았을 때만 창이 뜬다). 사용자가 고를 때까지 기다린다."""
+    if sys.platform != "darwin":
+        raise AdapterError("이 운영체제에서는 설정 창에서 직접 허용해야 합니다.")
+    return {"state": _location("ask", f"{LOCATION_WAIT_S:g}", timeout=LOCATION_WAIT_S + 15)}
+
+
+def open_settings(pane: str, run: Any = None) -> dict[str, str]:
+    """운영체제의 권한 설정 창을 연다(설정을 바꾸지는 않는다. 허용은 사용자가 그 창에서 한다)."""
+    cmd = SETTINGS.get(sys.platform, {}).get(pane)
+    if cmd is None:
+        raise AdapterError("이 운영체제에서는 설정 창을 대신 열 수 없습니다.")
+    code, text = (run or _exec)(cmd, 15)
+    if code != 0:
+        raise AdapterError("설정 창을 열지 못했습니다: " + text[-200:])
+    return {"opened": pane}
 
 
 def ble_scan(dev_id: str, seconds: float = 4.0) -> dict[str, Any]:
@@ -500,7 +558,7 @@ def ble_scan(dev_id: str, seconds: float = 4.0) -> dict[str, Any]:
         raise AdapterError("블루투스가 시간 안에 답하지 않았습니다.") from e
     if p.returncode < 0:
         # macOS: 블루투스 권한이 없는 프로그램은 운영체제가 그 자리에서 끝낸다
-        raise AdapterError("운영체제가 블루투스 사용을 막았습니다. 시스템 설정 > 개인정보 보호 및 보안 > 블루투스에서 이 프로그램(터미널)을 허용하세요.")
+        raise AdapterError("운영체제가 블루투스 사용을 막았습니다. 시스템 설정 > 개인정보 보호 및 보안 > 블루투스에서 이 프로그램(터미널)을 허용하세요.", 403)
     try:
         out: dict[str, Any] = json.loads(p.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError) as e:
@@ -519,6 +577,10 @@ class ModeBody(BaseModel):
     device: str
     mode: str
     confirmed: bool = False
+
+
+class PaneBody(BaseModel):
+    pane: str
 
 
 class BleScanBody(BaseModel):
@@ -540,7 +602,7 @@ def register(app: FastAPI) -> None:
             try:
                 return await asyncio.to_thread(wifi_scan, body.device)
             except AdapterError as e:
-                raise HTTPException(400, str(e)) from e
+                raise HTTPException(e.status, str(e)) from e
 
     @app.post("/api/adapters/wifi/mode")
     async def adapters_mode(body: ModeBody) -> dict[str, Any]:
@@ -548,7 +610,21 @@ def register(app: FastAPI) -> None:
             try:
                 return await asyncio.to_thread(set_mode, body.device, body.mode, body.confirmed)
             except AdapterError as e:
-                raise HTTPException(400, str(e)) from e
+                raise HTTPException(e.status, str(e)) from e
+
+    @app.post("/api/adapters/permission/location")
+    async def adapters_location() -> dict[str, str]:
+        try:
+            return await asyncio.to_thread(ask_location)
+        except AdapterError as e:
+            raise HTTPException(e.status, str(e)) from e
+
+    @app.post("/api/adapters/settings")
+    async def adapters_settings(body: PaneBody) -> dict[str, str]:
+        try:
+            return await asyncio.to_thread(open_settings, body.pane)
+        except AdapterError as e:
+            raise HTTPException(e.status, str(e)) from e
 
     @app.post("/api/adapters/bluetooth/scan")
     async def adapters_ble(body: BleScanBody) -> dict[str, Any]:
@@ -556,4 +632,4 @@ def register(app: FastAPI) -> None:
             try:
                 return await asyncio.to_thread(ble_scan, body.device, body.seconds)
             except AdapterError as e:
-                raise HTTPException(400, str(e)) from e
+                raise HTTPException(e.status, str(e)) from e

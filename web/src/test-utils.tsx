@@ -87,6 +87,8 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     adapterWifiScan: no,
     adapterBleScan: no,
     adapterSetMode: no,
+    adapterAskLocation: async () => ({ state: "unknown" }),
+    adapterOpenSettings: async (pane) => ({ opened: pane }),
     deviceSearch: async () => ({ backends: [] }),
     deviceRescan: async () => ({ backends: [] }),
     deviceReset: async () => ({ backends: [] }),
