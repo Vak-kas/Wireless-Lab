@@ -660,5 +660,17 @@
   "hub.needs_pro.badge": "Pro 필요",
   "hub.needs_pro": "이 장비를 사용하려면 Pro 판이 필요합니다. 문의: smjgallery.kr · mjseo@smjgallery.kr",
   "home.tasks.pro": "Pro 에서 이 장비로 할 수 있는 일",
-  "tx.plugin.frames.hint": "프레임 생성기입니다. 생성기가 돌려준 Wi-Fi 프레임 바이트에 검사값(FCS)을 붙이고, 20 MHz 폭의 기본 형식(non-HT)으로 전파 모양을 만들어 되풀이해 내보냅니다."
+  "tx.plugin.frames.hint": "프레임 생성기입니다. 생성기가 돌려준 Wi-Fi 프레임 바이트에 검사값(FCS)을 붙이고, 20 MHz 폭의 기본 형식(non-HT)으로 전파 모양을 만들어 되풀이해 내보냅니다.",
+  "hub.ability.rx_freq": "받는 주파수",
+  "hub.ability.tx_freq": "보내는 주파수",
+  "hub.ability.rx_gain": "수신 이득",
+  "hub.ability.tx_gain": "송신 이득",
+  "hub.ability.bandwidth": "필터 폭",
+  "hub.ability.rx_ports": "받는 포트",
+  "hub.ability.tx_ports": "보내는 포트",
+  "hub.ability.ext_clock": "외부 기준 신호(10 MHz)",
+  "hub.ability.ext_pps": "외부 시각 신호(PPS)",
+  "hub.ability.gpsdo": "GPS 모듈(GPSDO)",
+  "hub.ability.gpsdo.yes": "GPS 모듈이 달려 있습니다. GPS 로 맞춘 기준 신호와 시각을 쓸 수 있는 장비입니다(이 도구에서 기준을 GPS 로 고르는 설정은 아직 없습니다).",
+  "hub.ability.gpsdo.no": "GPS 모듈은 달려 있지 않습니다. 외부 기준 신호를 받을 수 있는 장비라면, GPS 로 맞춘 10 MHz·PPS 를 기준 포트에 이어 쓸 수 있습니다."
 }

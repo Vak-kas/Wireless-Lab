@@ -320,6 +320,18 @@ export function DeviceCard({ device, action }: { device: DeviceInfo; action?: Re
             </div>
           )}
         </dl>
+        {(device.abilities?.length ?? 0) > 0 && (
+          <ul className="abilities t-caption" aria-label={t("hub.abilities")} data-testid={`abilities-${device.id}`}>
+            {device.abilities?.map((a) => (
+              <li key={a.id} data-state={a.state ?? "value"} data-testid={`ability-${a.id}`}>
+                <span className="muted">{t(`hub.ability.${a.id}`)}</span> {a.value ?? t(`hub.ability.state.${a.state ?? "unknown"}`)}
+              </li>
+            ))}
+          </ul>
+        )}
+        {device.abilities?.some((a) => a.id === "gpsdo") && (
+          <p className="t-fine-print muted">{t(device.abilities.some((a) => a.id === "gpsdo" && a.state === "yes") ? "hub.ability.gpsdo.yes" : "hub.ability.gpsdo.no")}</p>
+        )}
         {device.needs === "pro" && (
           <p className="t-caption" data-testid={`needs-pro-${device.id}`}>
             {t("hub.needs_pro")}

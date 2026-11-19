@@ -660,5 +660,17 @@
   "hub.needs_pro.badge": "Needs Pro",
   "hub.needs_pro": "Using this device requires the Pro edition. Contact: smjgallery.kr · mjseo@smjgallery.kr",
   "home.tasks.pro": "What Pro can do with this device",
-  "tx.plugin.frames.hint": "This is a frame generator. The Wi-Fi frame bytes it returns get a checksum (FCS) appended and are turned into a 20 MHz non-HT waveform, sent repeatedly."
+  "tx.plugin.frames.hint": "This is a frame generator. The Wi-Fi frame bytes it returns get a checksum (FCS) appended and are turned into a 20 MHz non-HT waveform, sent repeatedly.",
+  "hub.ability.rx_freq": "Receive frequency",
+  "hub.ability.tx_freq": "Transmit frequency",
+  "hub.ability.rx_gain": "Receive gain",
+  "hub.ability.tx_gain": "Transmit gain",
+  "hub.ability.bandwidth": "Filter width",
+  "hub.ability.rx_ports": "Receive ports",
+  "hub.ability.tx_ports": "Transmit ports",
+  "hub.ability.ext_clock": "External reference (10 MHz)",
+  "hub.ability.ext_pps": "External time signal (PPS)",
+  "hub.ability.gpsdo": "GPS module (GPSDO)",
+  "hub.ability.gpsdo.yes": "A GPS module is fitted. This device can use a GPS-disciplined reference and time (choosing GPS as the reference is not available in this tool yet).",
+  "hub.ability.gpsdo.no": "No GPS module is fitted. If the device accepts an external reference, a GPS-disciplined 10 MHz / PPS can be fed into its reference port."
 }

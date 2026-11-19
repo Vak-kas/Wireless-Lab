@@ -88,6 +88,8 @@ def list_devices() -> list[dict[str, Any]]:
             info = _info(f["id"], f["label"], f["driver"], capability_for(f["driver"], f["label"]), f.get("serial", ""))
             if f.get("needs"):
                 info["needs"] = f["needs"]      # 알아봤지만 이 설치로는 쓸 수 없는 장비(예: "pro")
+            if f.get("abilities"):
+                info["abilities"] = f["abilities"]   # 장비가 스스로 알려 준 능력(범위, 기준 신호, GPS 모듈)
             out.append(info)
     # 실제 장비를 앞에 둔다(화면이 맨 앞 장비를 기본으로 고른다). 모의 장비는 뒤로.
     return sorted(out, key=lambda d: d["driver"] == "simulated")

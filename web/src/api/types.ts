@@ -66,6 +66,8 @@ export interface DeviceInfo {
   capability?: string;
   /** 알아봤지만 이 설치로는 쓸 수 없는 장비: 쓰려면 무엇이 필요한가 */
   needs?: "pro";
+  /** 장비가 스스로 알려 준 능력 (범위는 value, 되는지 여부는 state) */
+  abilities?: { id: string; state?: "yes" | "no" | "admin" | "unknown"; value?: string }[];
 }
 
 export interface SurveyChannel {

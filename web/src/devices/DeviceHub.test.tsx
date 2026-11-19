@@ -264,3 +264,25 @@ test("잠긴 장비(Pro 필요)는 연결 창에 보이지만, 화면들이 쓰�
   await user.click(within(dialog).getByTestId("connect-start"));
   expect(screen.getByTestId("lprobe")).toHaveTextContent("simulated:x|locked:usrp:S9");
 });
+
+test("SDR 카드도 장비가 알려 준 능력을 보여 준다: 범위·포트, 외부 기준 신호, GPS 모듈", async () => {
+  const { DeviceCard } = await import("./DeviceHub");
+  const dev: DeviceInfo = {
+    ...usrp,
+    abilities: [
+      { id: "rx_freq", value: "50 ~ 6000 MHz" },
+      { id: "rx_ports", value: "TX/RX, RX2" },
+      { id: "ext_clock", state: "yes" },
+      { id: "gpsdo", state: "no" },
+    ],
+  };
+  const view = renderWithStore(<DeviceCard device={dev} />);
+  const list = screen.getByTestId("abilities-usrp:B200:S1");
+  expect(within(list).getByTestId("ability-rx_freq")).toHaveTextContent("받는 주파수 50 ~ 6000 MHz");
+  expect(within(list).getByTestId("ability-ext_clock")).toHaveTextContent("외부 기준 신호(10 MHz) 됨");
+  expect(within(list).getByTestId("ability-gpsdo")).toHaveTextContent("GPS 모듈(GPSDO) 안 됨");
+  expect(screen.getByText(/GPS 모듈은 달려 있지 않습니다/)).toBeInTheDocument();
+  view.unmount();
+  renderWithStore(<DeviceCard device={{ ...dev, abilities: [{ id: "gpsdo", state: "yes" }] }} />);
+  expect(screen.getByText(/GPS 모듈이 달려 있습니다/)).toBeInTheDocument();
+});
