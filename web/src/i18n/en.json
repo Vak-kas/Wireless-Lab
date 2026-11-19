@@ -673,5 +673,18 @@
   "hub.ability.gpsdo": "GPS module (GPSDO)",
   "hub.ability.gpsdo.yes": "A GPS module is fitted. This device can use a GPS-disciplined reference and time (choosing GPS as the reference is not available in this tool yet).",
   "hub.ability.gpsdo.no": "No GPS module is fitted. If the device accepts an external reference, a GPS-disciplined 10 MHz / PPS can be fed into its reference port.",
-  "hub.ability.channels": "Channels"
+  "hub.ability.channels": "Channels",
+  "hub.ref.title": "Reference",
+  "hub.ref.internal": "Internal",
+  "hub.ref.external": "External (10 MHz, PPS)",
+  "hub.ref.gpsdo": "GPS module",
+  "hub.ref.check": "Check lock",
+  "hub.ref.checking": "Asking the device…",
+  "hub.ref.locked": "Locked to the reference",
+  "hub.ref.unlocked": "Not locked to the reference. Check the cable and signal level",
+  "hub.ref.unknown": "The device did not report lock status",
+  "hub.ref.gps_locked": "Locked to GPS",
+  "hub.ref.gps_unlocked": "Not locked to GPS yet (check that the antenna sees the sky; the first lock takes minutes)",
+  "hub.ref.hint.external": "Feed 10 MHz (and PPS) into the reference port. With the same signals on two devices and both set to External, their frequency and time agree.",
+  "hub.ref.hint.gpsdo": "Uses the reference and time from the GPS module fitted to the device. A GPS antenna must be connected."
 }

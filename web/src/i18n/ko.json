@@ -673,5 +673,18 @@
   "hub.ability.gpsdo": "GPS 모듈(GPSDO)",
   "hub.ability.gpsdo.yes": "GPS 모듈이 달려 있습니다. GPS 로 맞춘 기준 신호와 시각을 쓸 수 있는 장비입니다(이 도구에서 기준을 GPS 로 고르는 설정은 아직 없습니다).",
   "hub.ability.gpsdo.no": "GPS 모듈은 달려 있지 않습니다. 외부 기준 신호를 받을 수 있는 장비라면, GPS 로 맞춘 10 MHz·PPS 를 기준 포트에 이어 쓸 수 있습니다.",
-  "hub.ability.channels": "채널 수"
+  "hub.ability.channels": "채널 수",
+  "hub.ref.title": "기준 신호",
+  "hub.ref.internal": "장비 안",
+  "hub.ref.external": "외부 (10 MHz·PPS)",
+  "hub.ref.gpsdo": "GPS 모듈",
+  "hub.ref.check": "잠김 확인",
+  "hub.ref.checking": "장비에 묻는 중…",
+  "hub.ref.locked": "기준 신호에 잠겼습니다",
+  "hub.ref.unlocked": "기준 신호에 잠기지 않았습니다. 케이블과 신호 세기를 확인하세요",
+  "hub.ref.unknown": "잠김 여부를 장비가 알려 주지 않았습니다",
+  "hub.ref.gps_locked": "GPS 에 잠겼습니다",
+  "hub.ref.gps_unlocked": "GPS 에 아직 잠기지 않았습니다(안테나가 하늘을 보는지 확인하세요. 처음에는 몇 분 걸립니다)",
+  "hub.ref.hint.external": "기준 포트에 10 MHz(와 PPS)를 넣어야 합니다. 두 장비에 같은 신호를 넣고 둘 다 '외부'로 두면 주파수와 시각이 서로 맞습니다.",
+  "hub.ref.hint.gpsdo": "장비에 달린 GPS 모듈의 기준 신호와 시각을 씁니다. GPS 안테나가 연결돼 있어야 합니다."
 }

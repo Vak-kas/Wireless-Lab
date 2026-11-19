@@ -214,6 +214,9 @@ export const mockApi: Api = {
   adapterWifiScan: async () => {
     throw new Error("mock");
   },
+  deviceReference: async () => ({ clock: "internal", pps: "internal" }),
+  deviceSetReference: async (_d, clock, pps) => ({ clock, pps }),
+  deviceCheckReference: async () => ({ clock: "internal", pps: "internal", ref_locked: null, gps_locked: null }),
   adapterAskLocation: async () => ({ state: "unknown" }),
   adapterOpenSettings: async (pane) => ({ opened: pane }),
   adapterSetMode: async () => {

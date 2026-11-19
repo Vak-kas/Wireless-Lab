@@ -32,6 +32,16 @@ class RecordBody(BaseModel):
     on: bool
 
 
+class DeviceBody(BaseModel):
+    device: str
+
+
+class ReferenceBody(BaseModel):
+    device: str
+    clock: str = "internal"
+    pps: str = "internal"
+
+
 class SurveyBody(BaseModel):
     device: str
     plan: str
@@ -188,6 +198,30 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         pass
     else:
         usrp_ready = usrp_matlab.install()   # MATLAB 엔진이 있으면 USRP 를 장비 목록에 끼운다
+    if usrp_ready:
+        @app.get("/api/devices/reference")
+        async def reference_get(id: str) -> dict[str, str]:  # noqa: A002 — 주소의 ?id= 와 이름을 맞춘다
+            return usrp_matlab.reference(id)
+
+        @app.put("/api/devices/reference")
+        async def reference_put(body: ReferenceBody) -> dict[str, str]:
+            from . import devices
+            try:
+                return usrp_matlab.set_reference(body.device, body.clock, body.pps)
+            except devices.DeviceError as e:
+                raise HTTPException(400, str(e)) from e
+
+        @app.post("/api/devices/reference/check")
+        async def reference_check(body: DeviceBody) -> dict[str, Any]:
+            from . import devices
+            if locks.busy(body.device):
+                raise HTTPException(409, "장비를 쓰는 중입니다.")
+            async with locks.hold(body.device):
+                try:
+                    return await asyncio.to_thread(usrp_matlab.check_reference, body.device)
+                except devices.DeviceError as e:
+                    raise HTTPException(400, str(e)) from e
+
     if not usrp_ready:
         # 이 설치로는 USRP 를 쓸 수 없다. 꽂혀 있으면 "알아봤지만 쓰려면 Pro 가 필요함"으로만 보여 준다
         from . import usb_sdr

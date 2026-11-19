@@ -165,6 +165,14 @@ export interface BleNearby {
   devices: NearbyBleDevice[];
 }
 
+/** 기준 신호를 어디서 받나: 장비 안 / 기준 포트로 넣어 준 것 / 달려 있는 GPS 모듈 */
+export type RefSource = "internal" | "external" | "gpsdo";
+
+export interface DeviceReference {
+  clock: RefSource;
+  pps: RefSource;
+}
+
 /** 장비 찾기의 지금 상태 (찾는 중인지, 왜 못 찾았는지) */
 export interface DeviceSearch {
   backends: {
@@ -487,6 +495,11 @@ export interface Api {
   adapterWifiScan(device: string): Promise<WifiNearby>;
   /** 어댑터로 주변 BLE 광고를 듣는다 (연결하지 않는다) */
   adapterBleScan(device: string, seconds?: number): Promise<BleNearby>;
+  /** 장비가 쓰는 기준 신호(10 MHz 클럭, PPS). 없는 설치에서는 거절된다 */
+  deviceReference(device: string): Promise<DeviceReference>;
+  deviceSetReference(device: string, clock: RefSource, pps: RefSource): Promise<DeviceReference>;
+  /** 장비를 잠깐 열어 고른 기준 신호에 잠겼는지 묻는다 (모르면 null) */
+  deviceCheckReference(device: string): Promise<DeviceReference & { ref_locked: boolean | null; gps_locked: boolean | null }>;
   /** 운영체제의 위치 권한 창을 띄워 묻는다 (사용자가 고를 때까지 기다린다) */
   adapterAskLocation(): Promise<{ state: string }>;
   /** 운영체제의 권한 설정 창을 연다 (허용은 사용자가 그 창에서 한다) */

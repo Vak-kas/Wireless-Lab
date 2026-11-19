@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Adapter, DeviceInfo, DeviceSearch } from "../api";
-import { Badge, Button } from "../components/ui";
+import type { Adapter, DeviceInfo, DeviceReference, DeviceSearch, RefSource } from "../api";
+import { Badge, Button, Chip } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { useDevices } from "../state/useDevices";
@@ -129,6 +129,77 @@ export function AdapterCard({ adapter, action }: { adapter: Adapter; action?: Re
         {adapter.abilities?.some((a) => a.id === "monitor" && a.state === "yes") && <p className="t-fine-print muted">{t("hub.ability.monitor.note")}</p>}
         {action}
       </div>
+    </div>
+  );
+}
+
+/**
+ * SDR 의 기준 신호(10 MHz 클럭과 PPS)를 어디서 받을지 고른다. 두 장비에 같은 기준을 넣고 둘 다 "외부"로 두면 주파수와 시각이 서로 맞는다.
+ * 장비가 못 한다고 알려 준 것은 고를 수 없다. "잠김 확인"은 장비를 잠깐 열어 그 신호에 맞물렸는지 묻는다.
+ */
+export function ReferenceSwitch({ device }: { device: DeviceInfo }) {
+  const { api } = useStore();
+  const [ref, setRef] = useState<DeviceReference | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const can = (id: string) => device.abilities?.find((a) => a.id === id)?.state;
+  useEffect(() => {
+    let alive = true;
+    void api.deviceReference(device.id).then((r) => alive && setRef(r), () => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [api, device.id]);
+  if (!ref || !device.id.startsWith("usrp:")) return null; // 기준 신호를 고를 수 있는 것은 USRP 뿐이다
+  const sources: RefSource[] = ["internal", ...(can("ext_clock") === "no" ? [] : (["external"] as const)), ...(can("gpsdo") === "yes" ? (["gpsdo"] as const) : [])];
+  if (sources.length < 2) return null;
+  const pick = async (source: RefSource) => {
+    setNote("");
+    try {
+      // 기준 클럭과 시각 신호를 같은 곳에서 받게 한다(따로 고를 일은 드물다). 외부 PPS 를 못 받는 장비는 클럭만 바꾼다
+      const pps: RefSource = source === "external" && can("ext_pps") === "no" ? "internal" : source;
+      setRef(await api.deviceSetReference(device.id, source, pps));
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const check = async () => {
+    setBusy(true);
+    setNote("");
+    try {
+      const r = await api.deviceCheckReference(device.id);
+      const parts = [r.ref_locked === null ? t("hub.ref.unknown") : t(r.ref_locked ? "hub.ref.locked" : "hub.ref.unlocked")];
+      if (r.gps_locked !== null) parts.push(t(r.gps_locked ? "hub.ref.gps_locked" : "hub.ref.gps_unlocked"));
+      setNote(parts.join(" · "));
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mode-switch" data-testid={`reference-${device.id}`}>
+      <div className="row">
+        <span className="t-caption muted">{t("hub.ref.title")}</span>
+        <div className="chips" role="group" aria-label={t("hub.ref.title")}>
+          {sources.map((s) => (
+            <Chip key={s} selected={ref.clock === s} onSelect={() => void pick(s)}>
+              {t(`hub.ref.${s}`)}
+            </Chip>
+          ))}
+        </div>
+        {ref.clock !== "internal" && (
+          <Button variant="link" onClick={() => void check()} disabled={busy} data-testid="reference-check">
+            {t(busy ? "hub.ref.checking" : "hub.ref.check")}
+          </Button>
+        )}
+      </div>
+      {ref.clock !== "internal" && <p className="t-fine-print muted">{t(`hub.ref.hint.${ref.clock}`)}</p>}
+      {note && (
+        <p className="t-caption" role="status" data-testid="reference-note">
+          {note}
+        </p>
+      )}
     </div>
   );
 }

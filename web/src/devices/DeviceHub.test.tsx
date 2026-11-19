@@ -286,3 +286,28 @@ test("SDR 카드도 장비가 알려 준 능력을 보여 준다: 범위·포트
   renderWithStore(<DeviceCard device={{ ...dev, abilities: [{ id: "gpsdo", state: "yes" }] }} />);
   expect(screen.getByText(/GPS 모듈이 달려 있습니다/)).toBeInTheDocument();
 });
+
+test("기준 신호: 장비가 받을 수 있는 것만 고를 수 있고, 외부로 바꾸면 잠김을 확인할 수 있다", async () => {
+  const { ReferenceSwitch } = await import("./DeviceHub");
+  const api = fakeApi();
+  api.deviceSetReference = vi.fn(async (_d: string, clock, pps) => ({ clock, pps }));
+  api.deviceCheckReference = vi.fn(async () => ({ clock: "external" as const, pps: "external" as const, ref_locked: false, gps_locked: null }));
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  const dev: DeviceInfo = { ...usrp, abilities: [{ id: "ext_clock", state: "yes" }, { id: "ext_pps", state: "yes" }, { id: "gpsdo", state: "no" }] };
+  renderWithStore(<ReferenceSwitch device={dev} />, api);
+  const box = await screen.findByTestId("reference-usrp:B200:S1");
+  expect(within(box).queryByRole("button", { name: "GPS 모듈" })).toBeNull(); // GPS 모듈이 없는 장비
+  expect(within(box).queryByTestId("reference-check")).toBeNull(); // 장비 안의 것을 쓸 때는 확인할 것이 없다
+  await user.click(within(box).getByRole("button", { name: "외부 (10 MHz·PPS)" }));
+  expect(api.deviceSetReference).toHaveBeenCalledWith("usrp:B200:S1", "external", "external");
+  await user.click(await within(box).findByTestId("reference-check"));
+  expect(await within(box).findByTestId("reference-note")).toHaveTextContent("기준 신호에 잠기지 않았습니다");
+});
+
+test("기준 신호: 고를 것이 없는 장비(외부 기준을 못 받음)에는 칸 자체가 나오지 않는다", async () => {
+  const { ReferenceSwitch } = await import("./DeviceHub");
+  const dev: DeviceInfo = { ...usrp, abilities: [{ id: "ext_clock", state: "no" }, { id: "gpsdo", state: "no" }] };
+  const view = renderWithStore(<ReferenceSwitch device={dev} />);
+  await act(() => vi.advanceTimersByTimeAsync(50));
+  expect(view.container.querySelector('[data-testid^="reference-"]')).toBeNull();
+});
