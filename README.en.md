@@ -40,7 +40,7 @@ This public edition (Basic) is **receive-only**.
 | Channel power monitor, spectrum, BLE advertisement reception | ✓ | ✓ |
 | Look around with the computer's own Wi-Fi and Bluetooth (built-in or external adapters) | ✓ | ✓ |
 | 5G NR signal-processing engine for real signals (based on MATLAB 5G Toolbox) | — | ✓ |
-| Automatic USRP registration and reception (MATLAB) | — | ✓ |
+| Automatic USRP registration and reception (MATLAB) | recognised only | ✓ |
 | Wi-Fi beacon and preamble decoding (nearby APs, bandwidth) | — | ✓ |
 | Experimental transmit (a responsibility confirmation is required every time) | — | ✓ |
 | Receive-while-sending check (one or two USRPs) | — | ✓ |

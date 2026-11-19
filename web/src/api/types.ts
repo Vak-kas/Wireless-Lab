@@ -64,6 +64,8 @@ export interface DeviceInfo {
   note?: string;
   clock_ppm?: number;
   capability?: string;
+  /** 알아봤지만 이 설치로는 쓸 수 없는 장비: 쓰려면 무엇이 필요한가 */
+  needs?: "pro";
 }
 
 export interface SurveyChannel {

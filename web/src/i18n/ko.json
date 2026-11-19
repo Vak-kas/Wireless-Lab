@@ -656,5 +656,8 @@
   "home.simlink.lead": "장비가 없어도 됩니다. 연습 신호나 전에 저장한 파일로 기지국 따라가기를 끝까지 해 볼 수 있습니다.",
   "home.simlink.button": "시뮬레이션 열기",
   "home.adapters.loading": "이 컴퓨터의 무선 장비를 찾는 중…",
-  "home.pro_hint": "USRP 를 꽂아 바로 쓰는 기능(자동 등록, 수신, Wi-Fi 풀이, 송신)은 Pro 에 있습니다. 이 설치에는 Pro 가 없습니다."
+  "home.pro_hint": "USRP 를 꽂아 바로 쓰는 기능(자동 등록, 수신, Wi-Fi 풀이, 송신)은 Pro 에 있습니다. 이 설치에는 Pro 가 없습니다.",
+  "hub.needs_pro.badge": "Pro 필요",
+  "hub.needs_pro": "이 장비를 사용하려면 Pro 판이 필요합니다. 문의: smjgallery.kr · mjseo@smjgallery.kr",
+  "home.tasks.pro": "Pro 에서 이 장비로 할 수 있는 일"
 }

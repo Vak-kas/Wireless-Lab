@@ -176,12 +176,17 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
     async def monitor_stop(mid: str) -> None:
         monitors.remove(mid)
 
+    usrp_ready = False
     try:
         from . import usrp_matlab
     except ImportError:
         pass
     else:
-        usrp_matlab.install()   # MATLAB 엔진이 있으면 USRP 를 장비 목록에 끼운다
+        usrp_ready = usrp_matlab.install()   # MATLAB 엔진이 있으면 USRP 를 장비 목록에 끼운다
+    if not usrp_ready:
+        # 이 설치로는 USRP 를 쓸 수 없다. 꽂혀 있으면 "알아봤지만 쓰려면 Pro 가 필요함"으로만 보여 준다
+        from . import usb_sdr
+        usb_sdr.install()
 
     from . import adapters
     adapters.register(app)      # 컴퓨터의 Wi-Fi·블루투스 어댑터(내장·외장)

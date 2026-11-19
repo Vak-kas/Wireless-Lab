@@ -13,6 +13,8 @@ export const isSim = (d: DeviceInfo) => d.driver === "simulated";
 interface Hub {
   /** 화면이 쓸 수 있는 장비. 장비 없이 시작했으면 모의 장비만 */
   devices: DeviceInfo[] | null;
+  /** 꽂혀 있는 것은 알아봤지만 이 설치로는 쓸 수 없는 장비 (Pro 가 필요) */
+  locked: DeviceInfo[];
   /** 컴퓨터의 Wi-Fi·블루투스 어댑터(내장·외장). 꽂는 장비(SDR) 없이 시작해도 그대로 쓸 수 있다 */
   adapters: Adapter[];
   /** 어댑터 목록을 한 번이라도 읽었는가 (운영체제에 묻는 데 몇 초 걸린다) */
@@ -35,7 +37,7 @@ export function useUsableDevices(): Hub {
   const { api } = useStore();
   const own = useDevices(api, hub === null);
   const ownAdapters = useAdapters(hub === null);
-  return hub ?? { devices: own, adapters: ownAdapters.list, adaptersReady: ownAdapters.ready, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
+  return hub ?? { devices: own === null ? null : own.filter((d) => !d.needs), locked: (own ?? []).filter((d) => d.needs), adapters: ownAdapters.list, adaptersReady: ownAdapters.ready, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
 }
 
 const ADAPTER_POLL_MS = 20000;
@@ -292,7 +294,10 @@ export function DeviceCard({ device, action }: { device: DeviceInfo; action?: Re
     <div className="device-card" data-testid={`device-card-${device.id}`}>
       <DevicePicture />
       <div className="device-card-body">
-        <div className="t-body-strong">{device.label.replace(/\s*\(.*\)$/, "")}</div>
+        <div className="row">
+          <span className="t-body-strong">{device.label.replace(/\s*\(.*\)$/, "")}</span>
+          {device.needs === "pro" && <Badge level="info">{t("hub.needs_pro.badge")}</Badge>}
+        </div>
         <dl className="t-caption">
           {device.serial && (
             <div>
@@ -315,6 +320,11 @@ export function DeviceCard({ device, action }: { device: DeviceInfo; action?: Re
             </div>
           )}
         </dl>
+        {device.needs === "pro" && (
+          <p className="t-caption" data-testid={`needs-pro-${device.id}`}>
+            {t("hub.needs_pro")}
+          </p>
+        )}
         {action}
       </div>
     </div>
@@ -382,9 +392,11 @@ export function DeviceHub({ children }: { children: ReactNode }) {
     setArrived((old) => (old.every((o) => ids.has(o.id)) ? old : old.filter((o) => ids.has(o.id))));
   }, [all, real, asking]);
 
-  const usable = useMemo(() => (all === null ? null : mode === "none" ? all.filter(isSim) : all), [all, mode]);
+  // 잠긴 장비(Pro 필요)는 쓸 수 있는 목록에 넣지 않는다. 수신·송신 화면의 장비 고르기에 나오지 않게
+  const usable = useMemo(() => (all === null ? null : (mode === "none" ? all.filter(isSim) : all).filter((d) => !d.needs)), [all, mode]);
+  const locked = useMemo(() => (mode === "none" ? [] : (all ?? []).filter((d) => d.needs)), [all, mode]);
   const adapters = adaptersAll;
-  const hub = useMemo<Hub>(() => ({ devices: usable, adapters, adaptersReady, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, adapters, adaptersReady, mode, search, rescan, reset]);
+  const hub = useMemo<Hub>(() => ({ devices: usable, locked, adapters, adaptersReady, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, locked, adapters, adaptersReady, mode, search, rescan, reset]);
 
   return (
     <Ctx.Provider value={hub}>

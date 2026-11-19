@@ -85,7 +85,10 @@ def list_devices() -> list[dict[str, Any]]:
         except Exception:  # noqa: BLE001 — 장비 찾기가 실패해도 나머지 목록은 보여 준다
             found = []
         for f in found:
-            out.append(_info(f["id"], f["label"], f["driver"], capability_for(f["driver"], f["label"]), f.get("serial", "")))
+            info = _info(f["id"], f["label"], f["driver"], capability_for(f["driver"], f["label"]), f.get("serial", ""))
+            if f.get("needs"):
+                info["needs"] = f["needs"]      # 알아봤지만 이 설치로는 쓸 수 없는 장비(예: "pro")
+            out.append(info)
     # 실제 장비를 앞에 둔다(화면이 맨 앞 장비를 기본으로 고른다). 모의 장비는 뒤로.
     return sorted(out, key=lambda d: d["driver"] == "simulated")
 

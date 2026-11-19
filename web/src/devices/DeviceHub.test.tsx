@@ -243,3 +243,24 @@ test("모드 전환: macOS 에서는 단추 대신 이유를 알려 준다", asy
   expect(screen.getByTestId("mode-note-wifi:en0")).toHaveTextContent("받는 동안에만 모니터 모드가 켜지는 방식");
   expect(screen.queryByTestId("mode-ask")).toBeNull();
 });
+
+test("잠긴 장비(Pro 필요)는 연결 창에 보이지만, 화면들이 쓰는 장비 목록에는 들어가지 않는다", async () => {
+  const lockedUsrp: DeviceInfo = { id: "locked:usrp:S9", label: "USRP B200mini (S9)", driver: "uhd", serial: "S9", needs: "pro" };
+  function LockProbe() {
+    const { devices, locked } = useUsableDevices();
+    return <div data-testid="lprobe">{`${(devices ?? []).map((d) => d.id).join(",")}|${locked.map((d) => d.id).join(",")}`}</div>;
+  }
+  const api = fakeApi();
+  api.devices = async () => [lockedUsrp, sim];
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  renderWithStore(
+    <DeviceHub>
+      <LockProbe />
+    </DeviceHub>,
+    api,
+  );
+  const dialog = await screen.findByRole("dialog", { name: "장비를 연결하세요" });
+  expect(await within(dialog).findByTestId("needs-pro-locked:usrp:S9")).toBeInTheDocument();
+  await user.click(within(dialog).getByTestId("connect-start"));
+  expect(screen.getByTestId("lprobe")).toHaveTextContent("simulated:x|locked:usrp:S9");
+});

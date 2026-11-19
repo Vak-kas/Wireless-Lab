@@ -104,6 +104,7 @@ export function StartScreen() {
   }, [api]);
 
   const real = devices.filter((d) => d.driver !== "simulated");
+  const locked = hub.locked;
 
   /** 주파수 상태 화면으로 넘어가며 "이 장비로, 이 대역을" 미리 골라 둔다. */
   const openSpectrum = (intent: SpectrumIntent) => {
@@ -127,7 +128,18 @@ export function StartScreen() {
       <SubNav title={t("nav.start")} />
       <Tile tone="light">
         <TileHead title={t("home.title")} lead={t("home.lead")} />
-        {real.length === 0 ? (
+        {locked.map((d) => (
+          <div className="card home-device" key={d.id} data-testid={`home-locked-${d.id}`}>
+            <DeviceCard device={d} />
+            <h3 className="t-tagline">{t("home.tasks.pro")}</h3>
+            <div className="tasks">
+              {["nr", "wifi", "view", "bt", "tx"].map((id) => (
+                <Task key={id} id={id} disabled />
+              ))}
+            </div>
+          </div>
+        ))}
+        {real.length === 0 && locked.length > 0 ? null : real.length === 0 ? (
           <div className="card home-empty" data-testid="home-no-device">
             {hub.mode === "none" ? <p className="t-body">{t("hub.none_mode")}</p> : <SearchNote search={hub.search} onRescan={hub.rescan} onReset={hub.reset} />}
             <div>

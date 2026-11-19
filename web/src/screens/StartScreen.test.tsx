@@ -96,3 +96,17 @@ test("컴퓨터의 Wi-Fi·블루투스 어댑터는 내장/외장 표시와 함�
   expect(window.location.hash).toBe("#/nearby");
   expect(sessionStorage.getItem("nrtrail.nearbyAdapter")).toBe("wifi:en0");
 });
+
+test("알아봤지만 쓸 수 없는 장비는 'Pro 필요' 카드로 보이고, 할 일은 전부 꺼져 있다", async () => {
+  const api = fakeApi();
+  const lockedUsrp: DeviceInfo = { id: "locked:usrp:S9", label: "USRP B200mini (S9)", driver: "uhd", serial: "S9", needs: "pro" };
+  api.devices = async () => [lockedUsrp];
+  renderWithStore(<StartScreen />, api);
+  const card = await screen.findByTestId("home-locked-locked:usrp:S9");
+  expect(within(card).getByText("Pro 필요")).toBeInTheDocument();
+  expect(within(card).getByTestId("needs-pro-locked:usrp:S9")).toHaveTextContent("이 장비를 사용하려면 Pro 판이 필요합니다");
+  for (const id of ["nr", "wifi", "view", "bt", "tx"]) expect(within(card).getByTestId(`task-${id}`)).toBeDisabled();
+  // 쓸 수 있는 장비 카드로는 나오지 않고, "장비가 없습니다" 안내도 뜨지 않는다
+  expect(screen.queryByTestId("home-device-locked:usrp:S9")).toBeNull();
+  expect(screen.queryByTestId("home-no-device")).toBeNull();
+});
