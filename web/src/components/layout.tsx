@@ -4,7 +4,7 @@ import { go, href, type Route } from "../router";
 import { useStore } from "../state/store";
 import { Button, LockIcon } from "./ui";
 
-const NAV: Route["screen"][] = ["start", "scan", "follow", "ntn", "track", "spectrum", "sessions", "settings"];
+const NAV: Route["screen"][] = ["start", "sim", "scan", "follow", "ntn", "track", "spectrum", "sessions", "settings"];
 
 /** global-nav: 앱 이름, 화면 이동, 현재 세션과 입력 소스. */
 export function GlobalNav({ route }: { route: Route }) {

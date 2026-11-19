@@ -7,7 +7,7 @@ const MOCK = process.env.NRTRAIL_E2E === "mock";
 const shot = (page: Page, name: string) => page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 
 async function startPractice(page: Page, scenarioTitle?: RegExp) {
-  await page.goto("/");
+  await page.goto("/#/sim");
   await expect(page.getByTestId("source-practice")).toBeVisible();
   if (scenarioTitle) await page.getByTestId("source-practice").getByRole("button", { name: scenarioTitle }).click();
   await page.getByTestId("start-practice").click();
@@ -151,8 +151,8 @@ test("장비: 인식된 장비가 있으면 단계별로 무엇이 되는지 보
   // 모의 장비는 합성 캡처(비공개 덧붙임)가 있을 때만 생긴다. SDR도 없으면 볼 것이 없다.
   const devices = (await (await page.request.get("/api/devices")).json()) as unknown[];
   test.skip(devices.length === 0, "인식된 장비가 없다");
-  await page.goto("/");
-  // 모의 장비 카드는 '장비 없이 해 보기' 구역에 있다(실제 장비의 일련번호가 갈무리에 찍히지 않는다).
+  await page.goto("/#/sim");
+  // 모의 장비 카드는 시뮬레이션 화면에 있다(실제 장비의 일련번호가 갈무리에 찍히지 않는다).
   await expect(page.getByTestId("device-capability")).toBeVisible();
   await page.getByTestId("source-device").screenshot({ path: path.join(SHOTS, "13-device.png") });
 });
@@ -163,9 +163,10 @@ test("장비 연결 창: 처음 열면 뜨고, 장비 없이 시작하면 닫히
   await expect(page.getByTestId("my-devices-button")).toHaveCount(0);
   await page.getByTestId("connect-skip").click();
   await expect(page.getByTestId("connect-overlay")).toHaveCount(0);
+  await page.getByTestId("home-sim").click();
   await expect(page.getByTestId("source-practice")).toBeVisible();
   await page.getByTestId("my-devices-button").click();
-  await expect(page.getByTestId("my-devices")).toContainText("장비 없이 쓰는 중");
+  await expect(page.getByTestId("my-devices")).toContainText("없이 쓰는 중");
   // 새로 고쳐도(같은 창) 다시 묻지 않는다
   await page.reload();
   await expect(page.getByTestId("my-devices-button")).toBeVisible();

@@ -650,5 +650,11 @@
   "nearby.perm.location.restricted": "이 컴퓨터는 위치 권한이 제한돼 있어 바꿀 수 없습니다.",
   "nearby.perm.location.off": "위치 서비스 자체가 꺼져 있습니다. 설정 창에서 위치 서비스를 켜 주세요.",
   "nearby.perm.location.authorized": "위치 권한은 허용돼 있는데도 이름이 가려졌습니다. 프로그램을 다시 열어 보세요.",
-  "nearby.perm.location.unknown": "권한 상태를 읽지 못했습니다. 설정 창에서 직접 확인해 주세요."
+  "nearby.perm.location.unknown": "권한 상태를 읽지 못했습니다. 설정 창에서 직접 확인해 주세요.",
+  "nav.sim": "시뮬레이션",
+  "home.simlink.title": "시뮬레이션으로 해 보기",
+  "home.simlink.lead": "장비가 없어도 됩니다. 연습 신호나 전에 저장한 파일로 기지국 따라가기를 끝까지 해 볼 수 있습니다.",
+  "home.simlink.button": "시뮬레이션 열기",
+  "home.adapters.loading": "이 컴퓨터의 무선 장비를 찾는 중…",
+  "home.pro_hint": "USRP 를 꽂아 바로 쓰는 기능(자동 등록, 수신, Wi-Fi 풀이, 송신)은 Pro 에 있습니다. 이 설치에는 Pro 가 없습니다."
 }

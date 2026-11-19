@@ -15,6 +15,8 @@ interface Hub {
   devices: DeviceInfo[] | null;
   /** 컴퓨터의 Wi-Fi·블루투스 어댑터(내장·외장). 꽂는 장비(SDR) 없이 시작해도 그대로 쓸 수 있다 */
   adapters: Adapter[];
+  /** 어댑터 목록을 한 번이라도 읽었는가 (운영체제에 묻는 데 몇 초 걸린다) */
+  adaptersReady: boolean;
   mode: DeviceMode;
   /** 장비 연결 창을 다시 연다 */
   connect(): void;
@@ -33,19 +35,24 @@ export function useUsableDevices(): Hub {
   const { api } = useStore();
   const own = useDevices(api, hub === null);
   const ownAdapters = useAdapters(hub === null);
-  return hub ?? { devices: own, adapters: ownAdapters, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
+  return hub ?? { devices: own, adapters: ownAdapters.list, adaptersReady: ownAdapters.ready, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
 }
 
 const ADAPTER_POLL_MS = 20000;
 
 /** 컴퓨터의 어댑터 목록. 꽂고 빼는 일이 드물어 천천히 다시 읽는다. */
-function useAdapters(active = true): Adapter[] {
+function useAdapters(active = true): { list: Adapter[]; ready: boolean } {
   const { api } = useStore();
   const [list, setList] = useState<Adapter[]>([]);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!active) return;
     let alive = true;
-    const load = () => void api.adapters().then((x) => alive && setList((old) => (old.map((a) => a.id).join() === x.map((a) => a.id).join() ? old : x)), () => undefined);
+    const load = () =>
+      void api
+        .adapters()
+        .then((x) => alive && setList((old) => (JSON.stringify(old) === JSON.stringify(x) ? old : x)), () => undefined)
+        .finally(() => alive && setReady(true));
     load();
     const timer = setInterval(load, ADAPTER_POLL_MS);
     return () => {
@@ -53,7 +60,7 @@ function useAdapters(active = true): Adapter[] {
       clearInterval(timer);
     };
   }, [api, active]);
-  return list;
+  return { list, ready };
 }
 
 /** 어댑터 그림: Wi-Fi 는 퍼지는 부채꼴, 블루투스는 이어진 두 점(특정 제품·상표 모양이 아니다). */
@@ -335,7 +342,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   const [arrived, setArrived] = useState<DeviceInfo[]>([]);
   const known = useRef<Set<string> | null>(null);
   const [search, setSearch] = useState<DeviceSearch | null>(null);
-  const adaptersAll = useAdapters();
+  const { list: adaptersAll, ready: adaptersReady } = useAdapters();
 
   // 찾기 상태를 함께 읽는다(찾는 중인지, 왜 못 찾았는지를 보여 주려고)
   useEffect(() => {
@@ -377,7 +384,7 @@ export function DeviceHub({ children }: { children: ReactNode }) {
 
   const usable = useMemo(() => (all === null ? null : mode === "none" ? all.filter(isSim) : all), [all, mode]);
   const adapters = adaptersAll;
-  const hub = useMemo<Hub>(() => ({ devices: usable, adapters, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, adapters, mode, search, rescan, reset]);
+  const hub = useMemo<Hub>(() => ({ devices: usable, adapters, adaptersReady, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, adapters, adaptersReady, mode, search, rescan, reset]);
 
   return (
     <Ctx.Provider value={hub}>

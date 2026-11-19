@@ -650,5 +650,11 @@
   "nearby.perm.location.restricted": "Location permission is restricted on this computer and cannot be changed.",
   "nearby.perm.location.off": "Location Services is turned off. Turn it on in the settings window.",
   "nearby.perm.location.authorized": "Location permission is granted but names are still hidden. Try reopening the program.",
-  "nearby.perm.location.unknown": "Could not read the permission state. Check it in the settings window."
+  "nearby.perm.location.unknown": "Could not read the permission state. Check it in the settings window.",
+  "nav.sim": "Simulation",
+  "home.simlink.title": "Try it in simulation",
+  "home.simlink.lead": "No device needed. Follow a base station to the end with practice signals or files you saved earlier.",
+  "home.simlink.button": "Open simulation",
+  "home.adapters.loading": "Looking for this computer's radios…",
+  "home.pro_hint": "Plug-and-use USRP support (automatic registration, reception, Wi-Fi decoding, transmit) is part of Pro. Pro is not installed here."
 }

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import type { Adapter, DeviceInfo } from "../api";
 import { fakeApi, renderWithStore } from "../test-utils";
+import { DeviceHub } from "../devices/DeviceHub";
 import { StartScreen } from "./StartScreen";
 
 const usrp: DeviceInfo = { id: "usrp:B200:S1", label: "USRP B200 (S1)", driver: "uhd", serial: "S1", freq_min_hz: 70e6, freq_max_hz: 6e9, stages: { scan: "ok" } };
@@ -13,7 +14,7 @@ beforeEach(() => {
   window.location.hash = "#/";
 });
 
-test("첫 화면은 내 장비와 '이 장비로 할 일'로 시작하고, 연습·파일·모의 장비는 '장비 없이 해 보기'에 있다", async () => {
+test("첫 화면은 내 장비와 '이 장비로 할 일'만 보여 주고, 연습·파일·모의 장비는 시뮬레이션 화면으로 가는 단추 뒤에 있다", async () => {
   const api = fakeApi();
   api.devices = async () => [usrp, sim];
   renderWithStore(<StartScreen />, api);
@@ -24,10 +25,24 @@ test("첫 화면은 내 장비와 '이 장비로 할 일'로 시작하고, 연�
   expect(within(card).getByTestId("task-tx")).toBeDisabled(); // 송신 기능이 없는 설치에서는 꺼져 있다
   expect(within(card).queryByText(/모의 장비/)).toBeNull();
 
-  expect(screen.getByRole("heading", { name: "저장해 둔 신호로 연습하기" })).toBeInTheDocument();
-  expect(screen.getByTestId("source-practice")).toBeInTheDocument();
-  expect(screen.getByTestId("source-file")).toBeInTheDocument();
-  expect(within(screen.getByTestId("source-device")).getByRole("button", { name: "x" })).toBeInTheDocument();
+  for (const id of ["source-practice", "source-file", "source-device"]) expect(screen.queryByTestId(id)).toBeNull();
+  await userEvent.click(screen.getByTestId("home-sim"));
+  expect(window.location.hash).toBe("#/sim");
+});
+
+test("Pro 가 없는 설치(USRP 를 찾는 쪽이 없음)에서는 장비 칸에 Pro 안내가 나온다", async () => {
+  const api = fakeApi();
+  api.devices = async () => [];
+  function Hubbed() {
+    return (
+      <DeviceHub>
+        <StartScreen />
+      </DeviceHub>
+    );
+  }
+  sessionStorage.setItem("nrtrail.deviceMode", "device");
+  renderWithStore(<Hubbed />, api);
+  expect(await screen.findByTestId("home-pro-hint")).toHaveTextContent("Pro 에 있습니다");
 });
 
 test("할 일: 'Wi-Fi 보기'는 그 장비와 5 GHz 를 골라 주파수 화면으로, '기지국 따라가기'는 그 장비로 세션을 연다", async () => {
@@ -48,13 +63,13 @@ test("할 일: 'Wi-Fi 보기'는 그 장비와 5 GHz 를 골라 주파수 화면
   await waitFor(() => expect(window.location.hash).toBe("#/s/s1/scan"));
 });
 
-test("장비가 없으면 연결하라고 안내하고, 장비 없이 하는 구역은 그대로 쓸 수 있다", async () => {
+test("장비가 없으면 연결하라고 안내하고, 시뮬레이션으로 가는 단추는 그대로 쓸 수 있다", async () => {
   const api = fakeApi();
   api.devices = async () => [sim];
   renderWithStore(<StartScreen />, api);
   expect(await screen.findByTestId("home-no-device")).toHaveTextContent("연결된 장비가 없습니다");
   expect(screen.queryByTestId("task-nr")).toBeNull();
-  expect(screen.getByTestId("start-practice")).toBeInTheDocument();
+  expect(screen.getByTestId("home-sim")).toBeEnabled(); // 시뮬레이션 화면으로 가는 길은 남아 있다
 });
 
 test("컴퓨터의 Wi-Fi·블루투스 어댑터는 내장/외장 표시와 함께 따로 나오고, 누르면 주변 보기로 간다", async () => {
