@@ -198,16 +198,26 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         pass
     else:
         usrp_ready = usrp_matlab.install()   # MATLAB 엔진이 있으면 USRP 를 장비 목록에 끼운다
+    usrp: Any = usrp_matlab if usrp_ready else None      # USRP 를 맡은 쪽(기준 신호 설정을 여기에 묻는다)
+    uhd_active = False
+    try:
+        from . import usrp_uhd
+    except ImportError:
+        pass
+    else:
+        if usrp_uhd.install():     # C++ 프로그램(uhdio)을 쓸 수 있으면 USRP 는 그쪽이 맡는다(MATLAB 은 풀이만 한다)
+            usrp_ready, usrp, uhd_active = True, usrp_uhd, True
+            usrp_uhd.warm()
     if usrp_ready:
         @app.get("/api/devices/reference")
         async def reference_get(id: str) -> dict[str, str]:  # noqa: A002 — 주소의 ?id= 와 이름을 맞춘다
-            return usrp_matlab.reference(id)
+            return usrp.reference(id)
 
         @app.put("/api/devices/reference")
         async def reference_put(body: ReferenceBody) -> dict[str, str]:
             from . import devices
             try:
-                return usrp_matlab.set_reference(body.device, body.clock, body.pps)
+                return usrp.set_reference(body.device, body.clock, body.pps)
             except devices.DeviceError as e:
                 raise HTTPException(400, str(e)) from e
 
@@ -218,7 +228,7 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
                 raise HTTPException(409, "장비를 쓰는 중입니다.")
             async with locks.hold(body.device):
                 try:
-                    return await asyncio.to_thread(usrp_matlab.check_reference, body.device)
+                    return await asyncio.to_thread(usrp.check_reference, body.device)
                 except devices.DeviceError as e:
                     raise HTTPException(400, str(e)) from e
 
@@ -257,6 +267,8 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         def tx_unavailable() -> dict[str, Any]:
             return {"available": False}
     else:
+        if uhd_active:
+            tx.TRANSMITTERS[usrp.PREFIX] = tx.UhdTransmitter      # 송신도 uhdio 로
         tx.register(app, locks)
 
     try:

@@ -46,3 +46,13 @@ def _no_leftover_device_engines():
     matlab_engine._devices.clear()
     yield
     matlab_engine._devices.clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_real_uhdio(monkeypatch):
+    """테스트에서는 진짜 uhdio(장비를 여는 C++ 프로그램)를 띄우지 않는다. 필요한 테스트는 가짜를 따로 끼운다."""
+    try:
+        from nrtrail import usrp_uhd
+    except ImportError:          # 공개판에는 이 모듈이 없다
+        return
+    monkeypatch.setattr(usrp_uhd, "_available", False)

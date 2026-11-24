@@ -41,9 +41,11 @@ def main() -> None:
     args = parser.parse_args()
     app = create_app(build_engines(args.engine, args.mock_delay), default_engine="matlab" if args.engine == "matlab" else None)
     try:
-        from . import usrp_matlab
+        from . import devices, usrp_matlab
 
-        usrp_matlab.warm()          # USRP 찾기를 미리 시작한다(MATLAB 을 띄우는 데 시간이 걸린다)
+        # USRP 찾기를 미리 시작한다(MATLAB 을 띄우는 데 시간이 걸린다). C++ 프로그램(uhdio)이 USRP 를 맡았으면 MATLAB 으로는 찾지 않는다
+        if devices.BACKENDS.get(usrp_matlab.PREFIX) is usrp_matlab:
+            usrp_matlab.warm()
     except ImportError:
         pass
     from . import procs
@@ -58,6 +60,13 @@ def main() -> None:
             from .engines import matlab as matlab_engine
 
             matlab_engine.close_all()          # 장비마다 띄운 것까지 전부
+        except ImportError:
+            pass
+        try:
+            from . import usrp_uhd
+
+            if usrp_uhd._io is not None:
+                usrp_uhd._io.close()           # 장비를 잡고 있는 C++ 프로그램도 끝낸다
         except ImportError:
             pass
         procs.forget()
