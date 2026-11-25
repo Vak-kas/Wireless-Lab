@@ -6,18 +6,21 @@ Wireless Lab handles signals from SDR devices, the computer's own Wi-Fi and Blue
 in a web page, and shows what happened with pictures and formulas. It runs only between your browser and a server on
 your own computer (`127.0.0.1`).
 
-The goal is one place for cellular (5G NR), Wi-Fi and Bluetooth. When it starts it shows the connected devices first and lets you pick what to do with each.
+The goal is one place for cellular (5G NR), Wi-Fi and Bluetooth. When it starts you pick the devices to use and press **Receive** or **Transmit**. With several devices each gets its own tab, and an overview shows every device's results side by side.
 
 The user interface is in Korean by default; an English translation is included.
 
 ## What it does
 
 - **Follow a 5G NR base station** (NTN included): scan → SSB → MIB → SIB1 → SIB19, in order. Every value on screen can be expanded into "raw value → formula → result → clause of the standard".
-- **Look at the spectrum**: pick a center frequency and width to see the spectrum, and keep watching per-channel power on Wi-Fi 2.4 / 5 / 6 GHz.
-- **Wi-Fi**: channel power monitor. Pro also decodes nearby APs, frame types and bandwidth.
+- **Receive**: pick a band and channels, or type a center frequency and bandwidth, to look at that band. Frequencies you look at often can be saved.
+- **Live view** (Pro): receives without gaps until you stop and draws the spectrum and spectrogram 20 times a second. It names the signals it sees from their width and band (a guess) and marks separately the ones that were actually decoded. A record button saves the I/Q to a file (SigMF) while receiving.
+- **Compare channel levels**: steps through Wi-Fi 2.4 / 5 / 6 GHz and Bluetooth channels and compares their power.
+- **Wi-Fi**: Pro also decodes nearby APs, frame types and bandwidth.
 - **Bluetooth**: receive and decode BLE advertisements (broadcasts meant for anyone to receive).
 - **Nearby**: even without an SDR, see the channels and strength of nearby networks and the advertisements of nearby devices with the computer's own Wi-Fi and Bluetooth (no connection is made).
-- **Experimental transmit** (Pro): send a test tone, standard test signals or your own waveform, and receive while sending to check that it really went out.
+- **Experimental transmit** (Pro): send a test tone, standard test signals or your own waveform, and receive while sending to check that it really went out. Several devices can be started at the same instant.
+- **Several devices together**: set each device up separately — for example send on one while receiving on another — and start or stop them all at once.
 - **Practice mode**: replays saved results, so you can go through the whole flow without any device.
 
 This public edition (Basic) is **receive-only**.
@@ -26,7 +29,7 @@ This public edition (Basic) is **receive-only**.
 
 | Kind | Examples | What you can do |
 |---|---|---|
-| Plug-in device (SDR) | USRP B, N and X series and E320 (Pro, registered automatically through MATLAB), SoapySDR devices | Follow a base station, spectrum, channel monitor, Bluetooth reception, transmit (Pro) |
+| Plug-in device (SDR) | USRP B, N and X series and E320 (Pro, registered automatically when plugged in), SoapySDR devices | Follow a base station, receive, live view (Pro), channel level comparison, Bluetooth reception, transmit (Pro) |
 | The computer's Wi-Fi adapter (built-in or external) | Laptop Wi-Fi, USB Wi-Fi adapter | Channel, width and strength of nearby networks |
 | The computer's Bluetooth adapter (built-in or external) | Built-in Bluetooth, USB dongle | Advertisements of nearby devices (name, maker, strength) |
 | No device | — | Practice mode, opening saved files |
@@ -37,24 +40,27 @@ This public edition (Basic) is **receive-only**.
 |---|---|---|
 | Web UI, local server, practice mode | ✓ | ✓ |
 | Broadcast information decoding (MIB, SIB1, SIB19), satellite (NTN) calculations, tracking, report | ✓ | ✓ |
-| Channel power monitor, spectrum, BLE advertisement reception | ✓ | ✓ |
+| Receive screen (pick band and channels, look once), channel level comparison, BLE advertisement reception | ✓ | ✓ |
+| Workbench: a tab per device, overview, start and stop all | ✓ | ✓ |
 | Look around with the computer's own Wi-Fi and Bluetooth (built-in or external adapters) | ✓ | ✓ |
 | 5G NR signal-processing engine for real signals (based on MATLAB 5G Toolbox) | — | ✓ |
-| Automatic USRP registration and reception (MATLAB) | recognised only | ✓ |
+| Automatic USRP registration and reception (a C++ helper talks to UHD directly; a MATLAB path also exists) | recognised only | ✓ |
+| Live view: gapless receive, 20 redraws a second, signal naming, recording | — | ✓ |
 | Wi-Fi beacon and preamble decoding (nearby APs, bandwidth) | — | ✓ |
 | Experimental transmit (a responsibility confirmation is required every time) | — | ✓ |
 | Receive-while-sending check (one or two USRPs) | — | ✓ |
+| Start several transmitters at the same instant | — | ✓ |
 | A slot for your own signal generators (`plugins/tx/`) | — | ✓ |
 | OAI NTN simulator testbed | — | ✓ |
 
-Pro is an overlay on top of this repository and requires MATLAB with the relevant toolboxes.
+Pro is an overlay on top of this repository. Decoding signals needs MATLAB with the relevant toolboxes; gapless USRP receive and transmit needs UHD (the USRP driver).
 
 **Pro inquiries**: [smjgallery.kr](https://smjgallery.kr) · <mjseo@smjgallery.kr>
 
 ## What is in this repository
 
 - `web/` the UI (React + TypeScript + Vite)
-- `server/` the local server (FastAPI): sessions, jobs, device layer, ASN.1 decoding, standard tables, satellite calculations, channel monitor, BLE receiver
+- `server/` the local server (FastAPI): sessions, jobs, device layer, ASN.1 decoding, standard tables, satellite calculations, channel level comparison, BLE receiver, signal-kind guessing
 - `pipeline/` stage definitions and texts, and the saved results that practice mode replays
 - `tools/` environment check, launcher, full verification
 
