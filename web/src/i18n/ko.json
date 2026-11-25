@@ -686,5 +686,19 @@
   "hub.ref.gps_locked": "GPS 에 잠겼습니다",
   "hub.ref.gps_unlocked": "GPS 에 아직 잠기지 않았습니다(안테나가 하늘을 보는지 확인하세요. 처음에는 몇 분 걸립니다)",
   "hub.ref.hint.external": "기준 포트에 10 MHz(와 PPS)를 넣어야 합니다. 두 장비에 같은 신호를 넣고 둘 다 '외부'로 두면 주파수와 시각이 서로 맞습니다.",
-  "hub.ref.hint.gpsdo": "장비에 달린 GPS 모듈의 기준 신호와 시각을 씁니다. GPS 안테나가 연결돼 있어야 합니다."
+  "hub.ref.hint.gpsdo": "장비에 달린 GPS 모듈의 기준 신호와 시각을 씁니다. GPS 안테나가 연결돼 있어야 합니다.",
+  "view.bands": "자주 보는 대역",
+  "view.bands.hint": "대역을 누르면 아래 칸이 채워지고 바로 봅니다. 폭이 장비가 받을 수 있는 것보다 넓으면 가운데 부분만 봅니다.",
+  "view.band.fm": "FM 방송",
+  "view.band.remote433": "433 MHz 리모컨·차 키",
+  "view.band.iot920": "920 MHz 사물인터넷",
+  "view.band.adsb": "항공기 위치 방송 1090 MHz",
+  "view.band.gps-l1": "GPS L1",
+  "view.band.nr-n78": "5G 3.5 GHz",
+  "view.band.add": "+ 내 대역 등록",
+  "view.band.name": "이름",
+  "view.band.save": "등록",
+  "view.band.add_hint": "아래 칸에 가운데 주파수와 대역폭을 넣고 이름을 붙여 등록하세요. 이 브라우저에 저장됩니다.",
+  "view.band.remove": "{name} 지우기",
+  "spectrum.look_picked": "고른 범위 들여다보기 ↓"
 }

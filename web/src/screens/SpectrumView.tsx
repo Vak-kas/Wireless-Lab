@@ -3,9 +3,10 @@ import type { Plot, SpectrumView as View, SurveyDevice } from "../api";
 import { Tile, TileHead } from "../components/layout";
 import { GridPlot } from "../components/plots/GridPlot";
 import { LinePlot } from "../components/plots/LinePlot";
-import { Badge, Button, Field } from "../components/ui";
+import { Badge, Button, Chip, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { BUILTIN, fit, loadBands, saveBands, type Band } from "./bands";
 
 const REPEAT_MS = 1500;
 const mhz = (hz: number, digits = 3) => Number((hz / 1e6).toFixed(digits)).toString();
@@ -52,7 +53,10 @@ export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; 
   const [repeat, setRepeat] = useState(false);
   const [error, setError] = useState("");
   const running = useRef(false);
+  const max = info.device.max_sample_rate_hz;
   const tile = useRef<HTMLDivElement>(null);
+  const [mine, setMine] = useState(loadBands);
+  const [naming, setNaming] = useState<string | null>(null);
 
   const look = useCallback(
     async (c: string, w: string) => {
@@ -90,16 +94,32 @@ export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; 
     [api, fail, gain, info.device.id, sim, paused],
   );
 
+  /** 칸을 채우고 한 번 본다 (대역 단추, 채널 표의 "들여다보기") */
+  const fill = (centerHz: number, bandwidthHz: number) => {
+    const c = mhz(centerHz);
+    const w = mhz(max !== undefined ? Math.min(bandwidthHz, max) : bandwidthHz);
+    setCenter(c);
+    setWidth(w);
+    void look(c, w);
+  };
+
   useImperativeHandle(ref, () => ({
     look(centerHz, bandwidthHz) {
-      const c = mhz(centerHz);
-      const w = mhz(bandwidthHz);
-      setCenter(c);
-      setWidth(w);
       tile.current?.scrollIntoView?.({ block: "start" });
-      void look(c, w);
+      fill(centerHz, bandwidthHz);
     },
   }));
+
+  const keep = (bands: Band[]) => {
+    setMine(bands);
+    saveBands(bands);
+  };
+  const addBand = () => {
+    const name = (naming ?? "").trim();
+    if (!name || !(Number(center) > 0 && Number(width) > 0)) return;
+    keep([...mine.filter((b) => b.name !== name), { id: `mine-${Date.now()}`, name, center_mhz: Number(center), width_mhz: Number(width) }]);
+    setNaming(null);
+  };
 
   useEffect(() => {
     if (!repeat) return;
@@ -108,14 +128,47 @@ export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; 
     return () => clearInterval(timer);
   }, [repeat, look, center, width]);
 
-  const max = info.device.max_sample_rate_hz;
   const p = view ? plots(view) : null;
+  const bands = sim ? [] : [...fit(BUILTIN, info.device.freq_min_hz, info.device.freq_max_hz, max), ...mine];
+  const current = (b: Band) => Number(center) === b.center_mhz && Number(width) === b.width_mhz;
 
   return (
     <div ref={tile}>
       <Tile tone="light" id="spectrum-view">
         <TileHead eyebrow={t("view.eyebrow")} title={t("view.title")} lead={sim ? t("view.lead_sim") : t("view.lead")} />
         <div className="card view-controls" data-testid="view-controls">
+          {!sim && (
+            <>
+              <div className="chips" role="group" aria-label={t("view.bands")} data-testid="view-bands">
+                {bands.map((b) => (
+                  <span key={b.id} className="chip-pair">
+                    <Chip selected={current(b)} onSelect={() => fill(b.center_mhz * 1e6, b.width_mhz * 1e6)}>
+                      {b.name ?? t(`view.band.${b.id}`)}
+                    </Chip>
+                    {b.name !== undefined && (
+                      <button type="button" className="chip-remove t-caption" aria-label={t("view.band.remove", { name: b.name })} onClick={() => keep(mine.filter((x) => x.id !== b.id))}>
+                        ×
+                      </button>
+                    )}
+                  </span>
+                ))}
+                <Chip selected={naming !== null} onSelect={() => setNaming(naming === null ? "" : null)}>
+                  {t("view.band.add")}
+                </Chip>
+              </div>
+              {naming !== null && (
+                <div className="row">
+                  <Field label={t("view.band.name")}>
+                    {(f) => <input {...f} value={naming} onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="view-band-name" />}
+                  </Field>
+                  <Button variant="secondary" onClick={addBand} disabled={!naming.trim() || !(Number(center) > 0 && Number(width) > 0)} data-testid="view-band-save">
+                    {t("view.band.save")}
+                  </Button>
+                </div>
+              )}
+              <p className="t-caption muted">{naming !== null ? t("view.band.add_hint") : t("view.bands.hint")}</p>
+            </>
+          )}
           <div className="row">
             <Field label={t("view.center")} error={error || undefined}>
               {(f) => <input {...f} inputMode="decimal" value={center} disabled={sim} onChange={(e) => setCenter(e.target.value)} data-testid="view-center" />}

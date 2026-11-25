@@ -633,6 +633,18 @@ details.fold > .fold-body {
   color: var(--fg-muted);
   cursor: not-allowed;
 }
+.chip-pair {
+  display: inline-flex;
+  align-items: center;
+}
+.chip-remove {
+  min-width: var(--size-touch-min);
+  min-height: var(--size-touch-min);
+  background: none;
+  border: 0;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
 
 /* ---------- search-input ---------- */
 .field {

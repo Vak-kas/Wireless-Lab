@@ -377,6 +377,14 @@ export function SpectrumScreen() {
   const current = info?.plans.find((p) => p.id === plan);
   const real = info?.device.driver !== "simulated";
   const mhzIn = (s: string) => (s.trim() ? Number(s) * 1e6 : undefined);
+  /** 위에서 고른 범위를 아래 "들여다보기"로 넘긴다: 고른 채널들의 한가운데와 전체 폭 */
+  const lookAtPicked = () => {
+    const cells = (current?.map ?? []).filter((c) => picked.includes(c.name));
+    const lo = plan === "custom" ? (mhzIn(custom.center) ?? 0) - (mhzIn(custom.span) ?? 0) / 2 : Math.min(...cells.map((c) => c.center_hz - c.width_hz / 2));
+    const hi = plan === "custom" ? (mhzIn(custom.center) ?? 0) + (mhzIn(custom.span) ?? 0) / 2 : Math.max(...cells.map((c) => c.center_hz + c.width_hz / 2));
+    viewer.current?.look((lo + hi) / 2, hi - lo);
+  };
+  const canLook = plan === "custom" ? Number(custom.center) > 0 && Number(custom.span) > 0 : picked.length > 0;
   const canStart = Boolean(plan) && (plan === "custom" ? Boolean(custom.center && custom.span && custom.step) : picked.length > 0);
 
   const begin = async () => {
@@ -702,6 +710,11 @@ export function SpectrumScreen() {
                 {wifi && real && plan.startsWith("wifi-") && (
                   <Button variant="secondary" onClick={() => void findAps()} disabled={finding || starting || picked.length === 0} data-testid="ap-find">
                     {finding ? t("wifi.aps.busy", { n: picked.length }) : t("wifi.aps.find")}
+                  </Button>
+                )}
+                {real && (
+                  <Button variant="link" onClick={lookAtPicked} disabled={starting || !canLook} data-testid="look-picked">
+                    {t("spectrum.look_picked")}
                   </Button>
                 )}
               </div>

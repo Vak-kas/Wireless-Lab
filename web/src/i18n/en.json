@@ -686,5 +686,19 @@
   "hub.ref.gps_locked": "Locked to GPS",
   "hub.ref.gps_unlocked": "Not locked to GPS yet (check that the antenna sees the sky; the first lock takes minutes)",
   "hub.ref.hint.external": "Feed 10 MHz (and PPS) into the reference port. With the same signals on two devices and both set to External, their frequency and time agree.",
-  "hub.ref.hint.gpsdo": "Uses the reference and time from the GPS module fitted to the device. A GPS antenna must be connected."
+  "hub.ref.hint.gpsdo": "Uses the reference and time from the GPS module fitted to the device. A GPS antenna must be connected.",
+  "view.bands": "Common bands",
+  "view.bands.hint": "Pick a band to fill the fields below and look once. If it is wider than the device can receive, only the middle part is shown.",
+  "view.band.fm": "FM radio",
+  "view.band.remote433": "433 MHz remotes and car keys",
+  "view.band.iot920": "920 MHz IoT",
+  "view.band.adsb": "Aircraft position broadcast 1090 MHz",
+  "view.band.gps-l1": "GPS L1",
+  "view.band.nr-n78": "5G 3.5 GHz",
+  "view.band.add": "+ Add my band",
+  "view.band.name": "Name",
+  "view.band.save": "Add",
+  "view.band.add_hint": "Enter a centre frequency and bandwidth below, give it a name and add it. It is saved in this browser.",
+  "view.band.remove": "Remove {name}",
+  "spectrum.look_picked": "Look at the picked range ↓"
 }

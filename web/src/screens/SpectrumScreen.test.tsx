@@ -329,3 +329,50 @@ test("수신이 한두 번 실패해도 모니터링은 멈추지 않고, 잇달
   await waitFor(() => expect(screen.getByTestId("monitor-toggle")).toHaveTextContent("다시 시작"), { timeout: 5000 }); // 세 번 잇달아 실패하면 멈춘다
   expect(calls).toBe(6);
 });
+
+test("대역 단추를 누르면 가운데 주파수와 대역폭이 채워지고 바로 본다. 장비보다 넓은 대역은 폭을 줄인다", async () => {
+  const a = api();
+  a.surveySpectrum = vi.fn(async () => VIEW);
+  renderWithStore(<SpectrumScreen />, a);
+  const bands = await screen.findByTestId("view-bands");
+  await userEvent.click(within(bands).getByRole("button", { name: "433 MHz 리모컨·차 키" }));
+  expect(screen.getByTestId("view-center")).toHaveValue("433.92");
+  expect(screen.getByTestId("view-width")).toHaveValue("2");
+  await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 433.92e6, bandwidth_hz: 2e6 })));
+  await userEvent.click(within(bands).getByRole("button", { name: "5G 3.5 GHz" }));
+  expect(Number((screen.getByTestId("view-width") as HTMLInputElement).value)).toBeLessThan(100);
+});
+
+test("내 대역을 등록하면 단추로 남고, 다시 열어도 있으며, 지울 수 있다", async () => {
+  localStorage.clear();
+  const a = api();
+  a.surveySpectrum = vi.fn(async () => VIEW);
+  const first = renderWithStore(<SpectrumScreen />, a);
+  await userEvent.type(await screen.findByTestId("view-center"), "447.5");
+  await userEvent.type(screen.getByTestId("view-width"), "1");
+  await userEvent.click(screen.getByRole("button", { name: "+ 내 대역 등록" }));
+  await userEvent.type(screen.getByTestId("view-band-name"), "우리 집 차 키");
+  await userEvent.click(screen.getByTestId("view-band-save"));
+  expect(screen.getByRole("button", { name: "우리 집 차 키" })).toBeInTheDocument();
+  first.unmount();
+
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByRole("button", { name: "우리 집 차 키" }));
+  expect(screen.getByTestId("view-center")).toHaveValue("447.5");
+  await userEvent.click(screen.getByRole("button", { name: "우리 집 차 키 지우기" }));
+  expect(screen.queryByRole("button", { name: "우리 집 차 키" })).not.toBeInTheDocument();
+  expect(localStorage.getItem("nrtrail.viewBands")).toBe("[]");
+});
+
+test("위에서 고른 채널을 '고른 범위 들여다보기'로 아래 칸에 넘긴다", async () => {
+  const a = api();
+  a.surveySpectrum = vi.fn(async () => VIEW);
+  renderWithStore(<SpectrumScreen />, a);
+  expect(await screen.findByTestId("look-picked")).toBeDisabled();
+  await userEvent.click(screen.getByTestId("cell-ch36"));
+  await userEvent.click(screen.getByTestId("cell-ch40"));
+  await userEvent.click(screen.getByTestId("look-picked"));
+  expect(screen.getByTestId("view-center")).toHaveValue("5190");
+  expect(screen.getByTestId("view-width")).toHaveValue("40");
+  await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 5190e6, bandwidth_hz: 40e6 })));
+});
