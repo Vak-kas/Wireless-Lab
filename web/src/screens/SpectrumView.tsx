@@ -58,6 +58,7 @@ export function SpectrumView({
   target,
   stopSignal,
   onLive,
+  onEdit,
 }: {
   info: SurveyDevice;
   gain: string;
@@ -68,6 +69,8 @@ export function SpectrumView({
   target?: { center_hz: number; width_hz: number } | null;
   /** 값이 바뀌면 실시간 받기를 멈춘다(작업판의 "모두 멈추기") */
   stopSignal?: number;
+  /** 사용자가 가운데 주파수·대역폭 칸을 직접 고쳤다(MHz. 아직 숫자가 아니면 0) */
+  onEdit?: (centerMhz: number, widthMhz: number) => void;
   /** 실시간으로 받는 중인지 바깥에 알린다 */
   onLive?: (running: boolean) => void;
 }) {
@@ -178,24 +181,44 @@ export function SpectrumView({
   const controls = (
     <div className={selector ? "card view-one" : "card view-controls"} data-testid="view-controls">
       {selector}
-      {selector ? (
-        !sim && (
-          <p className="t-body view-target" role="status" data-testid="view-target">
-            {center && width ? t("view.target", { c: center, w: width }) : t("view.target.none")}
-            {clipped && <span className="t-caption muted"> {t("view.target.clipped", { mhz: mhz(max!) })}</span>}
-          </p>
-        )
-      ) : (
+      {!sim && (
         <>
-          <div className="row">
-            <Field label={t("view.center")} error={error || undefined}>
-              {(f) => <input {...f} inputMode="decimal" value={center} disabled={sim} onChange={(e) => setCenter(e.target.value)} data-testid="view-center" />}
+          {/* 볼 대역: 위에서 고르면 채워지고, 직접 적어도 된다(적은 값이 채널과 맞으면 위의 채널이 체크된다) */}
+          <div className={selector ? "row view-target" : "row"}>
+            <Field label={t("view.center")} error={!selector && error ? error : undefined}>
+              {(f) => (
+                <input
+                  {...f}
+                  inputMode="decimal"
+                  value={center}
+                  onChange={(e) => {
+                    setCenter(e.target.value);
+                    onEdit?.(Number(e.target.value) || 0, Number(width) || 0);
+                  }}
+                  data-testid="view-center"
+                />
+              )}
             </Field>
             <Field label={t("view.width")}>
-              {(f) => <input {...f} inputMode="decimal" value={width} disabled={sim} onChange={(e) => setWidth(e.target.value)} data-testid="view-width" />}
+              {(f) => (
+                <input
+                  {...f}
+                  inputMode="decimal"
+                  value={width}
+                  onChange={(e) => {
+                    setWidth(e.target.value);
+                    onEdit?.(Number(center) || 0, Number(e.target.value) || 0);
+                  }}
+                  data-testid="view-width"
+                />
+              )}
             </Field>
           </div>
-          {!sim && max !== undefined && <p className="t-caption muted">{t("view.max_width", { mhz: mhz(max) })}</p>}
+          {max !== undefined && (
+            <p className="t-caption muted" data-testid="view-max">
+              {clipped ? t("view.target.clipped", { mhz: mhz(max) }) : t("view.max_width", { mhz: mhz(max) })}
+            </p>
+          )}
         </>
       )}
       {selector && error && (

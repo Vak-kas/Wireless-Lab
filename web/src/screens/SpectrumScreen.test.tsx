@@ -133,12 +133,14 @@ test("채널을 고르면 볼 대역이 정해지고, 보기를 누르면 그 �
   a.surveySpectrum = vi.fn(async () => VIEW);
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("view-run"));
-  expect(await screen.findByTestId("view-error")).toHaveTextContent("위에서 볼 곳을 고르세요."); // 아직 고른 것이 없다
+  expect(await screen.findByTestId("view-error")).toHaveTextContent("볼 곳을 고르거나"); // 아직 고른 것이 없다
   expect(a.surveySpectrum).not.toHaveBeenCalled();
   await userEvent.click(screen.getByTestId("cell-ch36"));
-  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 5180 MHz · 폭 20 MHz");
+  expect(screen.getByTestId("view-center")).toHaveValue("5180");
+  expect(screen.getByTestId("view-width")).toHaveValue("20");
   await userEvent.click(screen.getByTestId("cell-ch40")); // 채널을 더 고르면 고른 것 전체의 한가운데와 폭
-  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 5190 MHz · 폭 40 MHz");
+  expect(screen.getByTestId("view-center")).toHaveValue("5190");
+  expect(screen.getByTestId("view-width")).toHaveValue("40");
   await userEvent.click(screen.getByTestId("view-run"));
   expect(a.surveySpectrum).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 5190e6, bandwidth_hz: 40e6, gain_db: undefined });
   const facts = await screen.findByTestId("view-facts");
@@ -341,7 +343,8 @@ test("+ 로 볼 곳을 추가하면 단추로 남고 바로 골라진다. 대역
   await userEvent.click(screen.getByTestId("band-save"));
   expect(screen.queryByTestId("band-form")).toBeNull();
   expect(screen.getByRole("button", { name: "433.92 MHz" })).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 433.92 MHz · 폭 2 MHz");
+  expect(screen.getByTestId("view-center")).toHaveValue("433.92");
+  expect(screen.getByTestId("view-width")).toHaveValue("2");
   expect(screen.queryByTestId("channel-map")).toBeNull(); // 추가한 곳에는 채널 맵도 채널 모니터링도 없다
   expect(screen.queryByTestId("monitor-start")).toBeNull();
   await userEvent.click(screen.getByTestId("view-run"));
@@ -352,7 +355,8 @@ test("+ 로 볼 곳을 추가하면 단추로 남고 바로 골라진다. 대역
   await userEvent.type(screen.getByTestId("band-width"), "100");
   await userEvent.type(screen.getByTestId("band-name"), "5G");
   await userEvent.click(screen.getByTestId("band-save"));
-  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 3550 MHz · 폭 56 MHz");
+  expect(screen.getByTestId("view-center")).toHaveValue("3550");
+  expect(screen.getByTestId("view-width")).toHaveValue("56");
 });
 
 test("추가한 곳은 다시 열어도 남아 있고, 지우면 다른 대역으로 돌아간다", async () => {
@@ -368,7 +372,8 @@ test("추가한 곳은 다시 열어도 남아 있고, 지우면 다른 대역�
 
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByRole("button", { name: "우리 집 차 키" }));
-  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 447.5 MHz · 폭 1 MHz");
+  expect(screen.getByTestId("view-center")).toHaveValue("447.5");
+  expect(screen.getByTestId("view-width")).toHaveValue("1");
   await userEvent.click(screen.getByRole("button", { name: "우리 집 차 키 지우기" }));
   expect(screen.queryByRole("button", { name: "우리 집 차 키" })).not.toBeInTheDocument();
   expect(localStorage.getItem("nrtrail.viewBands")).toBe("[]");
@@ -453,4 +458,30 @@ test("실시간 그림: 받는 쪽이 줄을 계산해 주는 장비에서는 �
   expect(table.getAllByText("(추정)")).toHaveLength(2);
   expect(screen.getByTestId("signal-confirm-0")).toHaveTextContent("—");
   await userEvent.click(screen.getByTestId("live-toggle"));
+});
+
+test("가운데 주파수와 대역폭을 직접 적으면 그대로 보고, 채널과 딱 맞으면 그 채널이 체크되며, 안 맞으면 아무 채널도 체크되지 않는다", async () => {
+  const a = api();
+  a.surveySpectrum = vi.fn(async () => VIEW);
+  renderWithStore(<SpectrumScreen />, a);
+  const center = await screen.findByTestId("view-center");
+  const width = screen.getByTestId("view-width");
+  await userEvent.type(center, "5180");
+  await userEvent.type(width, "20");
+  expect(screen.getByTestId("cell-ch36")).toHaveAttribute("aria-pressed", "true"); // 5180 / 20 = ch36
+  expect(screen.getByTestId("cell-ch40")).toHaveAttribute("aria-pressed", "false");
+  expect(center).toHaveValue("5180"); // 적은 값은 그대로 남는다
+  await userEvent.clear(center);
+  await userEvent.type(center, "5190");
+  await userEvent.clear(width);
+  await userEvent.type(width, "40");
+  for (const n of [36, 40]) expect(screen.getByTestId(`cell-ch${n}`)).toHaveAttribute("aria-pressed", "true"); // 두 채널에 걸친 범위
+  await userEvent.clear(center);
+  await userEvent.type(center, "5187.5"); // 어느 채널과도 맞지 않는다
+  for (const n of [36, 40, 44, 48]) expect(screen.getByTestId(`cell-ch${n}`)).toHaveAttribute("aria-pressed", "false");
+  await userEvent.click(screen.getByTestId("view-run"));
+  expect(a.surveySpectrum).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 5187.5e6, bandwidth_hz: 40e6, gain_db: undefined });
+  await userEvent.click(screen.getByTestId("cell-ch44")); // 채널을 누르면 칸이 다시 고른 것을 따른다
+  expect(center).toHaveValue("5220");
+  expect(width).toHaveValue("20");
 });

@@ -262,7 +262,7 @@
   "spectrum.plan.wifi-5g": "Wi-Fi 5 GHz",
   "spectrum.plan.custom": "직접 지정",
   "spectrum.plan.hint_sim": "모의 장비는 주파수를 바꿀 수 없어서, 저장 파일에 담긴 대역을 16칸으로 나눠 봅니다.",
-  "spectrum.plan.hint_real": "대역을 고르고 채널을 누르세요. 다른 주파수는 + 로 추가합니다.",
+  "spectrum.plan.hint_real": "대역을 고르고 채널을 누르거나, 아래 칸에 가운데 주파수와 대역폭을 직접 적으세요. 자주 보는 곳은 + 로 추가해 둡니다.",
   "spectrum.custom.center": "가운데 주파수 (MHz)",
   "spectrum.custom.span": "전체 폭 (MHz)",
   "spectrum.custom.step": "한 칸 폭 (MHz)",
@@ -768,8 +768,8 @@
   "view.band.cancel": "취소",
   "view.band.width": "대역폭 (MHz, 비우면 {n})",
   "view.target": "볼 대역: 가운데 {c} MHz · 폭 {w} MHz",
-  "view.target.none": "위에서 볼 곳을 고르세요.",
-  "view.target.clipped": "(고른 범위가 넓어 가운데 {mhz} MHz 만 봅니다)",
+  "view.target.none": "볼 곳을 고르거나, 가운데 주파수와 대역폭을 적으세요.",
+  "view.target.clipped": "고른 범위가 넓어 가운데 {mhz} MHz 만 봅니다.",
   "live.wifi.all": "찾은 프레임 {n}개를 모두 풀었습니다.",
   "live.wifi.some": "찾은 프레임 {n}개 중 {m}개를 풀었습니다. 프레임이 많이 오가서 시간 안에 풀 수 있는 만큼만 고르게 골라 풉니다. 전부 풀려면 녹화해 두고 나중에 푸세요.",
   "bench.layout": "칸을 놓는 법",
@@ -803,5 +803,7 @@
   "signal.dc": "가운데 주파수에 뾰족하게 서 있는 것은 장비 자체에서 새는 것이라 표에서 뺐습니다.",
   "live.scope.now": "지금",
   "live.scope.ago": "{s}초 전",
-  "live.wifi.no_aps": "아직 비콘을 풀지 못했습니다. 비콘은 0.1초에 한 번쯤 나오는데, 채널이 붐비면 프레임의 일부만 풀어서 잡히는 데 시간이 걸릴 수 있습니다."
+  "live.wifi.no_aps": "아직 비콘을 풀지 못했습니다. 비콘은 0.1초에 한 번쯤 나오는데, 채널이 붐비면 프레임의 일부만 풀어서 잡히는 데 시간이 걸릴 수 있습니다.",
+  "view.center": "가운데 주파수 (MHz)",
+  "view.width": "대역폭 (MHz)"
 }

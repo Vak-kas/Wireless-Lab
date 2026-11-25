@@ -235,6 +235,8 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
   /** 사용자가 추가한 "볼 곳"들과, + 를 눌러 여는 추가 칸(닫혀 있으면 null) */
   const [bands, setBands] = useState(loadBands);
   const [adding, setAdding] = useState<{ name: string; center: string; width: string } | null>(null);
+  /** 볼 대역을 사용자가 칸에 직접 적는 중인가. 그동안에는 위에서 고른 것으로 칸을 덮어쓰지 않는다 */
+  const [typed, setTyped] = useState(false);
   const [gain, setGain] = useState("");
   const [mon, setMon] = useState<MonitorState | null>(null);
   const [running, setRunning] = useState(false);
@@ -287,6 +289,7 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
   }, [api]);
 
   const choosePlan = useCallback((p: SurveyPlan | undefined) => {
+    setTyped(false);
     setPlan(p?.id ?? "");
     // 파일 대역은 전부, 나머지는 사용자가 채널 맵에서 고른다
     setPicked(p?.id === "capture" ? (p.map ?? []).map((c) => c.name) : p?.id === "ble" ? BLE_ADV.map((c) => `ch${c}`) : []);
@@ -428,6 +431,34 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
   const targetWidth = band ? band.width_mhz * 1e6 : hi - lo;
   const target = useMemo(() => (targetCenter > 0 && targetWidth > 0 ? { center_hz: targetCenter, width_hz: targetWidth } : null), [targetCenter, targetWidth]);
 
+  /**
+   * 사용자가 가운데 주파수와 대역폭을 직접 적었다. 그 범위가 어느 대역의 채널(들)과 딱 맞으면 그 채널을 체크하고,
+   * 맞지 않으면 아무 채널도 체크하지 않는다(적은 값 그대로 본다).
+   */
+  const matchTyped = (centerMhz: number, widthMhz: number) => {
+    setTyped(true);
+    setAps(null);
+    const lo = (centerMhz - widthMhz / 2) * 1e6;
+    const hi = (centerMhz + widthMhz / 2) * 1e6;
+    const tol = 0.6e6;
+    const plans = [...(current ? [current] : []), ...(info?.plans ?? []).filter((p) => p.available && p.id !== "custom" && p.id !== current?.id)];
+    if (centerMhz > 0 && widthMhz > 0) {
+      for (const p of plans) {
+        const inside = (p.map ?? []).filter((c) => c.reachable && c.center_hz - c.width_hz / 2 >= lo - tol && c.center_hz + c.width_hz / 2 <= hi + tol);
+        if (inside.length === 0) continue;
+        const first = Math.min(...inside.map((c) => c.center_hz - c.width_hz / 2));
+        const last = Math.max(...inside.map((c) => c.center_hz + c.width_hz / 2));
+        if (Math.abs(first - lo) <= tol && Math.abs(last - hi) <= tol) {
+          setPlan(p.id);
+          setPicked(inside.map((c) => c.name));
+          return;
+        }
+      }
+    }
+    setPicked([]);
+    if (band) setPlan(""); // 추가해 둔 곳을 보다가 다른 값을 적었다: 그 단추의 선택도 푼다
+  };
+
   const keepBands = (next: Band[]) => {
     setBands(next);
     saveBands(next);
@@ -440,6 +471,7 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
     const made: Band = { id: String(Date.now()), name: adding.name.trim() || `${center} MHz`, center_mhz: center, width_mhz: width };
     keepBands([...bands, made]);
     setAdding(null);
+    setTyped(false);
     setPlan(`band:${made.id}`);
     setPicked([]);
     setAps(null);
@@ -514,6 +546,7 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
 
   /** AP 가 쓰는 채널들(P20 이 속한 운용 폭 묶음)을 채널 맵에서 고른다. */
   const pickAp = (ap: WifiAp) => {
+    setTyped(false);
     const group = current?.groups?.[String(ap.width_mhz ?? 20)]?.find((g) => g.includes(ap.primary)) ?? [ap.primary];
     const ok = new Set((current?.map ?? []).filter((c) => c.reachable).map((c) => c.name));
     setPicked(group.filter((n) => ok.has(n)));
@@ -746,7 +779,8 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
               info={info}
               gain={gain}
               ref={viewer}
-              target={real ? target : undefined}
+              target={real && !typed ? target : undefined}
+              onEdit={matchTyped}
               stopSignal={stopSignal}
               onLive={setLiveOnAir}
               selector={
@@ -767,6 +801,7 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
                           <Chip
                             selected={plan === `band:${x.id}`}
                             onSelect={() => {
+                              setTyped(false);
                               setPlan(`band:${x.id}`);
                               setPicked([]);
                               setAps(null);
@@ -818,7 +853,18 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
                     </div>
                   )}
                   {!band && <p className="t-caption muted">{real ? t("spectrum.plan.hint_real") : t("spectrum.plan.hint_sim")}</p>}
-                  {current && !band && <ChannelMap key={plan} plan={current} picked={picked} onChange={setPicked} disabled={starting} />}
+                  {current && !band && (
+                    <ChannelMap
+                      key={plan}
+                      plan={current}
+                      picked={picked}
+                      onChange={(names) => {
+                        setTyped(false);
+                        setPicked(names);
+                      }}
+                      disabled={starting}
+                    />
+                  )}
                   {real && (
                     <Field label={t("spectrum.gain")}>
                       {(p) => <input {...p} inputMode="decimal" value={gain} onChange={(e) => setGain(e.target.value)} />}
