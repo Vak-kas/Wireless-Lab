@@ -27,7 +27,9 @@ export default defineConfig({
     ? undefined
     : mode === "mock"
       ? {
-          command: "npm run build && npm run preview",
+          // 가짜 데이터로 빌드한 화면은 dist-e2e 에 따로 둔다. web/dist 에 빌드하면 실제 프로그램이 쓰는 화면을 덮어써서,
+          // 프로그램을 열었을 때 장비가 하나도 안 보이게 된다(실제로 그렇게 됐었다).
+          command: "npx tsc -b && npx vite build --outDir dist-e2e && npx vite preview --outDir dist-e2e --port 4173 --strictPort --host 127.0.0.1",
           url: "http://127.0.0.1:4173",
           reuseExistingServer: false,
           timeout: 120_000,

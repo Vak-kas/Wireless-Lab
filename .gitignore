@@ -34,3 +34,4 @@ specs/*
 .DS_Store
 .claude/
 *.asv
+web/dist-e2e/
