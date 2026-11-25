@@ -79,7 +79,17 @@ export function useLiveStream(device: string) {
     }
   };
 
-  return { state, running, starting, can, start, stop };
+  /** 받는 도중에 풀이를 꽂거나 뺀다(녹화 시작·멈춤) */
+  const tap = async (name: string, on: boolean) => {
+    if (!id) return;
+    try {
+      setState(await api.streamTap(id, name, on));
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    }
+  };
+
+  return { state, running, starting, can, start, stop, tap };
 }
 
 /** 계속 받기의 상태 줄과, 꽂힌 풀이들의 결과. */
@@ -116,7 +126,7 @@ export function LiveResults({ state }: { state: StreamState }) {
         ))}
       {record?.data_path && (
         <p className="t-caption center" data-testid="live-record">
-          {t("live.record.status", { s: record.seconds ?? 0, mb: ((record.bytes ?? 0) / 1e6).toFixed(1), gaps: record.gaps ?? 0 })}
+          {t(record.ended || !state.running ? "live.record.status" : "live.record.going", { s: record.seconds ?? 0, mb: ((record.bytes ?? 0) / 1e6).toFixed(1), gaps: record.gaps ?? 0 })}
           <br />
           <code>{record.data_path}</code>
         </p>

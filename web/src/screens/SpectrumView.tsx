@@ -65,7 +65,6 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<SavedCapture | null>(null);
   const live = useLiveStream(info.device.id);
-  const [record, setRecord] = useState(false);
 
   const look = useCallback(
     async (c: string, w: string) => {
@@ -130,7 +129,7 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
   };
 
   /** 계속 받기: 지금 칸의 대역을 멈출 때까지 끊김 없이 받으면서, 맞는 풀이를 모두 돌린다 */
-  const goLive = () => {
+  const goLive = (record = false) => {
     if (paused) return setError(t("view.error.paused"));
     if (!sim && !(Number(center) > 0 && Number(width) > 0)) return setError(t("view.error.inputs"));
     setError("");
@@ -138,6 +137,10 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
     setView(null);
     void live.start({ device: info.device.id, center_hz: sim ? 0 : Number(center) * 1e6, bandwidth_hz: sim ? 0 : Number(width) * 1e6, gain_db: gain.trim() ? Number(gain) : undefined }, record);
   };
+  const recordTap = live.state?.taps.record;
+  const recording = live.running && recordTap !== undefined && !recordTap.ended;
+  /** 녹화 단추: 받는 중이면 그때부터 저장을 시작하거나 멈추고, 받는 중이 아니면 받기와 저장을 함께 시작한다 */
+  const toggleRecord = () => (live.running ? void live.tap("record", !recording) : goLive(true));
 
   useImperativeHandle(ref, () => ({
     look(centerHz, bandwidthHz) {
@@ -232,9 +235,9 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
                 <Button variant={live.running ? "primary" : "secondary"} onClick={() => (live.running ? void live.stop() : goLive())} disabled={live.starting || busy || saving} aria-pressed={live.running} data-testid="live-toggle">
                   {live.running ? t("live.stop") : live.starting ? t("live.starting") : t("live.start")}
                 </Button>
-                <label className="t-caption">
-                  <input type="checkbox" checked={record} onChange={(e) => setRecord(e.target.checked)} disabled={live.running} data-testid="live-record-toggle" /> {t("live.record")}
-                </label>
+                <Button variant="secondary" onClick={toggleRecord} disabled={live.starting || busy || saving} aria-pressed={recording} data-testid="live-record-toggle">
+                  {recording ? `■ ${t("live.record.stop")}` : `● ${t("live.record")}`}
+                </Button>
               </div>
               <p className="t-caption muted">{t("live.hint")}</p>
             </>

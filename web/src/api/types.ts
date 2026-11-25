@@ -422,6 +422,8 @@ export interface StreamTapState {
   seconds?: number;
   gaps?: number;
   full?: boolean;
+  /** 도중에 뺀 풀이(녹화를 멈춘 뒤). 마지막 결과가 남아 있다 */
+  ended?: boolean;
 }
 
 /** 계속 받기(끊김 없이 받으면서 푸는 것) 하나의 상태 */
@@ -605,6 +607,8 @@ export interface Api {
   streamStart(req: StreamRequest): Promise<StreamState>;
   streamState(id: string): Promise<StreamState>;
   streamStop(id: string): Promise<StreamState>;
+  /** 받는 도중에 풀이를 꽂거나 뺀다 (녹화 단추: name = "record") */
+  streamTap(id: string, name: string, on: boolean): Promise<StreamState>;
   /** 그 대역을 받아 SigMF 파일로 남긴다 (서버의 sessions/saved/) */
   surveySave(req: { device: string; center_hz: number; bandwidth_hz: number; gain_db?: number; seconds: number }): Promise<SavedCapture>;
   oaiStatus(): Promise<OaiStatus>;

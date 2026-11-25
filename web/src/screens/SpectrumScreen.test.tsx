@@ -418,6 +418,18 @@ test("실시간으로 받기: 맞는 풀이를 꽂아 시작하고, 놓친 샘�
   expect(screen.getByRole("img", { name: "스펙트로그램" })).toBeInTheDocument();
   expect(screen.getByTestId("view-run")).toBeDisabled();
   expect(await within(status).findByText(/놓친 샘플 12개/, {}, { timeout: 3000 })).toBeInTheDocument();
+  // 녹화 단추: 받는 도중에 누르면 저장 풀이를 꽂고, 다시 누르면 뺀다
+  a.streamTap = vi.fn(async (_id: string, _name: string, on: boolean) =>
+    live({ taps: { ...live({}).taps, record: { done: 2, skipped: 0, error: "", took_s: 0, data_path: "/s/saved/r.sigmf-data", bytes: 80e6, seconds: 1, gaps: 0, ...(on ? {} : { ended: true }) } } }),
+  );
+  a.streamState = vi.fn(async () => { throw new Error("skip"); });
+  await userEvent.click(screen.getByTestId("live-record-toggle"));
+  expect(a.streamTap).toHaveBeenCalledWith("s1", "record", true);
+  expect(await screen.findByTestId("live-record")).toHaveTextContent("녹화 중 · 1초");
+  expect(screen.getByTestId("live-record-toggle")).toHaveTextContent("녹화 멈추기");
+  await userEvent.click(screen.getByTestId("live-record-toggle"));
+  expect(a.streamTap).toHaveBeenLastCalledWith("s1", "record", false);
+  expect(await screen.findByTestId("live-record")).toHaveTextContent("/s/saved/r.sigmf-data");
   await userEvent.click(screen.getByTestId("live-toggle"));
   expect(a.streamStop).toHaveBeenCalledWith("s1");
   expect(await screen.findByText(/멈춤 · 2.0초 받음/)).toBeInTheDocument();

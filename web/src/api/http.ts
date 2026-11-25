@@ -104,6 +104,7 @@ export const httpApi: Api = {
   streamStart: (req) => call("/streams", "POST", req),
   streamState: (id) => call(`/streams/${id}`, "GET"),
   streamStop: (id) => call(`/streams/${id}`, "DELETE"),
+  streamTap: (id, name, on) => call(`/streams/${id}/taps`, "POST", { name, on }),
   oaiStatus: () => call("/testbed/oai"),
   oaiRecord: (seconds) => call("/testbed/oai/record", "POST", { seconds }),
   oaiProgress: () => call("/testbed/oai/progress"),

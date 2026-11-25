@@ -710,8 +710,8 @@
   "live.start": "실시간으로 받기",
   "live.starting": "시작하는 중…",
   "live.stop": "실시간 받기 멈추기",
-  "live.record": "받으면서 파일로도 저장",
-  "live.hint": "멈출 때까지 끊김 없이 받으면서 스펙트로그램을 이어 그립니다. Wi-Fi 채널(20 MHz)이나 블루투스 광고 채널(2402·2426·2480 MHz, 4 MHz)에 맞추면 그 풀이도 함께 돕니다.",
+  "live.record": "녹화",
+  "live.hint": "멈출 때까지 끊김 없이 받으면서 스펙트로그램을 이어 그립니다. Wi-Fi 채널(20 MHz)이나 블루투스 광고 채널(2402·2426·2480 MHz, 4 MHz)에 맞추면 그 풀이도 함께 돕니다. 녹화를 누르면 그때부터 받은 I/Q 샘플을 SigMF 파일(sessions/saved)로 이어서 저장하고, 다시 누르면 멈춥니다(파일 하나에 4 GB 까지).",
   "live.running": "받는 중 · {s}초",
   "live.stopped": "멈춤 · {s}초 받음",
   "live.no_loss": "놓친 샘플 없음",
@@ -757,5 +757,7 @@
   "bench.together.aligned.pps": "장비들이 같은 시각 신호(외부 PPS·GPS)에 맞춰 시작했습니다.",
   "bench.together.aligned.host": "컴퓨터가 장비들의 시계를 맞춰 시작했습니다. 장비 사이가 수 ms 까지 어긋날 수 있습니다. 더 정확히 맞추려면 장비마다 기준 신호를 외부(10 MHz·PPS)로 두세요.",
   "bench.together.row": "{s}초 보냄, 끊김 {u}번",
-  "bench.together.stopped": "중간에 멈춤"
+  "bench.together.stopped": "중간에 멈춤",
+  "live.record.stop": "녹화 멈추기",
+  "live.record.going": "녹화 중 · {s}초 ({mb} MB, 이어지지 않은 곳 {gaps}군데)"
 }

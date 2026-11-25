@@ -710,8 +710,8 @@
   "live.start": "Receive live",
   "live.starting": "Starting…",
   "live.stop": "Stop live receive",
-  "live.record": "Also save to a file while receiving",
-  "live.hint": "Receives without gaps until you stop and keeps drawing the spectrogram. On a Wi-Fi channel (20 MHz) or a Bluetooth advertising channel (2402, 2426, 2480 MHz at 4 MHz) the matching decoder runs too.",
+  "live.record": "Record",
+  "live.hint": "Receives without gaps until you stop and keeps drawing the spectrogram. On a Wi-Fi channel (20 MHz) or a Bluetooth advertising channel (2402, 2426, 2480 MHz at 4 MHz) the matching decoder runs too. Record saves the received I/Q samples from that moment to a SigMF file (sessions/saved) and stops when pressed again (up to 4 GB per file).",
   "live.running": "Receiving · {s} s",
   "live.stopped": "Stopped · {s} s received",
   "live.no_loss": "No samples lost",
@@ -757,5 +757,7 @@
   "bench.together.aligned.pps": "The devices started on a common time signal (external PPS or GPS).",
   "bench.together.aligned.host": "The computer set the device clocks before starting. Devices may differ by a few ms. For tighter alignment give each device an external reference (10 MHz and PPS).",
   "bench.together.row": "sent {s} s, {u} underruns",
-  "bench.together.stopped": "stopped early"
+  "bench.together.stopped": "stopped early",
+  "live.record.stop": "Stop recording",
+  "live.record.going": "Recording · {s} s ({mb} MB, {gaps} discontinuities)"
 }
