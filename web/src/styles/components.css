@@ -1055,8 +1055,34 @@ details.fold > .fold-body {
   border-bottom: 1px solid var(--line);
 }
 .scope-fall {
-  height: 300px;
+  height: 360px;
   image-rendering: pixelated;
+}
+.scope-fall-wrap {
+  position: relative;
+}
+/* 시간 축 표시: 맨 위가 지금, 맨 아래가 가장 오래된 때 */
+.scope-when {
+  position: absolute;
+  right: var(--space-xxs);
+  padding: 0 var(--space-xxs);
+  background: var(--card);
+  color: var(--fg-muted);
+}
+.scope-now {
+  top: var(--space-xxs);
+}
+.scope-then {
+  bottom: var(--space-xxs);
+}
+.signals {
+  display: grid;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  text-align: left;
+}
+.signals tr[data-now="false"] {
+  color: var(--fg-muted);
 }
 .scope-axis {
   display: flex;

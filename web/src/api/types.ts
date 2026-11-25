@@ -394,6 +394,26 @@ export interface SpectrumView {
   waterfall: { rows: number; cols: number; values: number[][]; col_ms: number; floor_db: number; ceil_db: number };
 }
 
+/**
+ * 실시간 그림에서 찾은 신호 하나. kind 는 모양(폭과 대역)으로 **추정**한 종류다:
+ * wifi(Wi-Fi 20 MHz) / bt(블루투스 계열) / wide(받는 폭을 다 채움) / narrow(좁은 신호) / dc(장비 자체의 누설) / unknown
+ */
+export interface SeenSignal {
+  kind: "wifi" | "bt" | "wide" | "narrow" | "dc" | "unknown";
+  /** Wi-Fi 채널 이름(ch149) 또는 블루투스 LE 채널 번호 */
+  channel?: string | number | null;
+  lo_hz: number;
+  hi_hz: number;
+  center_hz: number;
+  width_hz: number;
+  peak_db: number;
+  above_floor_db: number;
+  /** 최근 몇 초의 줄 가운데 이 신호가 보인 비율 (0 ~ 1) */
+  seen: number;
+  /** 마지막 줄에도 보였는가 */
+  now: boolean;
+}
+
 /** 계속 받기에 꽂을 수 있는 풀이 하나와, 못 꽂는다면 그 이유 */
 export interface StreamTapInfo {
   name: string;
@@ -615,7 +635,7 @@ export interface Api {
   streamState(id: string): Promise<StreamState>;
   streamStop(id: string): Promise<StreamState>;
   /** 실시간 그림의 새 줄들: 번호가 after 보다 큰 것. mean·max 는 줄마다 주파수 칸별 세기(dBFS) */
-  streamRows(id: string, after: number): Promise<{ next: number; mean: number[][]; max: number[][] }>;
+  streamRows(id: string, after: number): Promise<{ next: number; mean: number[][]; max: number[][]; signals?: SeenSignal[] }>;
   /** 받는 도중에 풀이를 꽂거나 뺀다 (녹화 단추: name = "record") */
   streamTap(id: string, name: string, on: boolean): Promise<StreamState>;
   /** 그 대역을 받아 SigMF 파일로 남긴다 (서버의 sessions/saved/) */

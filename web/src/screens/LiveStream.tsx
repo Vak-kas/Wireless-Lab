@@ -135,7 +135,7 @@ export function LiveResults({ state }: { state: StreamState }) {
       {wifi && (
         <div className="card live" data-testid="live-wifi">
           <h4 className="t-caption-strong">{t("live.wifi.title", { channel: wifi.channel ?? "" })}</h4>
-          <ApTable aps={wifi.aps ?? []} empty={t("wifi.live.no_aps")} />
+          <ApTable aps={wifi.aps ?? []} empty={t("live.wifi.no_aps")} />
           {(wifi.frames_found ?? 0) > 0 && (
             <p className="t-caption muted" data-testid="live-wifi-frames">
               {wifi.frames_decoded === wifi.frames_found ? t("live.wifi.all", { n: wifi.frames_found ?? 0 }) : t("live.wifi.some", { n: wifi.frames_found ?? 0, m: wifi.frames_decoded ?? 0 })}
@@ -155,7 +155,7 @@ export function LiveResults({ state }: { state: StreamState }) {
         </div>
       )}
       {state.scope ? (
-        <LiveScope id={state.id} running={state.running} centerHz={state.center_hz} rateHz={state.sample_rate_hz} rowMs={state.scope.row_ms || 50} />
+        <LiveScope id={state.id} running={state.running} centerHz={state.center_hz} rateHz={state.sample_rate_hz} rowMs={state.scope.row_ms || 50} taps={state.taps} />
       ) : p && (
         <>
           <div className="card">

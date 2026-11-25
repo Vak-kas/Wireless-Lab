@@ -430,7 +430,11 @@ test("실시간 그림: 받는 쪽이 줄을 계산해 주는 장비에서는 �
   const asked: number[] = [];
   a.streamRows = vi.fn(async (_id: string, after: number) => {
     asked.push(after);
-    return after < 1 ? { next: 1, mean: [[-80, -80, -60, -80], [-80, -80, -58, -80]], max: [[-70, -70, -40, -70], [-70, -70, -38, -70]] } : { next: after, mean: [], max: [] };
+    const signals = [
+      { kind: "wifi" as const, channel: "ch36", lo_hz: 5171.7e6, hi_hz: 5188.3e6, center_hz: 5180e6, width_hz: 16.6e6, peak_db: -40, above_floor_db: 40, seen: 0.6, now: true },
+      { kind: "narrow" as const, lo_hz: 5175e6, hi_hz: 5175.1e6, center_hz: 5175.05e6, width_hz: 100e3, peak_db: -60, above_floor_db: 20, seen: 0.1, now: false },
+    ];
+    return after < 1 ? { next: 1, mean: [[-80, -80, -60, -80], [-80, -80, -58, -80]], max: [[-70, -70, -40, -70], [-70, -70, -38, -70]], signals } : { next: after, mean: [], max: [], signals };
   });
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
@@ -440,5 +444,13 @@ test("실시간 그림: 받는 쪽이 줄을 계산해 주는 장비에서는 �
   expect(within(scope).getByText("5170 MHz")).toBeInTheDocument(); // 가로축: 받는 대역의 왼쪽 끝
   await waitFor(() => expect(screen.getByTestId("live-scope-note")).toHaveTextContent("초당 20줄"));
   await waitFor(() => expect(asked.slice(0, 2)).toEqual([-1, 1])); // 처음엔 전부, 그다음엔 받은 번호 뒤부터
+  // 지금 보이는 신호: 모양으로 추정한 종류와, 풀이가 없으면 "확인"은 비어 있다
+  const table = within(screen.getByTestId("live-signals"));
+  expect(table.getByText(/Wi-Fi 20 MHz · ch36/)).toBeInTheDocument();
+  expect(table.getByText("16.6 MHz")).toBeInTheDocument();
+  expect(table.getByText("60%")).toBeInTheDocument();
+  expect(table.getByText("100 kHz")).toBeInTheDocument();
+  expect(table.getAllByText("(추정)")).toHaveLength(2);
+  expect(screen.getByTestId("signal-confirm-0")).toHaveTextContent("—");
   await userEvent.click(screen.getByTestId("live-toggle"));
 });
