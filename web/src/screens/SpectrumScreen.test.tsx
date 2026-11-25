@@ -489,6 +489,19 @@ test("가운데 주파수와 대역폭을 직접 적으면 그대로 보고, 채
   for (const n of [36, 40, 44, 48]) expect(screen.getByTestId(`cell-ch${n}`)).toHaveAttribute("aria-pressed", "false");
   await userEvent.click(screen.getByTestId("view-run"));
   expect(a.surveySpectrum).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 5187.5e6, bandwidth_hz: 40e6, gain_db: undefined });
+  // 고른 대역 밖의 주파수를 적으면 대역 단추의 선택도 풀리고 채널 맵이 사라진다. 장비가 받을 수 없는 값이면 미리 알려 준다
+  await userEvent.clear(center);
+  await userEvent.type(center, "433000");
+  expect(screen.getByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.queryByTestId("channel-map")).toBeNull();
+  expect(screen.getByTestId("view-range")).toHaveTextContent("70 ~ 6000 MHz");
+  await userEvent.clear(center);
+  await userEvent.type(center, "5220");
+  await userEvent.clear(width);
+  await userEvent.type(width, "20"); // 다시 채널과 맞는 값을 적으면 그 대역과 채널이 골라진다
+  expect(screen.getByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("cell-ch44")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.queryByTestId("view-range")).toBeNull();
   await userEvent.click(screen.getByTestId("cell-ch44")); // 채널을 누르면 칸이 다시 고른 것을 따른다
   expect(center).toHaveValue("5220");
   expect(width).toHaveValue("20");

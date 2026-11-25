@@ -54,12 +54,12 @@ export function LiveScope({
       const fall = fallRef.current;
       const bins = mean[0]?.length ?? 0;
       if (!line || !fall || bins === 0) return;
-      // 진하기의 기준을 새 줄들에 맞춰 조금씩 옮긴다: 바닥은 평균의 중앙값, 꼭대기는 최대값
+      // 진하기의 기준을 새 줄들에 맞춰 옮긴다: 바닥은 조용한 쪽으로는 바로, 올라갈 때는 천천히. 꼭대기는 최대값
       for (let j = 0; j < mean.length; j++) {
-        const floor = [...mean[j]!].sort((a, b) => a - b)[bins >> 1]!;
+        const floor = [...mean[j]!].sort((a, b) => a - b)[bins >> 3]!; // 아래쪽 1/8 자리: 신호가 폭을 다 채운 줄에서도 조용한 쪽을 잡는다
         const peak = Math.max(...max[j]!);
         const r = range.current;
-        range.current = r ? { lo: r.lo * 0.95 + floor * 0.05, hi: peak > r.hi ? peak : r.hi * 0.99 + peak * 0.01 } : { lo: floor, hi: peak };
+        range.current = r ? { lo: floor < r.lo ? floor : r.lo * 0.99 + floor * 0.01, hi: peak > r.hi ? peak : r.hi * 0.99 + peak * 0.01 } : { lo: floor, hi: peak };
       }
       const lo = range.current!.lo;
       const hi = Math.max(range.current!.hi, lo + MIN_SPAN_DB);
@@ -102,7 +102,7 @@ export function LiveScope({
           l.beginPath();
           row.forEach((v, b) => {
             const x = ((b + 0.5) / bins) * w;
-            const y = h - ((v - bottom) / span) * h;
+            const y = Math.min(h - 1, Math.max(1, h - ((v - bottom) / span) * h)); // 범위를 벗어난 값도 그림 끝에 붙여 그린다(선이 사라지지 않게)
             if (b === 0) l.moveTo(x, y);
             else l.lineTo(x, y);
           });

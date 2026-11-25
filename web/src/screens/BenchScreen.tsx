@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TxGroupResult, TxRequest } from "../api";
 import { SubNav, Tile } from "../components/layout";
 import { Button, Chip, Empty } from "../components/ui";
@@ -135,6 +135,40 @@ export function BenchScreen() {
   const free = devices.filter((d) => !isSim(d) && !panes.some((p) => p.device === d.id));
   const freeAdapters = hub.adapters.filter((a) => !panes.some((p) => p.device === a.id));
 
+  // "내 장비" 칸의 사용 표시와 책갈피를 맞춘다: 사용으로 바꾼 장비는 책갈피가 생기고, 사용 안 함으로 바꾼 장비의 책갈피는 사라진다.
+  // 바뀐 것만 따른다(처음 열었을 때의 칸은 그대로 둔다). 목록을 아직 다 읽지 못했으면 기다린다.
+  const pickedIds = [...devices.filter((d) => !isSim(d) && hub.isPicked(d.id, false)).map((d) => d.id), ...hub.adapters.filter((a) => hub.isPicked(a.id, true)).map((a) => a.id)].join("\n");
+  const ready = hub.devices !== null && hub.adaptersReady;
+  const pickedBefore = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const was = new Set((pickedBefore.current ?? pickedIds).split("\n").filter(Boolean));
+    const now = new Set(pickedIds.split("\n").filter(Boolean));
+    const first = pickedBefore.current === null;
+    pickedBefore.current = pickedIds;
+    if (first) return;
+    const added = [...now].filter((id) => !was.has(id) && !panes.some((p) => p.device === id));
+    const next = [
+      ...panes.filter((p) => !(was.has(p.device) && !now.has(p.device))),
+      ...added.map((id): Pane => (hub.adapters.some((a) => a.id === id) ? { device: id, mode: "rx", kind: "adapter" } : { device: id, mode: "rx" })),
+    ];
+    if (next.length !== panes.length || added.length > 0) keep(next);
+    if (added.length > 0) setView(added[added.length - 1]!); // 새로 놓인 장비의 책갈피를 펼친다
+    // 사용 표시가 바뀔 때만 맞춘다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedIds, ready]);
+
+  /** 칸을 닫는다. "내 장비"의 사용 표시도 함께 끈다 */
+  const closePane = (id: string) => {
+    keep(panes.filter((x) => x.device !== id));
+    if (hub.isPicked(id, hub.adapters.some((a) => a.id === id))) hub.flip(id);
+  };
+  /** 칸을 더 놓는다. "내 장비"의 사용 표시도 함께 켠다 */
+  const addPane = (pane: Pane) => {
+    keep([...panes, pane]);
+    if (!hub.isPicked(pane.device, pane.kind === "adapter")) hub.flip(pane.device);
+  };
+
   return (
     <>
       <SubNav title={t("nav.bench")} />
@@ -152,7 +186,7 @@ export function BenchScreen() {
         )}
         {panes.length > 0 && (
           <div className="bench-strip" data-testid="bench-bar">
-          <div className="bench-tabs" role="tablist" aria-label={t("bench.tabs")} data-testid="bench-tabs">
+          <div className="bench-tabs" role="tablist" aria-label={t("bench.tabs")} data-testid="bench-tabs" data-many={panes.length > 2 ? "true" : "false"}>
             {/* 책갈피: 전체 보기 + 장비마다 하나. 페이지 위에 붙어 있고, 받는 중인 장비는 점이 켜진다 */}
             {panes.length > 1 && (
               <button type="button" role="tab" className="bench-tab t-caption" aria-selected={shown === "all"} onClick={() => setView("all")} data-testid="bench-tab-all">
@@ -168,10 +202,11 @@ export function BenchScreen() {
                 aria-selected={shown === p.device}
                 data-busy={busy[p.device] ? "true" : "false"}
                 onClick={() => setView(p.device)}
+                title={label(p.device)}
                 data-testid={`bench-tab-${p.device}`}
               >
                 <span className="bench-dot" aria-hidden="true" />
-                {label(p.device)}
+                <span className="bench-name">{label(p.device)}</span>
                 <span className="bench-mode">{p.kind === "adapter" ? t("bench.mode.near") : t(`bench.mode.${p.mode}`)}</span>
                 <span className="sr-only">{busy[p.device] ? t("bench.busy") : t("bench.idle")}</span>
               </button>
@@ -208,7 +243,7 @@ export function BenchScreen() {
                     </button>
                   ))}
                 </div>
-                <Button variant="link" onClick={() => keep(panes.filter((x) => x.device !== p.device))} data-testid="pane-close">
+                <Button variant="link" onClick={() => closePane(p.device)} data-testid="pane-close">
                   {t("bench.close")}
                 </Button>
               </header>
@@ -234,12 +269,12 @@ export function BenchScreen() {
             <span className="t-caption muted">{t("bench.add")}</span>
             <div className="chips">
               {free.map((d) => (
-                <Chip key={d.id} selected={false} onSelect={() => keep([...panes, { device: d.id, mode: "rx" }])}>
+                <Chip key={d.id} selected={false} onSelect={() => addPane({ device: d.id, mode: "rx" })}>
                   + {d.label}
                 </Chip>
               ))}
               {freeAdapters.map((a) => (
-                <Chip key={a.id} selected={false} onSelect={() => keep([...panes, { device: a.id, mode: "rx", kind: "adapter" }])}>
+                <Chip key={a.id} selected={false} onSelect={() => addPane({ device: a.id, mode: "rx", kind: "adapter" })}>
                   + {a.label} · {t(`hub.attach.${a.attach}`)}
                 </Chip>
               ))}

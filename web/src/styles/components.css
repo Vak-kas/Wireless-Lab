@@ -1471,9 +1471,7 @@ details.fold > .fold-body {
   align-items: flex-end;
   gap: var(--space-xxs);
   padding: 0 var(--space-sm);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
+  overflow: hidden;
 }
 /* 모두 시작·모두 멈추기: 책갈피 줄의 오른쪽 끝 */
 .bench-all {
@@ -1486,7 +1484,9 @@ details.fold > .fold-body {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
   min-height: var(--size-touch-min);
   padding: var(--space-xs) var(--space-md);
   margin-bottom: -1px;
@@ -1499,6 +1499,22 @@ details.fold > .fold-body {
   transition:
     padding var(--motion-fast),
     color var(--motion-fast);
+}
+/* 책갈피가 많아 줄에 다 안 들어가면 이름을 말줄임으로 줄인다(전체 이름은 마우스를 올리면 보인다). 셋이 넘으면 하는 일 표시는 감춘다 */
+.bench-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bench-tab .bench-dot,
+.bench-tab .bench-mode {
+  flex: none;
+}
+.bench-tabs[data-many="true"] .bench-mode {
+  display: none;
+}
+.bench-tab[aria-selected="true"] {
+  flex-shrink: 0.3;
 }
 .bench-tab:hover {
   color: var(--fg);

@@ -818,5 +818,6 @@
   "bench.start_all": "모두 시작",
   "bench.idle_note": "아직 받고 있지 않습니다. 이 장비의 책갈피에서 볼 곳을 정한 뒤 '모두 시작'을 누르세요.",
   "bench.tabs": "장비 책갈피",
-  "bench.mode.near": "주변 보기"
+  "bench.mode.near": "주변 보기",
+  "view.out_of_range": "이 장비가 받을 수 있는 가운데 주파수는 {lo} ~ {hi} MHz 입니다. 단위가 MHz 인지 확인하세요."
 }

@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import type { DeviceInfo, TxRequest } from "../api";
+import { DeviceHub } from "../devices/DeviceHub";
 import { fakeApi, renderWithStore } from "../test-utils";
 import { BenchScreen } from "./BenchScreen";
 
@@ -148,4 +149,31 @@ test("작업판: 받는 칸이 있으면 이름표에 표시되고, 모두 멈�
   await userEvent.click(screen.getByTestId("bench-stop-all"));
   await waitFor(() => expect(screen.getByTestId("bench-tab-wifi:en0")).toHaveAttribute("data-busy", "false"));
   expect(within(pane).getByTestId("nearby-toggle")).toHaveTextContent("계속 보기");
+});
+
+test("작업판: 내 장비 칸에서 사용으로 바꾸면 그 장비의 책갈피가 생기고, 사용 안 함으로 바꾸면 사라진다. 칸을 닫으면 사용 표시도 꺼진다", async () => {
+  sessionStorage.setItem("nrtrail.deviceMode", "device");
+  sessionStorage.setItem("nrtrail.bench", JSON.stringify([{ device: a.id, mode: "rx" }]));
+  const x = api();
+  x.devices = async () => [a];
+  x.adapters = async () => [{ id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: {} }];
+  x.adapterWifiScan = async () => ({ adapter: "wifi:en0", networks: [], connected: null }) as never;
+  renderWithStore(
+    <DeviceHub>
+      <BenchScreen />
+    </DeviceHub>,
+    x,
+  );
+  await screen.findByTestId(`pane-${a.id}`);
+  expect(screen.queryByTestId("pane-wifi:en0")).toBeNull(); // 어댑터는 처음에는 쓰지 않는다
+  await userEvent.click(screen.getByTestId("my-devices-button"));
+  const pick = await screen.findByTestId("mine-pick-wifi:en0");
+  await userEvent.click(pick);
+  const pane = await screen.findByTestId("pane-wifi:en0"); // 책갈피와 칸이 생기고 그 칸이 펼쳐진다
+  expect(pane).toHaveAttribute("data-active", "true");
+  expect(screen.getByTestId("bench-tab-wifi:en0")).toBeInTheDocument();
+  await userEvent.click(pick);
+  await waitFor(() => expect(screen.queryByTestId("pane-wifi:en0")).toBeNull());
+  await userEvent.click(within(screen.getByTestId(`pane-${a.id}`)).getByTestId("pane-close")); // 칸을 닫으면 사용 표시도 꺼진다
+  await waitFor(() => expect(screen.getByTestId(`mine-pick-${a.id}`)).toHaveAttribute("aria-pressed", "false"));
 });

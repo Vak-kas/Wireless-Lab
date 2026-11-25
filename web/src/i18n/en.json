@@ -817,5 +817,6 @@
   "bench.start_all": "Start all",
   "bench.idle_note": "Not receiving yet. Set where to look on this device's tab, then press Start all.",
   "bench.tabs": "Device tabs",
-  "bench.mode.near": "Nearby"
+  "bench.mode.near": "Nearby",
+  "view.out_of_range": "This device can tune from {lo} to {hi} MHz. Check that the value is in MHz."
 }

@@ -465,7 +465,14 @@ export function SpectrumScreen({
       }
     }
     setPicked([]);
-    if (band) setPlan(""); // 추가해 둔 곳을 보다가 다른 값을 적었다: 그 단추의 선택도 푼다
+    // 채널과 딱 맞지는 않는다. 적은 주파수가 어느 대역 안이면 그 대역만 고른 채로 두고(채널은 체크하지 않는다),
+    // 어느 대역에도 들지 않으면 대역 단추의 선택도 푼다. 한 글자씩 적는 동안 풀렸던 대역도 값이 다 적히면 여기서 돌아온다.
+    const hz = centerMhz * 1e6;
+    const home = plans.find((p) => {
+      const cells = p.map ?? [];
+      return cells.length > 0 && hz >= Math.min(...cells.map((c) => c.center_hz - c.width_hz / 2)) && hz <= Math.max(...cells.map((c) => c.center_hz + c.width_hz / 2));
+    });
+    setPlan(home?.id ?? "");
   };
 
   // 고른 대역에서 할 수 없는 일이면 실시간 보기로 돌아간다(추가한 주파수에는 채널이 없고, AP 찾기는 Wi-Fi 대역만)

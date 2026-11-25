@@ -192,6 +192,10 @@ export function SpectrumView({
 
   const p = view ? plots(view) : null;
   const clipped = !sim && max !== undefined && targetWidth !== undefined && targetWidth > max;
+  // 적은 가운데 주파수가 이 장비가 받을 수 있는 범위 밖인가(받기 전에 미리 알려 준다)
+  const fMin = info.device.freq_min_hz;
+  const fMax = info.device.freq_max_hz;
+  const outOfRange = !sim && Number(center) > 0 && fMin !== undefined && fMax !== undefined && (Number(center) * 1e6 < fMin || Number(center) * 1e6 > fMax);
 
   const controls = (
     <div className={selector ? "card view-one" : "card view-controls"} data-testid="view-controls">
@@ -230,6 +234,11 @@ export function SpectrumView({
             </Field>
             {gainField}
           </div>
+          {outOfRange && (
+            <p className="t-caption" role="alert" data-testid="view-range">
+              ! {t("view.out_of_range", { lo: mhz(fMin!), hi: mhz(fMax!) })}
+            </p>
+          )}
           {max !== undefined && (
             <p className="t-caption muted" data-testid="view-max">
               {clipped ? t("view.target.clipped", { mhz: mhz(max) }) : t("view.max_width", { mhz: mhz(max) })}
