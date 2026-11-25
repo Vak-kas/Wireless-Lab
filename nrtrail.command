@@ -1,5 +1,6 @@
 #!/bin/bash
-# macOS: 더블클릭하면 터미널 창에서 nrtrail 을 실행한다. nrtrail 창을 닫으면(또는 이 터미널을 닫으면) 전부 꺼진다.
+# macOS: 더블클릭하면 터미널 창에서 Wireless Lab 을 실행한다. 창을 닫으면(또는 이 터미널을 닫으면) 전부 꺼진다.
+# 평소에는 "Wireless Lab.app" 을 쓴다(터미널 창이 뜨지 않는다). 이 파일은 처음 설치할 때와, 앱으로 뜨지 않을 때 쓰인다.
 cd "$(dirname "$0")" || exit 1
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 if [ ! -x venv/bin/python ] || [ ! -f web/dist/index.html ]; then
@@ -10,6 +11,6 @@ if [ ! -x venv/bin/python ] || [ ! -f web/dist/index.html ]; then
     echo "설치하지 못했습니다. 위의 내용을 확인하세요."; read -r -p "Enter 를 누르면 닫습니다. " _; exit 1
   fi
 fi
-echo "nrtrail 을 시작합니다. 이 창은 그대로 두세요. nrtrail 창을 닫으면 서버와 OAI 가 함께 꺼집니다."
+echo "Wireless Lab 을 시작합니다. 이 창은 그대로 두세요. Wireless Lab 창을 닫으면 서버가 함께 꺼집니다."
 venv/bin/python tools/app.py "$@"
 echo "모두 껐습니다. 이 창은 닫아도 됩니다."

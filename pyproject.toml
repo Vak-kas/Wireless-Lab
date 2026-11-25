@@ -30,7 +30,7 @@ dev = [
     "datamodel-code-generator>=0.25",
     "pyyaml>=6",
 ]
-# 프로그램처럼 창으로 띄울 때 (tools/app.py, nrtrail.app). 없으면 기본 브라우저로 연다.
+# 프로그램처럼 창으로 띄울 때 (tools/app.py, "Wireless Lab.app"). 없으면 기본 브라우저로 연다.
 app = ["pywebview>=5"]
 
 [tool.setuptools.packages.find]

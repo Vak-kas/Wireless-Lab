@@ -5,7 +5,7 @@ import ko from "./ko.json";
 
 test("한국어 문구를 돌려주고 변수를 채운다", () => {
   setLang("ko");
-  expect(t("app.name")).toBe("nrtrail");
+  expect(t("app.name")).toBe("Wireless Lab");
   expect(t("없는.키")).toBe("없는.키");
 });
 

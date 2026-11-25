@@ -74,7 +74,7 @@ To use it like an application, double-click the file below. If there is no virtu
 
 | OS | Launcher |
 |---|---|
-| macOS | `nrtrail.app` or `nrtrail.command` (a terminal window opens with it; the first run may ask for folder access) |
+| macOS | `Wireless Lab.app` (opens just the window) or `nrtrail.command` (a terminal window opens with it; the first run may ask for folder access) |
 | Windows | `nrtrail.bat` |
 | Linux | `./nrtrail.sh` |
 

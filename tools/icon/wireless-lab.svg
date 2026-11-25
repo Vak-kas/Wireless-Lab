@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Wireless Lab 앱 아이콘. 가운데 송수신 점에서 양쪽으로 퍼지는 전파와, 아래의 측정 파형. tools/make_icon.py 가 .icns 로 만든다. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f7df6"/>
+      <stop offset="1" stop-color="#0b2a6b"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#shine)"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 전파: 가운데 점에서 양쪽으로 -->
+    <path d="M410 372 A118 118 0 0 0 410 540" stroke-width="40" opacity="0.95"/>
+    <path d="M332 306 A212 212 0 0 0 332 606" stroke-width="40" opacity="0.7"/>
+    <path d="M254 240 A306 306 0 0 0 254 672" stroke-width="40" opacity="0.42"/>
+    <path d="M614 372 A118 118 0 0 1 614 540" stroke-width="40" opacity="0.95"/>
+    <path d="M692 306 A212 212 0 0 1 692 606" stroke-width="40" opacity="0.7"/>
+    <path d="M770 240 A306 306 0 0 1 770 672" stroke-width="40" opacity="0.42"/>
+    <!-- 측정 파형 -->
+    <path d="M236 792 H372 L416 716 L468 842 L512 760 L556 842 L608 716 L652 792 H788" stroke-width="30" opacity="0.9"/>
+  </g>
+  <!-- 송수신 점과 기둥 -->
+  <path d="M512 456 V676" stroke="#ffffff" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="512" cy="456" r="58" fill="#ffffff"/>
+  <circle cx="512" cy="456" r="24" fill="#1c5fd0"/>
+</svg>

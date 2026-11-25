@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """nrtrail 을 프로그램처럼 실행한다: 서버를 띄우고, 창을 열고, 창을 닫으면 전부 끈다.
 
-    python tools/app.py              창을 연다 (macOS 는 nrtrail.app 을 더블클릭해도 같다)
+    python tools/app.py              창을 연다 (macOS 는 "Wireless Lab.app" 을 더블클릭해도 같다)
     python tools/app.py --oai        OAI 기지국 시뮬레이터도 처음부터 켜 둔다(평소에는 켜지 않는다)
     python tools/app.py --self-test  창 없이 켜고 끄는 동작만 확인한다
 
@@ -236,6 +236,26 @@ class Launcher:
         log("모두 껐습니다")
 
 
+APP_NAME = "Wireless Lab"
+
+
+def dress_as_app() -> None:
+    """macOS: 독과 메뉴 막대에 "Python" 대신 이 앱의 이름과 아이콘이 보이게 한다. 안 돼도 그대로 간다."""
+    if sys.platform != "darwin":
+        return
+    try:
+        from AppKit import NSApplication, NSBundle, NSImage
+
+        info = NSBundle.mainBundle().localizedInfoDictionary() or NSBundle.mainBundle().infoDictionary()
+        if info is not None:
+            info["CFBundleName"] = APP_NAME
+        icon = NSImage.alloc().initWithContentsOfFile_(str(ROOT / "tools" / "icon" / "wireless-lab.png"))
+        if icon is not None:
+            NSApplication.sharedApplication().setApplicationIconImage_(icon)
+    except Exception:  # noqa: BLE001, S110 — 꾸미기에 실패해도 프로그램은 뜬다
+        pass
+
+
 def main() -> int:
     args = sys.argv[1:]
     if "--reaper" in args:
@@ -276,7 +296,8 @@ def main() -> int:
             time.sleep(1)
         return 0
 
-    webview.create_window("nrtrail", url, width=1320, height=900, min_size=(380, 600))
+    dress_as_app()
+    webview.create_window(APP_NAME, url, width=1320, height=900, min_size=(380, 600))
     webview.start()  # 창을 닫으면 돌아온다 → atexit 가 전부 끈다
     return 0
 

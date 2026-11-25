@@ -1,5 +1,5 @@
 #!/bin/bash
-# nrtrail.app 은 저장소 맨 위에 놓여 있다. 터미널 창 없이 nrtrail 창만 띄운다.
+# "Wireless Lab.app" 은 저장소 맨 위에 놓여 있다. 터미널 창 없이 Wireless Lab 창만 띄운다.
 #
 # 이 앱이 Python 을 직접 띄우면 macOS 의 폴더 접근 제한(데스크탑·문서 폴더)에 막힌다("Operation not permitted").
 # 그래서 실행을 macOS 의 작업 관리자(launchd)에 맡긴다: 그러면 Python 이 제 이름으로 돌아 그 제한에 걸리지 않는다.
@@ -9,7 +9,7 @@
 #   - 처음 실행이라 설치할 것이 있다(진행 상황을 보여 줘야 한다)
 #   - 위 방법으로 띄웠는데 몇 초 안에 실패하며 끝났다
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-LABEL="local.nrtrail.app"
+LABEL="local.wirelesslab.app"
 DOMAIN="gui/$(id -u)"
 TMP="${TMPDIR:-/tmp}"
 LOG="$TMP/nrtrail-app.log"
