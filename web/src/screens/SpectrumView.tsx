@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
-import type { Plot, SavedCapture, SpectrumView as View, SurveyDevice } from "../api";
+import type { Plot, SpectrumView as View, SurveyDevice } from "../api";
 import { Tile, TileHead } from "../components/layout";
 import { GridPlot } from "../components/plots/GridPlot";
 import { LinePlot } from "../components/plots/LinePlot";
-import { Badge, Button, Chip, Field } from "../components/ui";
+import { Badge, Button, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
-import { BUILTIN, fit, loadBands, saveBands, type Band } from "./bands";
 import { LiveResults, useLiveStream } from "./LiveStream";
 
 const REPEAT_MS = 1500;
@@ -44,10 +43,29 @@ export function plots(v: View): { line: Plot; fall: Plot } {
   };
 }
 
-/** 가운데 주파수와 대역폭을 정해 그 대역을 들여다본다: 주파수별 세기(평균·최대)와 시간에 따른 변화. */
-/** paused: 채널 모니터가 장비를 쓰는 중이면 여기서 따로 받을 수 없다(장비는 하나). */
-/** beside: 주면 그 칸(채널 고르기)과 입력 칸을 나란히 놓고 그림은 그 아래에 그린다. 없으면 혼자 한 구역을 차지한다. */
-export function SpectrumView({ info, gain, ref, paused, beside }: { info: SurveyDevice; gain: string; ref?: Ref<SpectrumViewHandle>; paused?: boolean; beside?: ReactNode }) {
+/**
+ * 한 대역을 받아서 보여 준다: 한 번 보기, 계속 보기, 실시간으로 받기(끊김 없이), 녹화.
+ *
+ * - selector 를 주면(수신 화면) 그 "어디를 볼까요" 칸과 보기 단추를 한 칸에 담고, 볼 대역은 target 으로 받는다.
+ * - selector 가 없으면(채널 모니터링 중) 가운데 주파수와 대역폭을 직접 넣는 칸이 나온다.
+ * - paused: 채널 모니터가 장비를 쓰는 중이면 여기서 따로 받을 수 없다(장비는 하나).
+ */
+export function SpectrumView({
+  info,
+  gain,
+  ref,
+  paused,
+  selector,
+  target,
+}: {
+  info: SurveyDevice;
+  gain: string;
+  ref?: Ref<SpectrumViewHandle>;
+  paused?: boolean;
+  selector?: ReactNode;
+  /** 위에서 고른 대역. null 이면 아직 고르지 않았다 */
+  target?: { center_hz: number; width_hz: number } | null;
+}) {
   const { api, fail } = useStore();
   const sim = info.device.driver === "simulated";
   const [center, setCenter] = useState(sim && info.capture ? mhz(info.capture.center_freq_hz) : "");
@@ -59,11 +77,6 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
   const running = useRef(false);
   const max = info.device.max_sample_rate_hz;
   const tile = useRef<HTMLDivElement>(null);
-  const [mine, setMine] = useState(loadBands);
-  const [naming, setNaming] = useState<string | null>(null);
-  const [seconds, setSeconds] = useState("0.5");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState<SavedCapture | null>(null);
   const live = useLiveStream(info.device.id);
 
   const look = useCallback(
@@ -75,7 +88,7 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
         return;
       }
       if (!sim && !(Number(c) > 0 && Number(w) > 0)) {
-        setError(t("view.error.inputs"));
+        setError(t(selector ? "view.target.none" : "view.error.inputs"));
         setRepeat(false);
         return;
       }
@@ -99,39 +112,42 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
         setBusy(false);
       }
     },
-    [api, fail, gain, info.device.id, sim, paused],
+    [api, fail, gain, info.device.id, sim, paused, selector],
   );
 
-  /** 칸을 채운다. run 이면 바로 한 번 본다 */
+  /** 볼 대역을 정한다. 폭이 장비가 받을 수 있는 것보다 넓으면 가운데 부분만 본다. run 이면 바로 한 번 본다 */
   const fill = (centerHz: number, bandwidthHz: number, run = false) => {
     const c = mhz(centerHz);
     const w = mhz(max !== undefined ? Math.min(bandwidthHz, max) : bandwidthHz);
     setCenter(c);
     setWidth(w);
     setRepeat(false);
+    setError("");
     if (run) void look(c, w);
   };
 
-  /** 지금 칸의 대역을 seconds 동안 받아 파일로 남긴다 */
-  const save = async () => {
-    if (paused) return setError(t("view.error.paused"));
-    if (!(Number(center) > 0 && Number(width) > 0 && Number(seconds) > 0)) return setError(t("view.error.inputs"));
-    setError("");
-    setRepeat(false);
-    setSaving(true);
-    try {
-      setSaved(await api.surveySave({ device: info.device.id, center_hz: Number(center) * 1e6, bandwidth_hz: Number(width) * 1e6, gain_db: gain.trim() ? Number(gain) : undefined, seconds: Number(seconds) }));
-    } catch (e) {
-      fail(String(e instanceof Error ? e.message : e));
-    } finally {
-      setSaving(false);
+  // 위에서 고른 대역이 바뀌면 따라간다
+  const targetCenter = target?.center_hz;
+  const targetWidth = target?.width_hz;
+  useEffect(() => {
+    if (target === undefined || sim) return;
+    if (targetCenter && targetWidth) {
+      setCenter(mhz(targetCenter));
+      setWidth(mhz(max !== undefined ? Math.min(targetWidth, max) : targetWidth));
+    } else {
+      setCenter("");
+      setWidth("");
     }
-  };
+    setRepeat(false);
+    setError("");
+    // target 은 값(가운데·폭)으로만 본다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetCenter, targetWidth, sim, max]);
 
-  /** 계속 받기: 지금 칸의 대역을 멈출 때까지 끊김 없이 받으면서, 맞는 풀이를 모두 돌린다 */
+  /** 계속 받기: 지금 대역을 멈출 때까지 끊김 없이 받으면서, 맞는 풀이를 모두 돌린다 */
   const goLive = (record = false) => {
     if (paused) return setError(t("view.error.paused"));
-    if (!sim && !(Number(center) > 0 && Number(width) > 0)) return setError(t("view.error.inputs"));
+    if (!sim && !(Number(center) > 0 && Number(width) > 0)) return setError(t(selector ? "view.target.none" : "view.error.inputs"));
     setError("");
     setRepeat(false);
     setView(null);
@@ -150,17 +166,6 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
     set: fill,
   }));
 
-  const keep = (bands: Band[]) => {
-    setMine(bands);
-    saveBands(bands);
-  };
-  const addBand = () => {
-    const name = (naming ?? "").trim();
-    if (!name || !(Number(center) > 0 && Number(width) > 0)) return;
-    keep([...mine.filter((b) => b.name !== name), { id: `mine-${Date.now()}`, name, center_mhz: Number(center), width_mhz: Number(width) }]);
-    setNaming(null);
-  };
-
   useEffect(() => {
     if (!repeat) return;
     void look(center, width);
@@ -169,49 +174,20 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
   }, [repeat, look, center, width]);
 
   const p = view ? plots(view) : null;
-  const bands = sim ? [] : [...fit(BUILTIN, info.device.freq_min_hz, info.device.freq_max_hz, max), ...mine];
-  const current = (b: Band) => Number(center) === b.center_mhz && Number(width) === b.width_mhz;
+  const clipped = !sim && max !== undefined && targetWidth !== undefined && targetWidth > max;
 
   const controls = (
-        <div className={beside ? "card" : "card view-controls"} data-testid="view-controls">
-          {beside && (
-            <>
-              <h3 className="t-tagline">{t("view.eyebrow")}</h3>
-              <p className="t-caption muted">{sim ? t("view.lead_sim") : t("view.lead")}</p>
-            </>
-          )}
-          {!sim && (
-            <>
-              <div className="chips" role="group" aria-label={t("view.bands")} data-testid="view-bands">
-                {bands.map((b) => (
-                  <span key={b.id} className="chip-pair">
-                    <Chip selected={current(b)} onSelect={() => fill(b.center_mhz * 1e6, b.width_mhz * 1e6)}>
-                      {b.name ?? t(`view.band.${b.id}`)}
-                    </Chip>
-                    {b.name !== undefined && (
-                      <button type="button" className="chip-remove t-caption" aria-label={t("view.band.remove", { name: b.name })} onClick={() => keep(mine.filter((x) => x.id !== b.id))}>
-                        ×
-                      </button>
-                    )}
-                  </span>
-                ))}
-                <Chip selected={naming !== null} onSelect={() => setNaming(naming === null ? "" : null)}>
-                  {t("view.band.add")}
-                </Chip>
-              </div>
-              {naming !== null && (
-                <div className="row">
-                  <Field label={t("view.band.name")}>
-                    {(f) => <input {...f} value={naming} onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="view-band-name" />}
-                  </Field>
-                  <Button variant="secondary" onClick={addBand} disabled={!naming.trim() || !(Number(center) > 0 && Number(width) > 0)} data-testid="view-band-save">
-                    {t("view.band.save")}
-                  </Button>
-                </div>
-              )}
-              <p className="t-caption muted">{naming !== null ? t("view.band.add_hint") : t("view.bands.hint")}</p>
-            </>
-          )}
+    <div className={selector ? "card view-one" : "card view-controls"} data-testid="view-controls">
+      {selector}
+      {selector ? (
+        !sim && (
+          <p className="t-body view-target" role="status" data-testid="view-target">
+            {center && width ? t("view.target", { c: center, w: width }) : t("view.target.none")}
+            {clipped && <span className="t-caption muted"> {t("view.target.clipped", { mhz: mhz(max!) })}</span>}
+          </p>
+        )
+      ) : (
+        <>
           <div className="row">
             <Field label={t("view.center")} error={error || undefined}>
               {(f) => <input {...f} inputMode="decimal" value={center} disabled={sim} onChange={(e) => setCenter(e.target.value)} data-testid="view-center" />}
@@ -221,46 +197,33 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
             </Field>
           </div>
           {!sim && max !== undefined && <p className="t-caption muted">{t("view.max_width", { mhz: mhz(max) })}</p>}
-          <div className="row">
-            <Button onClick={() => void look(center, width)} disabled={busy || repeat || live.running} data-testid="view-run">
-              {busy && !repeat ? t("spectrum.busy") : t("view.run")}
+        </>
+      )}
+      {selector && error && (
+        <p className="t-caption" role="alert" data-testid="view-error">
+          ! {error}
+        </p>
+      )}
+      <div className="row">
+        <Button onClick={() => void look(center, width)} disabled={busy || repeat || live.running} data-testid="view-run">
+          {busy && !repeat ? t("spectrum.busy") : t("view.run")}
+        </Button>
+        <Button variant="secondary" onClick={() => setRepeat(!repeat)} aria-pressed={repeat} disabled={live.running} data-testid="view-repeat">
+          {repeat ? t("spectrum.repeat.stop") : t("view.repeat")}
+        </Button>
+        {live.can && (
+          <>
+            <Button variant={live.running ? "primary" : "secondary"} onClick={() => (live.running ? void live.stop() : goLive())} disabled={live.starting || busy} aria-pressed={live.running} data-testid="live-toggle">
+              {live.running ? t("live.stop") : live.starting ? t("live.starting") : t("live.start")}
             </Button>
-            <Button variant="secondary" onClick={() => setRepeat(!repeat)} aria-pressed={repeat} disabled={live.running} data-testid="view-repeat">
-              {repeat ? t("spectrum.repeat.stop") : t("view.repeat")}
+            <Button variant="secondary" onClick={toggleRecord} disabled={live.starting || busy} aria-pressed={recording} data-testid="live-record-toggle">
+              {recording ? `■ ${t("live.record.stop")}` : `● ${t("live.record")}`}
             </Button>
-          </div>
-          {live.can && (
-            <>
-              <div className="row">
-                <Button variant={live.running ? "primary" : "secondary"} onClick={() => (live.running ? void live.stop() : goLive())} disabled={live.starting || busy || saving} aria-pressed={live.running} data-testid="live-toggle">
-                  {live.running ? t("live.stop") : live.starting ? t("live.starting") : t("live.start")}
-                </Button>
-                <Button variant="secondary" onClick={toggleRecord} disabled={live.starting || busy || saving} aria-pressed={recording} data-testid="live-record-toggle">
-                  {recording ? `■ ${t("live.record.stop")}` : `● ${t("live.record")}`}
-                </Button>
-              </div>
-              <p className="t-caption muted">{t("live.hint")}</p>
-            </>
-          )}
-          {!sim && (
-            <div className="row">
-              <Field label={t("view.save.seconds")}>
-                {(f) => <input {...f} inputMode="decimal" value={seconds} onChange={(e) => setSeconds(e.target.value)} data-testid="view-save-seconds" />}
-              </Field>
-              <Button variant="secondary" onClick={() => void save()} disabled={saving || busy || live.running} data-testid="view-save">
-                {saving ? t("view.save.busy") : t("view.save")}
-              </Button>
-            </div>
-          )}
-          {saved && (
-            <p className="t-caption" role="status" data-testid="view-saved">
-              {t("view.save.done", { s: saved.seconds, mb: (saved.bytes / 1e6).toFixed(1), type: saved.datatype })}
-              <br />
-              <code>{saved.data_path}</code>
-            </p>
-          )}
-          {!sim && <p className="t-caption muted">{t("view.save.hint")}</p>}
-        </div>
+          </>
+        )}
+      </div>
+      {live.can && <p className="t-caption muted">{t("live.hint")}</p>}
+    </div>
   );
   const results = (
     <>
@@ -299,13 +262,11 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
     </>
   );
 
-  if (beside) {
+
+  if (selector) {
     return (
       <div ref={tile} id="spectrum-view">
-        <div className="source-grid view-beside">
-          {beside}
-          {controls}
-        </div>
+        {controls}
         {results}
       </div>
     );

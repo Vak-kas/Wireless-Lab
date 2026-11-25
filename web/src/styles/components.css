@@ -1039,6 +1039,30 @@ details.fold > .fold-body {
 #spectrum-view .card + .card {
   margin-top: var(--space-lg);
 }
+/* 수신 화면의 한 칸: 어디를 볼까요 + 보기 단추 */
+.view-one {
+  display: grid;
+  gap: var(--space-md);
+  text-align: left;
+  margin-bottom: var(--space-lg);
+}
+.selector {
+  display: grid;
+  gap: var(--space-md);
+}
+.view-target {
+  margin: 0;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--line);
+}
+.chip-add {
+  min-width: var(--size-touch-min);
+  font-weight: 600;
+}
+.add-band {
+  display: grid;
+  gap: var(--space-sm);
+}
 #spectrum-view .view-beside {
   margin-bottom: var(--space-lg);
 }

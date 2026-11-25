@@ -128,19 +128,20 @@ const VIEW = {
   waterfall: { rows: 2, cols: 2, values: [[0, 1], [1, 0]], col_ms: 10, floor_db: -90, ceil_db: -40 },
 };
 
-test("가운데 주파수와 대역폭을 넣고 보면 그 대역의 그림과 실제로 맞춘 값이 나온다", async () => {
+test("채널을 고르면 볼 대역이 정해지고, 보기를 누르면 그 대역의 그림과 실제로 맞춘 값이 나온다", async () => {
   const a = api();
   a.surveySpectrum = vi.fn(async () => VIEW);
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("view-run"));
-  expect(await screen.findByText("가운데 주파수와 대역폭을 숫자로 넣어 주세요.")).toBeInTheDocument();
+  expect(await screen.findByTestId("view-error")).toHaveTextContent("위에서 볼 곳을 고르세요."); // 아직 고른 것이 없다
   expect(a.surveySpectrum).not.toHaveBeenCalled();
-  await userEvent.type(screen.getByTestId("view-center"), "5180");
-  await userEvent.type(screen.getByTestId("view-width"), "20");
+  await userEvent.click(screen.getByTestId("cell-ch36"));
+  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 5180 MHz · 폭 20 MHz");
+  await userEvent.click(screen.getByTestId("cell-ch40")); // 채널을 더 고르면 고른 것 전체의 한가운데와 폭
+  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 5190 MHz · 폭 40 MHz");
   await userEvent.click(screen.getByTestId("view-run"));
-  expect(a.surveySpectrum).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 5180e6, bandwidth_hz: 20e6, gain_db: undefined });
+  expect(a.surveySpectrum).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 5190e6, bandwidth_hz: 40e6, gain_db: undefined });
   const facts = await screen.findByTestId("view-facts");
-  expect(within(facts).getByText("5180 MHz")).toBeInTheDocument();
   expect(within(facts).getByText("-39.9 dBFS")).toBeInTheDocument();
   expect(screen.getByRole("img", { name: "주파수별 세기" })).toBeInTheDocument();
   expect(screen.getByRole("img", { name: "스펙트로그램" })).toBeInTheDocument();
@@ -329,65 +330,49 @@ test("수신이 한두 번 실패해도 모니터링은 멈추지 않고, 잇달
   expect(calls).toBe(6);
 });
 
-test("대역 단추를 누르면 가운데 주파수와 대역폭이 채워지고, 보기를 눌러야 받는다. 장비보다 넓은 대역은 폭을 줄인다", async () => {
-  const a = api();
-  a.surveySpectrum = vi.fn(async () => VIEW);
-  renderWithStore(<SpectrumScreen />, a);
-  const bands = await screen.findByTestId("view-bands");
-  await userEvent.click(within(bands).getByRole("button", { name: "433 MHz 리모컨·차 키" }));
-  expect(screen.getByTestId("view-center")).toHaveValue("433.92");
-  expect(screen.getByTestId("view-width")).toHaveValue("2");
-  expect(a.surveySpectrum).not.toHaveBeenCalled(); // 채우기만 하고, 보기는 단추로
-  await userEvent.click(screen.getByTestId("view-run"));
-  await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 433.92e6, bandwidth_hz: 2e6 })));
-  await userEvent.click(within(bands).getByRole("button", { name: "5G 3.5 GHz" }));
-  expect(Number((screen.getByTestId("view-width") as HTMLInputElement).value)).toBeLessThan(100);
-});
-
-test("내 대역을 등록하면 단추로 남고, 다시 열어도 있으며, 지울 수 있다", async () => {
+test("+ 로 볼 곳을 추가하면 단추로 남고 바로 골라진다. 대역폭을 비우면 기본 폭, 이름을 비우면 주파수가 이름이 된다", async () => {
   localStorage.clear();
   const a = api();
   a.surveySpectrum = vi.fn(async () => VIEW);
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("band-add"));
+  expect(screen.getByTestId("band-save")).toBeDisabled(); // 가운데 주파수는 있어야 한다
+  await userEvent.type(screen.getByTestId("band-center"), "433.92");
+  await userEvent.click(screen.getByTestId("band-save"));
+  expect(screen.queryByTestId("band-form")).toBeNull();
+  expect(screen.getByRole("button", { name: "433.92 MHz" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 433.92 MHz · 폭 2 MHz");
+  expect(screen.queryByTestId("channel-map")).toBeNull(); // 추가한 곳에는 채널 맵도 채널 모니터링도 없다
+  expect(screen.queryByTestId("monitor-start")).toBeNull();
+  await userEvent.click(screen.getByTestId("view-run"));
+  await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 433.92e6, bandwidth_hz: 2e6 })));
+  // 장비가 받을 수 있는 것보다 넓게 추가하면 가운데 부분만 본다
+  await userEvent.click(screen.getByTestId("band-add"));
+  await userEvent.type(screen.getByTestId("band-center"), "3550");
+  await userEvent.type(screen.getByTestId("band-width"), "100");
+  await userEvent.type(screen.getByTestId("band-name"), "5G");
+  await userEvent.click(screen.getByTestId("band-save"));
+  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 3550 MHz · 폭 56 MHz");
+});
+
+test("추가한 곳은 다시 열어도 남아 있고, 지우면 다른 대역으로 돌아간다", async () => {
+  localStorage.clear();
+  const a = api();
   const first = renderWithStore(<SpectrumScreen />, a);
-  await userEvent.type(await screen.findByTestId("view-center"), "447.5");
-  await userEvent.type(screen.getByTestId("view-width"), "1");
-  await userEvent.click(screen.getByRole("button", { name: "+ 내 대역 등록" }));
-  await userEvent.type(screen.getByTestId("view-band-name"), "우리 집 차 키");
-  await userEvent.click(screen.getByTestId("view-band-save"));
-  expect(screen.getByRole("button", { name: "우리 집 차 키" })).toBeInTheDocument();
+  await userEvent.click(await screen.findByTestId("band-add"));
+  await userEvent.type(screen.getByTestId("band-center"), "447.5");
+  await userEvent.type(screen.getByTestId("band-width"), "1");
+  await userEvent.type(screen.getByTestId("band-name"), "우리 집 차 키");
+  await userEvent.click(screen.getByTestId("band-save"));
   first.unmount();
 
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByRole("button", { name: "우리 집 차 키" }));
-  expect(screen.getByTestId("view-center")).toHaveValue("447.5");
+  expect(screen.getByTestId("view-target")).toHaveTextContent("가운데 447.5 MHz · 폭 1 MHz");
   await userEvent.click(screen.getByRole("button", { name: "우리 집 차 키 지우기" }));
   expect(screen.queryByRole("button", { name: "우리 집 차 키" })).not.toBeInTheDocument();
   expect(localStorage.getItem("nrtrail.viewBands")).toBe("[]");
-});
-
-test("위에서 고른 채널을 '고른 범위 들여다보기'로 아래 칸에 넘긴다", async () => {
-  const a = api();
-  a.surveySpectrum = vi.fn(async () => VIEW);
-  renderWithStore(<SpectrumScreen />, a);
-  expect(await screen.findByTestId("look-picked")).toBeDisabled();
-  await userEvent.click(screen.getByTestId("cell-ch36"));
-  await userEvent.click(screen.getByTestId("cell-ch40"));
-  await userEvent.click(screen.getByTestId("look-picked"));
-  expect(screen.getByTestId("view-center")).toHaveValue("5190");
-  expect(screen.getByTestId("view-width")).toHaveValue("40");
-  expect(a.surveySpectrum).not.toHaveBeenCalled();
-});
-
-test("파일로 저장을 누르면 지금 칸의 대역과 길이로 저장을 요청하고, 저장된 곳을 보여 준다", async () => {
-  const a = api();
-  a.surveySave = vi.fn(async () => ({ meta_path: "/s/saved/x.sigmf-meta", data_path: "/s/saved/x.sigmf-data", bytes: 8e6, datatype: "ci16_le", num_samples: 2e6, seconds: 1, center_hz: 433.92e6, sample_rate_hz: 2e6 }));
-  renderWithStore(<SpectrumScreen />, a);
-  await userEvent.click(within(await screen.findByTestId("view-bands")).getByRole("button", { name: "433 MHz 리모컨·차 키" }));
-  await userEvent.clear(screen.getByTestId("view-save-seconds"));
-  await userEvent.type(screen.getByTestId("view-save-seconds"), "1");
-  await userEvent.click(screen.getByTestId("view-save"));
-  expect(a.surveySave).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 433.92e6, bandwidth_hz: 2e6, gain_db: undefined, seconds: 1 });
-  expect(await screen.findByTestId("view-saved")).toHaveTextContent("/s/saved/x.sigmf-data");
+  expect(screen.getByTestId("channel-map")).toBeInTheDocument(); // Wi-Fi 대역으로 돌아왔다
 });
 
 test("실시간으로 받기: 맞는 풀이를 꽂아 시작하고, 놓친 샘플 수와 풀이 결과를 보여 주며, 멈출 수 있다", async () => {
@@ -407,10 +392,9 @@ test("실시간으로 받기: 맞는 풀이를 꽂아 시작하고, 놓친 샘�
   a.streamState = vi.fn(async () => live({ lost_samples: 12, overflows: 1 }));
   a.streamStop = vi.fn(async () => live({ running: false }));
   renderWithStore(<SpectrumScreen />, a);
-  await userEvent.type(await screen.findByTestId("view-center"), "2437");
-  await userEvent.type(screen.getByTestId("view-width"), "20");
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
   await userEvent.click(await screen.findByTestId("live-toggle"));
-  expect(a.streamStart).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 2437e6, bandwidth_hz: 20e6, gain_db: undefined, taps: ["spectrum", "wifi"] });
+  expect(a.streamStart).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 5180e6, bandwidth_hz: 20e6, gain_db: undefined, taps: ["spectrum", "wifi"] });
   const status = await screen.findByTestId("live-status");
   expect(within(status).getByText("놓친 샘플 없음")).toBeInTheDocument();
   expect(within(status).getByText(/1조각 풀고 3조각 건너뜀/)).toBeInTheDocument();

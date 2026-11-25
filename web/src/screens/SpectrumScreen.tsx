@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BleDevice, MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
@@ -7,6 +7,7 @@ import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { useUsableDevices } from "../devices/DeviceHub";
 import { takeIntent } from "../devices/intent";
+import { DEFAULT_WIDTH_MHZ, loadBands, saveBands, type Band } from "./bands";
 import { BleTable } from "./BlePanel";
 import { DevicePicker } from "./DevicePicker";
 import { SpectrumView, type SpectrumViewHandle } from "./SpectrumView";
@@ -230,7 +231,9 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
   const [info, setInfo] = useState<SurveyDevice | null>(null);
   const [plan, setPlan] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
-  const [custom, setCustom] = useState({ center: "", span: "", step: "" });
+  /** 사용자가 추가한 "볼 곳"들과, + 를 눌러 여는 추가 칸(닫혀 있으면 null) */
+  const [bands, setBands] = useState(loadBands);
+  const [adding, setAdding] = useState<{ name: string; center: string; width: string } | null>(null);
   const [gain, setGain] = useState("");
   const [mon, setMon] = useState<MonitorState | null>(null);
   const [running, setRunning] = useState(false);
@@ -291,7 +294,7 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
       (i) => {
         setInfo(i);
         const wanted = intent?.device === i.device.id ? i.plans.find((p) => p.id === intent.plan && p.available) : undefined;
-        choosePlan(wanted ?? i.plans.find((p) => p.available));
+        choosePlan(wanted ?? i.plans.find((p) => p.available && p.id !== "custom"));
         if (intent?.device === i.device.id && intent.focus === "view") {
           setTimeout(() => document.getElementById("spectrum-view")?.scrollIntoView?.({ block: "start" }), 50);
         }
@@ -408,16 +411,37 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
 
   const current = info?.plans.find((p) => p.id === plan);
   const real = info?.device.driver !== "simulated";
-  const mhzIn = (s: string) => (s.trim() ? Number(s) * 1e6 : undefined);
-  /** 위에서 고른 범위를 아래 "들여다보기"로 넘긴다: 고른 채널들의 한가운데와 전체 폭 */
-  const lookAtPicked = () => {
-    const cells = (current?.map ?? []).filter((c) => picked.includes(c.name));
-    const lo = plan === "custom" ? (mhzIn(custom.center) ?? 0) - (mhzIn(custom.span) ?? 0) / 2 : Math.min(...cells.map((c) => c.center_hz - c.width_hz / 2));
-    const hi = plan === "custom" ? (mhzIn(custom.center) ?? 0) + (mhzIn(custom.span) ?? 0) / 2 : Math.max(...cells.map((c) => c.center_hz + c.width_hz / 2));
-    viewer.current?.set((lo + hi) / 2, hi - lo);
+  /** 고른 것이 사용자가 추가한 대역이면 그것 (plan 이 "band:<id>") */
+  const band = bands.find((x) => `band:${x.id}` === plan);
+  const canStart = Boolean(current) && picked.length > 0;
+  // 지금 볼 대역: 추가한 대역이면 그 값, 채널을 골랐으면 고른 채널들의 한가운데와 전체 폭
+  const cellsPicked = (current?.map ?? []).filter((c) => picked.includes(c.name));
+  const lo = cellsPicked.length ? Math.min(...cellsPicked.map((c) => c.center_hz - c.width_hz / 2)) : 0;
+  const hi = cellsPicked.length ? Math.max(...cellsPicked.map((c) => c.center_hz + c.width_hz / 2)) : 0;
+  const targetCenter = band ? band.center_mhz * 1e6 : cellsPicked.length ? (lo + hi) / 2 : 0;
+  const targetWidth = band ? band.width_mhz * 1e6 : hi - lo;
+  const target = useMemo(() => (targetCenter > 0 && targetWidth > 0 ? { center_hz: targetCenter, width_hz: targetWidth } : null), [targetCenter, targetWidth]);
+
+  const keepBands = (next: Band[]) => {
+    setBands(next);
+    saveBands(next);
   };
-  const canLook = plan === "custom" ? Number(custom.center) > 0 && Number(custom.span) > 0 : picked.length > 0;
-  const canStart = Boolean(plan) && (plan === "custom" ? Boolean(custom.center && custom.span && custom.step) : picked.length > 0);
+  /** + 칸에 적은 것을 "볼 곳"으로 추가하고 바로 고른다. 대역폭을 비우면 DEFAULT_WIDTH_MHZ, 이름을 비우면 주파수가 이름이 된다 */
+  const addBand = () => {
+    if (!adding || !(Number(adding.center) > 0)) return;
+    const center = Number(adding.center);
+    const width = Number(adding.width) > 0 ? Number(adding.width) : DEFAULT_WIDTH_MHZ;
+    const made: Band = { id: String(Date.now()), name: adding.name.trim() || `${center} MHz`, center_mhz: center, width_mhz: width };
+    keepBands([...bands, made]);
+    setAdding(null);
+    setPlan(`band:${made.id}`);
+    setPicked([]);
+    setAps(null);
+  };
+  const removeBand = (id: string) => {
+    keepBands(bands.filter((x) => x.id !== id));
+    if (plan === `band:${id}`) choosePlan(info?.plans.find((x) => x.available && x.id !== "custom"));
+  };
 
   const begin = async () => {
     setStarting(true);
@@ -427,11 +451,8 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
         await api.monitorStart({
           device,
           plan,
-          channels: plan === "custom" ? undefined : [...picked].sort((a, b) => order.indexOf(a) - order.indexOf(b)),
+          channels: [...picked].sort((a, b) => order.indexOf(a) - order.indexOf(b)),
           gain_db: gain.trim() ? Number(gain) : undefined,
-          center_hz: mhzIn(custom.center),
-          span_hz: mhzIn(custom.span),
-          step_hz: mhzIn(custom.step),
         }),
       );
       live.current = { on: liveOn, gain, next: 0, last: 0 };
@@ -719,51 +740,97 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
               info={info}
               gain={gain}
               ref={viewer}
-              beside={
-            <div className="card" data-testid="survey-controls">
-              <h3 className="t-tagline">{t("spectrum.plan.title")}</h3>
-              <div className="chips" role="group" aria-label={t("spectrum.plan.title")}>
-                {/* 이 장비로 쓸 수 있는 것만 보여 준다: 모의 장비에는 파일 대역만, 실제 장비에는 실제 대역만 */}
-                {info.plans.filter((p) => p.available).map((p) => (
-                  <Chip key={p.id} selected={p.id === plan} onSelect={() => choosePlan(p)} disabled={starting}>
-                    {t(`spectrum.plan.${p.id}`)}
-                  </Chip>
-                ))}
-              </div>
-              <p className="t-caption muted">{real ? t("spectrum.plan.hint_real") : t("spectrum.plan.hint_sim")}</p>
-              {current && plan !== "custom" && <ChannelMap key={plan} plan={current} picked={picked} onChange={setPicked} disabled={starting} />}
-              {plan === "custom" && (
-                <div className="row">
-                  {(["center", "span", "step"] as const).map((k) => (
-                    <Field key={k} label={t(`spectrum.custom.${k}`)}>
-                      {(p) => <input {...p} inputMode="decimal" value={custom[k]} onChange={(e) => setCustom({ ...custom, [k]: e.target.value })} />}
+              target={real ? target : undefined}
+              selector={
+                <div className="selector" data-testid="survey-controls">
+                  <h3 className="t-tagline">{t("spectrum.plan.title")}</h3>
+                  <div className="chips" role="group" aria-label={t("spectrum.plan.title")}>
+                    {/* 이 장비로 쓸 수 있는 것만: 모의 장비에는 파일 대역만, 실제 장비에는 실제 대역과 사용자가 추가한 곳 */}
+                    {info.plans
+                      .filter((p) => p.available && p.id !== "custom")
+                      .map((p) => (
+                        <Chip key={p.id} selected={p.id === plan} onSelect={() => choosePlan(p)} disabled={starting}>
+                          {t(`spectrum.plan.${p.id}`)}
+                        </Chip>
+                      ))}
+                    {real &&
+                      bands.map((x) => (
+                        <span key={x.id} className="chip-pair">
+                          <Chip
+                            selected={plan === `band:${x.id}`}
+                            onSelect={() => {
+                              setPlan(`band:${x.id}`);
+                              setPicked([]);
+                              setAps(null);
+                            }}
+                            disabled={starting}
+                          >
+                            {x.name}
+                          </Chip>
+                          <button type="button" className="chip-remove t-caption" aria-label={t("view.band.remove", { name: x.name })} onClick={() => removeBand(x.id)}>
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    {real && (
+                      <button
+                        type="button"
+                        className="chip chip-add t-caption"
+                        aria-pressed={adding !== null}
+                        aria-label={t("view.band.add")}
+                        title={t("view.band.add")}
+                        onClick={() => setAdding(adding === null ? { name: "", center: "", width: "" } : null)}
+                        data-testid="band-add"
+                      >
+                        +
+                      </button>
+                    )}
+                  </div>
+                  {adding !== null && (
+                    <div className="card add-band" data-testid="band-form">
+                      <div className="row">
+                        <Field label={t("view.center")}>
+                          {(f) => <input {...f} inputMode="decimal" autoFocus value={adding.center} onChange={(e) => setAdding({ ...adding, center: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="band-center" />}
+                        </Field>
+                        <Field label={t("view.band.width", { n: DEFAULT_WIDTH_MHZ })}>
+                          {(f) => <input {...f} inputMode="decimal" value={adding.width} onChange={(e) => setAdding({ ...adding, width: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="band-width" />}
+                        </Field>
+                        <Field label={t("view.band.name")}>
+                          {(f) => <input {...f} value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="band-name" />}
+                        </Field>
+                      </div>
+                      <div className="row">
+                        <Button onClick={addBand} disabled={!(Number(adding.center) > 0)} data-testid="band-save">
+                          {t("view.band.save")}
+                        </Button>
+                        <Button variant="link" onClick={() => setAdding(null)}>
+                          {t("view.band.cancel")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {!band && <p className="t-caption muted">{real ? t("spectrum.plan.hint_real") : t("spectrum.plan.hint_sim")}</p>}
+                  {current && !band && <ChannelMap key={plan} plan={current} picked={picked} onChange={setPicked} disabled={starting} />}
+                  {real && (
+                    <Field label={t("spectrum.gain")}>
+                      {(p) => <input {...p} inputMode="decimal" value={gain} onChange={(e) => setGain(e.target.value)} />}
                     </Field>
-                  ))}
+                  )}
+                  {current && !band && (
+                    <div className="row">
+                      <Button variant="secondary" onClick={() => void begin()} disabled={starting || finding || !canStart} data-testid="monitor-start">
+                        {t("monitor.start")}
+                      </Button>
+                      {wifi && real && plan.startsWith("wifi-") && (
+                        <Button variant="secondary" onClick={() => void findAps()} disabled={finding || starting || picked.length === 0} data-testid="ap-find">
+                          {finding ? t("wifi.aps.busy", { n: picked.length }) : t("wifi.aps.find")}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {wifi && real && plan.startsWith("wifi-") && <p className="t-caption muted">{t("wifi.aps.hint")}</p>}
+                  {aps && <ApTable aps={aps} onPick={pickAp} />}
                 </div>
-              )}
-              {real && (
-                <Field label={t("spectrum.gain")}>
-                  {(p) => <input {...p} inputMode="decimal" value={gain} onChange={(e) => setGain(e.target.value)} />}
-                </Field>
-              )}
-              <div className="row">
-                <Button onClick={() => void begin()} disabled={starting || finding || !canStart} data-testid="monitor-start">
-                  {t("monitor.start")}
-                </Button>
-                {wifi && real && plan.startsWith("wifi-") && (
-                  <Button variant="secondary" onClick={() => void findAps()} disabled={finding || starting || picked.length === 0} data-testid="ap-find">
-                    {finding ? t("wifi.aps.busy", { n: picked.length }) : t("wifi.aps.find")}
-                  </Button>
-                )}
-                {real && (
-                  <Button variant="link" onClick={lookAtPicked} disabled={starting || !canLook} data-testid="look-picked">
-                    {t("spectrum.look_picked")}
-                  </Button>
-                )}
-              </div>
-              {wifi && real && plan.startsWith("wifi-") && <p className="t-caption muted">{t("wifi.aps.hint")}</p>}
-              {aps && <ApTable aps={aps} onPick={pickAp} />}
-            </div>
               }
             />
             <Fold title={t("spectrum.device_info", { label: info.device.label })}>
