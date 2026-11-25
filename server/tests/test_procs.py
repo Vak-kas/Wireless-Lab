@@ -93,3 +93,13 @@ def test_orphans_without_a_record_are_swept_only_when_their_parent_is_gone(monke
     monkeypatch.setattr(procs, "stop_pid", lambda pid, mark: stopped.append((pid, mark)) or "stopped")
     out = procs.sweep_orphans(("-m nrtrail --port", "/repo/native/uhdio/build/uhdio"))
     assert stopped == [(100, "-m nrtrail --port"), (102, "/repo/native/uhdio/build/uhdio")] and len(out) == 2
+
+
+def test_stop_all_ends_every_matching_process_whatever_its_parent(monkeypatch):
+    """새로 고침: 장비 프로그램은 부모가 살아 있어도(다른 창이 띄운 것) 모두 끝낸다. 무관한 프로세스와 나 자신은 뺀다."""
+    rows = "\n".join(["  200 /repo/native/uhdio/build/uhdio", "  201 /usr/bin/other", f"  {os.getpid()} /repo/native/uhdio/build/uhdio --me",
+                      "  202 /repo/native/uhdio/build/uhdio"])
+    monkeypatch.setattr(procs.subprocess, "run", lambda *a, **k: type("P", (), {"stdout": rows})())
+    stopped = []
+    monkeypatch.setattr(procs, "stop_pid", lambda pid, mark, grace_s=5.0: stopped.append(pid) or "stopped")
+    assert len(procs.stop_all("/repo/native/uhdio/build/uhdio")) == 2 and stopped == [200, 202]

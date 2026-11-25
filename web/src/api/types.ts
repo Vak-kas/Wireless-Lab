@@ -182,6 +182,8 @@ export interface DeviceSearch {
     error: string;
     /** 꽂혀 있지만 다른 프로그램이 쓰는 중인 장비 */
     busy_devices?: string[];
+    /** "장비 연결 새로 고침"으로 끝낸, 장비를 잡고 있었을 수 있는 프로세스 수 */
+    cleaned?: number;
     searching_for_s?: number | null;
     checked_s_ago?: number | null;
   }[];

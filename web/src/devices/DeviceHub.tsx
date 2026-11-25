@@ -324,6 +324,7 @@ export function SearchNote({ search, onRescan, onReset }: { search: DeviceSearch
   const error = b.map((x) => x.error).find(Boolean);
   const ago = b.map((x) => x.checked_s_ago).find((x) => x !== null && x !== undefined);
   const forS = b.map((x) => x.searching_for_s).find((x) => x !== null && x !== undefined);
+  const cleaned = b.reduce((n, x) => n + (x.cleaned ?? 0), 0);
   return (
     <div className="search-note" data-testid="search-note">
       {search === null ? (
@@ -345,6 +346,11 @@ export function SearchNote({ search, onRescan, onReset }: { search: DeviceSearch
       ) : (
         <p className="t-caption muted" data-testid="search-none">
           {b.length === 0 ? t("hub.search.unsupported") : t("hub.search.none", { s: Math.round(ago ?? 0) })}
+        </p>
+      )}
+      {cleaned > 0 && (
+        <p className="t-caption" data-testid="search-cleaned">
+          {t("hub.search.cleaned", { n: cleaned })}
         </p>
       )}
       {/* 다시 찾기는 언제나 누를 수 있다(찾는 쪽이 없는 설치에서도 목록을 다시 읽는다) */}

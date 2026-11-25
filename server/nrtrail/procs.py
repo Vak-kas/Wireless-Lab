@@ -179,6 +179,24 @@ def sweep_orphans(marks: tuple[str, ...]) -> list[str]:
     return did
 
 
+def stop_all(mark: str) -> list[str]:
+    """명령줄에 mark 가 든 프로세스를 부모가 있든 없든 모두 끝낸다(나 자신은 빼고).
+    사용자가 "장비 연결 새로 고침"을 눌렀을 때 쓴다: 다른 창이나 지난 실행이 띄운 장비 프로그램이 USRP 를 잡고 있으면 놓게 한다."""
+    if os.name == "nt":
+        return []
+    try:
+        rows = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True, text=True, timeout=15).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        return []
+    did: list[str] = []
+    for row in rows:
+        parts = row.split(None, 1)
+        if len(parts) < 2 or not parts[0].isdigit() or mark not in parts[1] or int(parts[0]) == os.getpid():
+            continue
+        did.append(f"{int(parts[0])}: {stop_pid(int(parts[0]), mark, grace_s=3.0)}")
+    return did
+
+
 def sweep(keep_parent: int | None = None) -> list[str]:
     """지난 실행이 남긴 것을 치운다: 죽은 서버의 MATLAB, 그리고 부모가 사라진(주인 없는) 서버.
 

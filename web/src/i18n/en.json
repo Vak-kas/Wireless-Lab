@@ -525,8 +525,8 @@
   "hub.search.none": "No device connected (checked {s} s ago). Check the USB cable and port.",
   "hub.search.unsupported": "No device connected.",
   "hub.search.rescan": "Search again",
-  "hub.search.reset": "Refresh device connection",
-  "hub.search.reset_hint": "Use this when a device is not found or shows as in use. The program that talks to it (MATLAB) is closed and restarted, then the search runs again. Takes about 20 s.",
+  "hub.search.reset": "Stop leftover processes and search again",
+  "hub.search.reset_hint": "Press this if the device is not found or shows as busy. It stops every device helper this tool started (including ones from earlier runs or other windows), starts a fresh one and searches again. Other programs (GNU Radio etc.) must be closed by you.",
   "hub.adapters.title": "This computer's radios",
   "hub.attach.builtin": "Built-in",
   "hub.attach.external": "External",
@@ -762,5 +762,6 @@
   "live.record.going": "Recording · {s} s ({mb} MB, {gaps} discontinuities)",
   "home.pick.on": "In use",
   "home.pick.off": "Not used",
-  "home.devices.lead": "Turn devices on or off. SDRs and this computer's Wi-Fi and Bluetooth appear together."
+  "home.devices.lead": "Turn devices on or off. SDRs and this computer's Wi-Fi and Bluetooth appear together.",
+  "hub.search.cleaned": "Stopped {n} process(es) that may have been holding the device."
 }
