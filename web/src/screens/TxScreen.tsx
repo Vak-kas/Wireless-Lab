@@ -259,7 +259,7 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
         {status && !status.available && <Empty>{t("tx.unavailable")}</Empty>}
         {status?.available && real.length === 0 && <Empty>{t("sim.no_real")}</Empty>}
         {status?.available && real.length > 0 && (
-          <div className="card view-controls" data-testid="tx-form">
+          <div className="card view-controls tx-setup" data-testid="tx-form">
             {!embedded && (
               <div className="chips" role="group" aria-label={t("start.device.pick")}>
                 {real.map((d) => (

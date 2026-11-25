@@ -93,20 +93,48 @@ test("작업판: 컴퓨터의 어댑터 칸에는 주변 보기가 들어가고,
   expect(pane).toHaveAccessibleName("Wi-Fi · 내장");
 });
 
-test("작업판: 하나씩 보기에서는 고른 칸만 보이고 다른 칸은 숨긴 채 남아 있으며, 맨 위 줄의 이름표로 오간다", async () => {
+test("작업판: 장비마다 책갈피가 있어 한 번에 한 장비의 설정만 보이고, 전체 보기에서는 모든 장비가 나란히 보인다", async () => {
   sessionStorage.setItem("nrtrail.bench", JSON.stringify([{ device: a.id, mode: "rx" }, { device: b.id, mode: "rx" }]));
   renderWithStore(<BenchScreen />, api());
   const first = await screen.findByTestId(`pane-${a.id}`);
   const second = screen.getByTestId(`pane-${b.id}`);
-  expect(screen.getByTestId("bench")).toHaveAttribute("data-layout", "side");
-  expect(screen.getByTestId("bench-stop-all")).toBeDisabled(); // 아무 칸도 받고 있지 않다
-  await userEvent.click(screen.getByTestId("bench-layout-tabs"));
-  expect(screen.getByTestId("bench")).toHaveAttribute("data-layout", "tabs");
+  expect(screen.getByTestId("bench")).toHaveAttribute("data-layout", "tabs"); // 처음에는 첫 장비의 설정 페이지
   expect(first).toHaveAttribute("data-active", "true");
   expect(second).toHaveAttribute("data-active", "false"); // 숨겨질 뿐 지워지지 않는다(하던 일이 계속 돈다)
   await userEvent.click(screen.getByTestId(`bench-tab-${b.id}`));
   expect(second).toHaveAttribute("data-active", "true");
   expect(first).toHaveAttribute("data-active", "false");
+  expect(screen.getByTestId("bench-stop-all")).toBeDisabled(); // 아무 칸도 받고 있지 않다
+  await userEvent.click(screen.getByTestId("bench-tab-all"));
+  expect(screen.getByTestId("bench")).toHaveAttribute("data-layout", "overview");
+  expect(screen.getAllByText(/아직 받고 있지 않습니다/)).toHaveLength(2); // 시작하지 않은 장비는 그렇다고 알려 준다
+});
+
+test("작업판: 모두 시작을 누르면 장비마다 설정해 둔 대로 받기 시작하고 전체 보기로 넘어간다", async () => {
+  sessionStorage.setItem("nrtrail.bench", JSON.stringify([{ device: a.id, mode: "rx" }, { device: b.id, mode: "rx" }]));
+  const x = api();
+  x.surveyDevice = async (id) => ({
+    device: id === a.id ? a : b,
+    plans: [{ id: "wifi-5g", available: true, channels: 1, widths: [20], map: [{ name: "ch36", center_hz: 5180e6, width_hz: 20e6, reachable: true }] }],
+  });
+  const live = (id: string, device: string) => ({ id, device, running: true, error: "", center_hz: 5180e6, sample_rate_hz: 20e6, segment_s: 0.25, segments: 0, seconds: 0, lost_samples: 0, overflows: 0, continuous: true, taps: {} });
+  x.streamTaps = vi.fn(async () => ({ taps: [{ name: "spectrum", ok: true, reason: "" }] }));
+  const started = vi.fn(async (req: { device: string }) => live(`s-${req.device}`, req.device));
+  x.streamStart = started;
+  x.streamState = vi.fn(async (id: string) => live(id, id.slice(2)));
+  x.streamStop = vi.fn(async (id: string) => ({ ...live(id, id.slice(2)), running: false }));
+  renderWithStore(<BenchScreen />, x);
+  const first = await screen.findByTestId(`pane-${a.id}`);
+  const second = screen.getByTestId(`pane-${b.id}`);
+  await userEvent.click(await within(first).findByTestId("cell-ch36")); // 첫 장비만 볼 곳을 정했다
+  await waitFor(() => expect(within(first).getByTestId("live-toggle")).toBeInTheDocument());
+  await within(second).findByTestId("cell-ch36");
+  await userEvent.click(screen.getByTestId("bench-start-all"));
+  expect(screen.getByTestId("bench")).toHaveAttribute("data-layout", "overview");
+  await waitFor(() => expect(started).toHaveBeenCalledTimes(1)); // 볼 곳을 정한 장비만 시작한다
+  expect(started.mock.calls[0]![0]).toEqual(expect.objectContaining({ device: a.id, center_hz: 5180e6, bandwidth_hz: 20e6 }));
+  await waitFor(() => expect(screen.getByTestId(`bench-tab-${a.id}`)).toHaveAttribute("data-busy", "true"));
+  expect(screen.getByTestId(`bench-tab-${b.id}`)).toHaveAttribute("data-busy", "false");
 });
 
 test("작업판: 받는 칸이 있으면 이름표에 표시되고, 모두 멈추기를 누르면 그 칸의 받기가 멈춘다", async () => {

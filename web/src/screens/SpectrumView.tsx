@@ -57,6 +57,7 @@ export function SpectrumView({
   selector,
   target,
   stopSignal,
+  startSignal,
   onLive,
   onEdit,
   gainField,
@@ -71,6 +72,8 @@ export function SpectrumView({
   target?: { center_hz: number; width_hz: number } | null;
   /** 값이 바뀌면 실시간 받기를 멈춘다(작업판의 "모두 멈추기") */
   stopSignal?: number;
+  /** 값이 바뀌면 지금 칸에 적힌 대역으로 실시간 받기를 시작한다(작업판의 "모두 시작"). 볼 대역이 비어 있으면 시작하지 않는다 */
+  startSignal?: number;
   /** 사용자가 가운데 주파수·대역폭 칸을 직접 고쳤다(MHz. 아직 숫자가 아니면 0) */
   onEdit?: (centerMhz: number, widthMhz: number) => void;
   /** 가운데 주파수·대역폭 칸 옆에 함께 놓을 칸(수신 이득) */
@@ -172,6 +175,12 @@ export function SpectrumView({
   const recording = live.running && recordTap !== undefined && !recordTap.ended;
   /** 녹화 단추: 받는 중이면 그때부터 저장을 시작하거나 멈추고, 받는 중이 아니면 받기와 저장을 함께 시작한다 */
   const toggleRecord = () => (live.running ? void live.tap("record", !recording) : goLive(true));
+
+  useEffect(() => {
+    if (startSignal && !live.running && !live.starting && !selectorOnly && !paused && (sim || (Number(center) > 0 && Number(width) > 0))) goLive();
+    // 신호가 바뀔 때만 시작한다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSignal]);
 
   useImperativeHandle(ref, () => ({
     look(centerHz, bandwidthHz) {

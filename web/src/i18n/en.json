@@ -745,7 +745,7 @@
   "bench.close": "Close pane",
   "bench.gone": "This device is not connected right now.",
   "bench.add": "Add a pane:",
-  "bench.hint": "Panes run independently. While one receives, another can send or receive.",
+  "bench.hint": "Set up each device on its tab, then press Start all: the overview shows every device's results side by side. Devices keep running while hidden.",
   "hub.search.loading": "Checking for devices…",
   "bench.together.title": "Start the transmit panes together",
   "bench.together.lead": "Starts every device at the same time with the values written in the transmit panes. The warning is confirmed on every start.",
@@ -812,5 +812,8 @@
   "job.live.hint": "Receives one band continuously, draws it, names the signals and records.",
   "job.levels.hint": "Steps through the picked channels and compares their levels as bars. Save a baseline to be told when a channel rises above normal.",
   "job.aps.hint": "Steps through the picked Wi-Fi channels and reads beacons to find nearby APs.",
-  "spectrum.plan.hint_channels": "Pick a band and press the channels to look at."
+  "spectrum.plan.hint_channels": "Pick a band and press the channels to look at.",
+  "bench.all": "Overview",
+  "bench.start_all": "Start all",
+  "bench.idle_note": "Not receiving yet. Set where to look on this device's tab, then press Start all."
 }

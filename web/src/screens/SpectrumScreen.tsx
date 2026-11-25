@@ -227,7 +227,14 @@ function ChannelMap({ plan, picked, onChange, disabled }: { plan: SurveyPlan; pi
  */
 /** device 를 주면 그 장비로 고정하고, embedded 면 작업판의 칸 안이라 화면 머리와 장비 고르기를 그리지 않는다. */
 /** stopSignal: 값이 바뀌면 하던 받기를 멈춘다. onBusy: 받는 중인지 바깥에 알린다(둘 다 작업판이 쓴다). */
-export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: { device?: string; embedded?: boolean; stopSignal?: number; onBusy?: (busy: boolean) => void } = {}) {
+/** startSignal: 값이 바뀌면 지금 설정해 둔 대로 시작한다(작업판의 "모두 시작"). */
+export function SpectrumScreen({
+  device: fixed,
+  embedded,
+  stopSignal,
+  startSignal,
+  onBusy,
+}: { device?: string; embedded?: boolean; stopSignal?: number; startSignal?: number; onBusy?: (busy: boolean) => void } = {}) {
   const { api, fail } = useStore();
   const [info, setInfo] = useState<SurveyDevice | null>(null);
   const [plan, setPlan] = useState("");
@@ -470,6 +477,15 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
       {(p) => <input {...p} inputMode="decimal" value={gain} onChange={(e) => setGain(e.target.value)} data-testid="rx-gain" />}
     </Field>
   ) : null;
+
+  // "모두 시작": 세기 비교를 골라 둔 칸은 그것을 시작한다(실시간 보기는 아래의 SpectrumView 가 시작한다). 멈춰 둔 모니터가 있으면 다시 돌린다
+  useEffect(() => {
+    if (!startSignal) return;
+    if (mon) setRunning(true);
+    else if (doing === "levels" && canStart && !starting) void begin();
+    // 신호가 바뀔 때만 시작한다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSignal]);
 
   const keepBands = (next: Band[]) => {
     setBands(next);
@@ -796,6 +812,7 @@ export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: 
               gainField={gainField}
               selectorOnly={doing !== "live"}
               stopSignal={stopSignal}
+              startSignal={doing === "live" ? startSignal : undefined}
               onLive={setLiveOnAir}
               selector={
                 <div className="selector" data-testid="survey-controls">

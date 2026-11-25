@@ -1471,21 +1471,28 @@ details.fold > .fold-body {
 .bench-tab[data-busy="true"] .bench-dot {
   background: var(--color-success);
 }
-/* 나란히: 칸 수만큼 세로 단으로(창이 좁아도 한 줄에). 하나씩: 고른 칸만 보이고 나머지는 숨긴 채 계속 돈다 */
-.bench[data-layout="side"][data-count="2"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.bench[data-layout="side"][data-count="3"] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.bench[data-layout="side"][data-count="4"] {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
+/* 책갈피(장비 하나의 설정 페이지): 고른 칸만 보이고 나머지는 숨긴 채 계속 돈다 */
 .bench[data-layout="tabs"] {
   grid-template-columns: minmax(0, 1fr);
 }
 .bench[data-layout="tabs"] .bench-pane[data-active="false"] {
   display: none;
+}
+/* 전체 보기: 모든 칸을 칸 수만큼 세로 단으로 나란히 놓고, 설정하는 부분은 접어 결과만 보여 준다 */
+.bench[data-layout="overview"][data-count="2"],
+.bench[data-layout="overview"][data-count="4"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.bench[data-layout="overview"][data-count="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.bench[data-layout="overview"] .view-one,
+.bench[data-layout="overview"] .tx-setup,
+.bench[data-layout="overview"] .fold {
+  display: none;
+}
+.bench-idle {
+  padding: var(--space-md);
 }
 .bench {
   display: grid;

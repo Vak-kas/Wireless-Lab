@@ -30,9 +30,13 @@ export function BenchScreen() {
   const [closed, setClosed] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<TxGroupResult | null>(null);
-  /** 칸을 놓는 법: 나란히(side) / 하나씩(tabs). 하나씩일 때는 고른 칸만 보이고 나머지는 뒤에서 계속 돈다 */
-  const [layout, setLayout] = useState<"side" | "tabs">("side");
-  const [active, setActive] = useState("");
+  /**
+   * 지금 보는 책갈피: 장비 id 면 그 장비의 설정 페이지, "all" 이면 전체 보기(모든 장비의 결과만 나란히).
+   * 안 보이는 칸도 지워지지 않고 계속 돈다.
+   */
+  const [view, setView] = useState("");
+  /** "모두 시작"을 누를 때마다 하나씩 올라간다. 칸들이 이 값이 바뀐 것을 보고, 설정해 둔 대로 받기를 시작한다 */
+  const [startSignal, setStartSignal] = useState(0);
   /** 지금 받고 있는 칸들 */
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   /** "모두 멈추기"를 누를 때마다 하나씩 올라간다. 칸들이 이 값이 바뀐 것을 보고 멈춘다 */
@@ -72,7 +76,7 @@ export function BenchScreen() {
     if (!busyOf.has(device)) busyOf.set(device, (b) => setBusy((old) => (old[device] === b ? old : { ...old, [device]: b })));
     return busyOf.get(device)!;
   };
-  const shown = panes.some((p) => p.device === active) ? active : (panes[0]?.device ?? "");
+  const shown = view === "all" && panes.length > 1 ? "all" : panes.some((p) => p.device === view) ? view : (panes[0]?.device ?? "");
   const anyBusy = panes.some((p) => busy[p.device]) || sending;
   const stopAll = () => {
     setStopSignal((n) => n + 1);
@@ -81,6 +85,13 @@ export function BenchScreen() {
 
   const together = panes.filter((p) => p.mode === "tx" && drafts[p.device]).map((p) => drafts[p.device]!);
   const txPanes = panes.filter((p) => p.mode === "tx").length;
+
+  /** 설정해 둔 대로 모든 칸을 시작하고 전체 보기로 간다. 수신 칸은 바로 받기 시작하고, 송신 칸이 둘 이상이면 경고 확인 창을 띄운다 */
+  const startAll = () => {
+    setStartSignal((n) => n + 1);
+    if (panes.length > 1) setView("all");
+    if (together.length >= 2) askTogether();
+  };
 
   const askTogether = () => {
     setAgree(false);
@@ -123,18 +134,20 @@ export function BenchScreen() {
         action={
           panes.length > 0 ? (
             <div className="bench-bar" data-testid="bench-bar">
-              {/* 칸 이름표: 받는 중이면 점이 켜진다. 누르면 그 칸으로 간다(하나씩 보기에서는 그 칸을 보여 준다) */}
+              {/* 책갈피: 전체 보기 + 장비마다 하나. 받는 중인 장비는 점이 켜진다 */}
+              {panes.length > 1 && (
+                <button type="button" className="bench-tab t-caption" aria-pressed={shown === "all"} onClick={() => setView("all")} data-testid="bench-tab-all">
+                  {t("bench.all")}
+                </button>
+              )}
               {panes.map((p) => (
                 <button
                   key={p.device}
                   type="button"
                   className="bench-tab t-caption"
-                  aria-pressed={layout === "tabs" && shown === p.device}
+                  aria-pressed={shown === p.device}
                   data-busy={busy[p.device] ? "true" : "false"}
-                  onClick={() => {
-                    setActive(p.device);
-                    if (layout === "side") document.getElementById(`pane-${p.device}`)?.scrollIntoView?.({ block: "start" });
-                  }}
+                  onClick={() => setView(p.device)}
                   data-testid={`bench-tab-${p.device}`}
                 >
                   <span className="bench-dot" aria-hidden="true" />
@@ -142,15 +155,9 @@ export function BenchScreen() {
                   <span className="sr-only">{busy[p.device] ? t("bench.busy") : t("bench.idle")}</span>
                 </button>
               ))}
-              {panes.length > 1 && (
-                <div className="segments" role="group" aria-label={t("bench.layout")}>
-                  {(["side", "tabs"] as const).map((x) => (
-                    <button key={x} type="button" className="segment t-caption" aria-pressed={layout === x} onClick={() => setLayout(x)} data-testid={`bench-layout-${x}`}>
-                      {t(`bench.layout.${x}`)}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <Button onClick={startAll} disabled={sending} data-testid="bench-start-all">
+                {t("bench.start_all")}
+              </Button>
               <Button variant="secondary" onClick={stopAll} disabled={!anyBusy} data-testid="bench-stop-all">
                 {t("bench.stop_all")}
               </Button>
@@ -170,9 +177,9 @@ export function BenchScreen() {
             {t("bench.empty")}
           </Empty>
         )}
-        <div className="bench" data-testid="bench" data-count={panes.length} data-layout={panes.length > 1 ? layout : "side"}>
+        <div className="bench" data-testid="bench" data-count={panes.length} data-layout={shown === "all" ? "overview" : "tabs"}>
           {panes.map((p) => (
-            <section className="bench-pane" key={p.device} id={`pane-${p.device}`} data-testid={`pane-${p.device}`} aria-label={label(p.device)} data-active={shown === p.device}>
+            <section className="bench-pane" key={p.device} id={`pane-${p.device}`} data-testid={`pane-${p.device}`} aria-label={label(p.device)} data-active={shown === p.device} data-busy={busy[p.device] ? "true" : "false"}>
               <header className="bench-head">
                 <span className="t-body-strong">{label(p.device)}</span>
                 <div className="segments" role="group" aria-label={t("bench.mode")}>
@@ -194,16 +201,17 @@ export function BenchScreen() {
                   {t("bench.close")}
                 </Button>
               </header>
+              {shown === "all" && p.mode === "rx" && !busy[p.device] && <p className="t-caption muted bench-idle">{t("bench.idle_note")}</p>}
               {p.kind === "adapter" ? (
                 hub.adaptersReady && !adapterOf(p.device) ? (
                   <Empty>{t("bench.gone")}</Empty>
                 ) : (
-                  <NearbyScreen adapter={p.device} embedded stopSignal={stopSignal} onBusy={busyReporter(p.device)} />
+                  <NearbyScreen adapter={p.device} embedded stopSignal={stopSignal} startSignal={startSignal} onBusy={busyReporter(p.device)} />
                 )
               ) : hub.devices !== null && !devices.some((d) => d.id === p.device) ? (
                 <Empty>{t("bench.gone")}</Empty>
               ) : p.mode === "rx" ? (
-                <SpectrumScreen key="rx" device={p.device} embedded stopSignal={stopSignal} onBusy={busyReporter(p.device)} />
+                <SpectrumScreen key="rx" device={p.device} embedded stopSignal={stopSignal} startSignal={startSignal} onBusy={busyReporter(p.device)} />
               ) : (
                 <TxScreen key="tx" device={p.device} embedded onDraft={reporter(p.device)} />
               )}
