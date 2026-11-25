@@ -267,6 +267,21 @@ export const mockApi: Api = {
   streamStop: async () => {
     throw new Error("mock");
   },
+  savedState: async () => {
+    throw new Error("mock");
+  },
+  savedFolder: async () => {
+    throw new Error("mock");
+  },
+  savedChoose: async () => {
+    throw new Error("mock");
+  },
+  savedReveal: async () => {
+    throw new Error("mock");
+  },
+  savedExport: async () => {
+    throw new Error("mock");
+  },
   surveySave: async () => {
     throw new Error("mock");
   },

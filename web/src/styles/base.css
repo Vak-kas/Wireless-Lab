@@ -54,7 +54,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--size-nav-height) + var(--size-subnav-height) + var(--space-md));
+  scroll-padding-top: calc(var(--size-nav-height) + var(--space-sm) * 2 + var(--size-subnav-height) + var(--space-md));
 }
 
 body {

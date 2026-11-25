@@ -172,7 +172,8 @@ export function BenchScreen() {
   return (
     <>
       <SubNav title={t("nav.bench")} />
-      <Tile tone="light">
+      {/* 전체 보기는 칸을 나란히 놓으므로 넓은 폭을 쓴다 */}
+      <Tile tone="light" wide={shown === "all" && panes.length > 1}>
         {panes.length === 0 && (
           <Empty
             action={

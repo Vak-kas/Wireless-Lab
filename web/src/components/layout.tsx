@@ -85,11 +85,16 @@ export function Chain({ current }: { current?: string }) {
   );
 }
 
-/** sub-nav-frosted: 화면 이름 + (가운데 내용) + 오른쪽 주 버튼. */
+/**
+ * 화면의 도구 줄: (가운데 내용, 예: 단계 사슬) + 오른쪽 주 버튼.
+ * 화면 이름은 맨 위 줄(GlobalNav)에서 지금 화면이 표시되므로 여기서 다시 보이지 않는다(화면 낭독기에는 제목으로 남긴다).
+ * 내용도 단추도 없으면 줄 자체를 그리지 않는다: 위에 줄이 둘로 보이지 않게.
+ */
 export function SubNav({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  if (!children && !action) return <h1 className="sr-only">{title}</h1>;
   return (
     <div className="sub-nav">
-      <h1 className="title t-tagline">{title}</h1>
+      <h1 className="sr-only">{title}</h1>
       <div className="grow">{children}</div>
       {action}
     </div>

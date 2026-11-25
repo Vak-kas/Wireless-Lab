@@ -7,6 +7,7 @@ import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { BleTable } from "./BlePanel";
 import { LiveScope } from "./LiveScope";
+import { RecordFile } from "./SavedFiles";
 import { plots } from "./SpectrumView";
 import { ApTable } from "./WifiPanels";
 
@@ -126,11 +127,14 @@ export function LiveResults({ state }: { state: StreamState }) {
           </p>
         ))}
       {record?.data_path && (
-        <p className="t-caption center" data-testid="live-record">
-          {t(record.ended || !state.running ? "live.record.status" : "live.record.going", { s: record.seconds ?? 0, mb: ((record.bytes ?? 0) / 1e6).toFixed(1), gaps: record.gaps ?? 0 })}
-          <br />
-          <code>{record.data_path}</code>
-        </p>
+        <div className="center" data-testid="live-record-box">
+          <p className="t-caption" data-testid="live-record">
+            {t(record.ended || !state.running ? "live.record.status" : "live.record.going", { s: record.seconds ?? 0, mb: ((record.bytes ?? 0) / 1e6).toFixed(1), gaps: record.gaps ?? 0 })}
+            <br />
+            <code>{record.data_path}</code>
+          </p>
+          <RecordFile dataPath={record.data_path} metaPath={record.meta_path} done={Boolean(record.ended) || !state.running} />
+        </div>
       )}
       {wifi && (
         <div className="card live" data-testid="live-wifi">

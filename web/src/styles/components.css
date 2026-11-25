@@ -1,12 +1,24 @@
 /* 컴포넌트 문법. DESIGN-apple.md 의 이름을 주석에 적는다. */
 
 /* ---------- global-nav ---------- */
+/* 맨 위 줄 하나: 화면 위에 떠 있는 둥근 띠. 지금 화면은 채운 알약으로 표시한다 */
+:root {
+  /* 맨 위 줄이 차지하는 높이(줄 + 위아래 틈). 그 아래에 붙는 것들의 top 에 쓴다 */
+  --nav-stack: calc(var(--size-nav-height) + var(--space-sm) * 2);
+}
 .global-nav {
   position: sticky;
-  top: 0;
+  top: var(--space-sm);
   z-index: 30;
   height: var(--size-nav-height);
-  background: var(--color-surface-black);
+  box-sizing: border-box;
+  width: calc(100% - var(--space-md) * 2);
+  max-width: var(--size-wide-max);
+  margin: var(--space-sm) auto;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-surface-black) calc(var(--effect-frost-alpha) * 100%), transparent);
+  backdrop-filter: var(--effect-frost);
+  -webkit-backdrop-filter: var(--effect-frost);
   color: var(--color-on-dark);
   display: flex;
   align-items: center;
@@ -17,9 +29,11 @@
   font-weight: 600;
   font-size: 14px;
   color: var(--color-on-dark);
+  white-space: nowrap;
 }
 .global-nav nav {
   display: flex;
+  align-items: center;
   gap: var(--space-xxs);
   flex: 1;
   overflow-x: auto;
@@ -27,14 +41,20 @@
 }
 .global-nav nav a {
   color: var(--color-body-muted);
-  padding: 0 var(--space-sm);
-  height: var(--size-nav-height);
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
+  transition: color var(--motion-fast), background var(--motion-fast);
+}
+.global-nav nav a:hover {
+  color: var(--color-on-dark);
 }
 .global-nav nav a[aria-current="page"] {
-  color: var(--color-on-dark);
+  background: var(--color-on-dark);
+  color: var(--color-surface-black);
+  font-weight: 600;
 }
 .global-nav .status {
   display: flex;
@@ -47,7 +67,7 @@
 /* ---------- sub-nav-frosted ---------- */
 .sub-nav {
   position: sticky;
-  top: var(--size-nav-height);
+  top: var(--nav-stack);
   z-index: 20;
   min-height: var(--size-subnav-height);
   background: color-mix(in srgb, var(--color-canvas-parchment) calc(var(--effect-frost-alpha) * 100%), transparent);
@@ -1453,14 +1473,14 @@ details.fold > .fold-body {
 }
 .bench-strip {
   position: sticky;
-  top: calc(var(--size-nav-height) + var(--size-subnav-height));
+  top: var(--nav-stack);
   z-index: 10;
   display: flex;
   align-items: flex-end;
   gap: var(--space-md);
   margin-bottom: -1px;
   padding-top: var(--space-sm);
-  background: inherit;
+  background: var(--surface); /* 붙어 있는 동안 아래로 지나가는 내용이 비치지 않게 */
   border-bottom: 1px solid var(--line);
   text-align: left;
 }
@@ -1578,12 +1598,9 @@ details.fold > .fold-body {
   display: none;
 }
 /* 전체 보기: 모든 칸을 칸 수만큼 세로 단으로 나란히 놓고, 설정하는 부분은 접어 결과만 보여 준다 */
-.bench[data-layout="overview"][data-count="2"],
-.bench[data-layout="overview"][data-count="4"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.bench[data-layout="overview"][data-count="3"] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* 칸이 너무 좁아지면(표의 글자가 세로로 쪼개진다) 다음 줄로 넘긴다 */
+.bench[data-layout="overview"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--size-content-max) * 0.45)), 1fr));
 }
 .bench[data-layout="overview"] .view-one,
 .bench[data-layout="overview"] .tx-setup,
@@ -1785,4 +1802,42 @@ details.fold > .fold-body {
   display: grid;
   gap: var(--space-xs);
   text-align: left;
+}
+
+/* ---------- 녹화 파일: 저장 위치, 폴더에서 보기, 내보내기 ---------- */
+.save-folder,
+.record-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+.record-file {
+  justify-content: center;
+}
+.save-folder code {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl; /* 긴 경로는 끝(폴더 이름)이 보이게 앞을 줄인다 */
+}
+.save-folder-type {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.save-folder-type input {
+  flex: 1;
+  min-width: 0;
+}
+.save-folder-error,
+.record-made {
+  flex-basis: 100%;
+}
+.record-export {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
 }

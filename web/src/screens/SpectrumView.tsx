@@ -6,6 +6,7 @@ import { LinePlot } from "../components/plots/LinePlot";
 import { Badge, Button, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { SaveFolder } from "./SavedFiles";
 import { LiveResults, useLiveStream } from "./LiveStream";
 
 const mhz = (hz: number, digits = 3) => Number((hz / 1e6).toFixed(digits)).toString();
@@ -268,6 +269,7 @@ export function SpectrumView({
           {busy ? t("spectrum.busy") : t("view.run")}
         </Button>
       </div>
+      {live.can && <SaveFolder disabled={recording} />}
       {live.can && <p className="t-caption muted">{t("live.hint")}</p>}
         </>
       )}

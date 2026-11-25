@@ -443,12 +443,38 @@ export interface StreamTapState {
   crc_failed?: number;
   /** record */
   data_path?: string;
+  meta_path?: string;
   bytes?: number;
   seconds?: number;
   gaps?: number;
   full?: boolean;
   /** 도중에 뺀 풀이(녹화를 멈춘 뒤). 마지막 결과가 남아 있다 */
   ended?: boolean;
+}
+
+/** 녹화 파일의 저장 위치와, 이 서버가 해 줄 수 있는 것 */
+export interface SavedState {
+  folder: string;
+  default: string;
+  is_default: boolean;
+  free_bytes: number | null;
+  /** 운영체제의 폴더 고르는 창을 띄울 수 있는가(없으면 경로를 직접 적는다) */
+  can_choose: boolean;
+  platform: string;
+  /** 내보낼 수 있는 형식의 이름 */
+  formats: string[];
+  /** savedChoose 의 답에만: 폴더를 골랐는가(취소하면 false) */
+  chosen?: boolean;
+}
+
+/** 다른 형식으로 내보낸 파일 하나. 날것 형식은 여는 쪽에서 샘플 속도와 주파수를 적어야 한다 */
+export interface ExportedFile {
+  path: string;
+  format: string;
+  bytes: number;
+  datatype: string;
+  sample_rate_hz: number;
+  center_freq_hz: number;
 }
 
 /** 계속 받기(끊김 없이 받으면서 푸는 것) 하나의 상태 */
@@ -638,6 +664,12 @@ export interface Api {
   streamRows(id: string, after: number): Promise<{ next: number; mean: number[][]; max: number[][]; signals?: SeenSignal[] }>;
   /** 받는 도중에 풀이를 꽂거나 뺀다 (녹화 단추: name = "record") */
   streamTap(id: string, name: string, on: boolean): Promise<StreamState>;
+  /** 녹화 파일: 저장 위치 보기·바꾸기(null 이면 기본 위치), 폴더 고르는 창, 파일 관리자에서 보기, 다른 형식으로 내보내기 */
+  savedState(): Promise<SavedState>;
+  savedFolder(path: string | null): Promise<SavedState>;
+  savedChoose(): Promise<SavedState>;
+  savedReveal(path: string): Promise<{ ok: boolean }>;
+  savedExport(metaPath: string, format: string): Promise<ExportedFile>;
   /** 그 대역을 받아 SigMF 파일로 남긴다 (서버의 sessions/saved/) */
   surveySave(req: { device: string; center_hz: number; bandwidth_hz: number; gain_db?: number; seconds: number }): Promise<SavedCapture>;
   oaiStatus(): Promise<OaiStatus>;

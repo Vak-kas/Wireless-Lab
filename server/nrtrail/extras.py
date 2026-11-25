@@ -282,6 +282,9 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         pass                            # 계속 받기가 없는 설치: 화면이 /api/streams 가 없는 것을 보고 그 칸을 숨긴다
     else:
         streams.register(app, locks)
+        from . import saved  # 녹화 파일: 저장 위치, 폴더에서 보기, 다른 형식으로 내보내기
+
+        saved.register(app)
 
     try:
         from . import tx
