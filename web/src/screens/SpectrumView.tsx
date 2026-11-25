@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
-import type { Plot, SpectrumView as View, SurveyDevice } from "../api";
+import type { Plot, SavedCapture, SpectrumView as View, SurveyDevice } from "../api";
 import { Tile, TileHead } from "../components/layout";
 import { GridPlot } from "../components/plots/GridPlot";
 import { LinePlot } from "../components/plots/LinePlot";
@@ -12,8 +12,10 @@ const REPEAT_MS = 1500;
 const mhz = (hz: number, digits = 3) => Number((hz / 1e6).toFixed(digits)).toString();
 
 export interface SpectrumViewHandle {
-  /** 다른 곳(채널 표)에서 "이 채널 들여다보기"를 눌렀을 때 */
+  /** 다른 곳(채널 표)에서 "이 채널 들여다보기"를 눌렀을 때: 칸을 채우고 바로 본다 */
   look(centerHz: number, bandwidthHz: number): void;
+  /** 칸만 채운다. 보기는 사용자가 단추로 한다 */
+  set(centerHz: number, bandwidthHz: number): void;
 }
 
 function plots(v: View): { line: Plot; fall: Plot } {
@@ -58,6 +60,9 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
   const tile = useRef<HTMLDivElement>(null);
   const [mine, setMine] = useState(loadBands);
   const [naming, setNaming] = useState<string | null>(null);
+  const [seconds, setSeconds] = useState("0.5");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<SavedCapture | null>(null);
 
   const look = useCallback(
     async (c: string, w: string) => {
@@ -95,20 +100,38 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
     [api, fail, gain, info.device.id, sim, paused],
   );
 
-  /** 칸을 채우고 한 번 본다 (대역 단추, 채널 표의 "들여다보기") */
-  const fill = (centerHz: number, bandwidthHz: number) => {
+  /** 칸을 채운다. run 이면 바로 한 번 본다 */
+  const fill = (centerHz: number, bandwidthHz: number, run = false) => {
     const c = mhz(centerHz);
     const w = mhz(max !== undefined ? Math.min(bandwidthHz, max) : bandwidthHz);
     setCenter(c);
     setWidth(w);
-    void look(c, w);
+    setRepeat(false);
+    if (run) void look(c, w);
+  };
+
+  /** 지금 칸의 대역을 seconds 동안 받아 파일로 남긴다 */
+  const save = async () => {
+    if (paused) return setError(t("view.error.paused"));
+    if (!(Number(center) > 0 && Number(width) > 0 && Number(seconds) > 0)) return setError(t("view.error.inputs"));
+    setError("");
+    setRepeat(false);
+    setSaving(true);
+    try {
+      setSaved(await api.surveySave({ device: info.device.id, center_hz: Number(center) * 1e6, bandwidth_hz: Number(width) * 1e6, gain_db: gain.trim() ? Number(gain) : undefined, seconds: Number(seconds) }));
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    } finally {
+      setSaving(false);
+    }
   };
 
   useImperativeHandle(ref, () => ({
     look(centerHz, bandwidthHz) {
       tile.current?.scrollIntoView?.({ block: "start" });
-      fill(centerHz, bandwidthHz);
+      fill(centerHz, bandwidthHz, true);
     },
+    set: fill,
   }));
 
   const keep = (bands: Band[]) => {
@@ -190,6 +213,24 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
               {repeat ? t("spectrum.repeat.stop") : t("view.repeat")}
             </Button>
           </div>
+          {!sim && (
+            <div className="row">
+              <Field label={t("view.save.seconds")}>
+                {(f) => <input {...f} inputMode="decimal" value={seconds} onChange={(e) => setSeconds(e.target.value)} data-testid="view-save-seconds" />}
+              </Field>
+              <Button variant="secondary" onClick={() => void save()} disabled={saving || busy} data-testid="view-save">
+                {saving ? t("view.save.busy") : t("view.save")}
+              </Button>
+            </div>
+          )}
+          {saved && (
+            <p className="t-caption" role="status" data-testid="view-saved">
+              {t("view.save.done", { s: saved.seconds, mb: (saved.bytes / 1e6).toFixed(1), type: saved.datatype })}
+              <br />
+              <code>{saved.data_path}</code>
+            </p>
+          )}
+          {!sim && <p className="t-caption muted">{t("view.save.hint")}</p>}
         </div>
   );
   const results = (

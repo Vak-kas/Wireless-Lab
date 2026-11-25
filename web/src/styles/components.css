@@ -1048,12 +1048,53 @@ details.fold > .fold-body {
 [data-state="raised"] > .survey-bar {
   fill: var(--warn);
 }
-.chmap {
+.chmap-box {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: var(--space-sm);
+}
+.chmap-unit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.segments {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.segment {
+  min-height: var(--size-touch-min);
+  padding: 0 var(--space-sm);
+  background: var(--card);
+  color: var(--fg);
+  border: 0;
+  border-left: 1px solid var(--line);
+  cursor: pointer;
+}
+.segment:first-child {
+  border-left: 0;
+}
+.segment[aria-pressed="true"] {
+  background: var(--fg);
+  color: var(--card);
+}
+.chmap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.chmap-group {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-xxs);
+  padding: var(--space-xxs);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
 }
 .chmap-cell {
+  width: 58px;
   min-height: var(--size-touch-min);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);

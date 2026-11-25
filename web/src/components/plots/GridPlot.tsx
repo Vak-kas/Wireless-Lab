@@ -5,7 +5,7 @@ import { useStore } from "../../state/store";
 const W = 880;
 const H = 420;
 const M = { l: 56, r: 16, t: 16, b: 44 };
-const MAX_ROWS = 120;
+const MAX_ROWS = 128;
 const MAX_COLS = 160;
 
 interface Cell {

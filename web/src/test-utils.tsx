@@ -104,6 +104,7 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     wifiUsig: no,
     wifiLive: no,
     surveySpectrum: no,
+    surveySave: no,
     oaiProgress: async () => ({ phase: "idle" }),
     ntn: no,
     trackStart: no,

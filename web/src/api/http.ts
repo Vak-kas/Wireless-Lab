@@ -98,6 +98,7 @@ export const httpApi: Api = {
   wifiUsig: (req) => call("/wifi/usig", "POST", req),
   wifiLive: (req) => call("/wifi/live", "POST", req),
   surveySpectrum: (req) => call("/survey/spectrum", "POST", req),
+  surveySave: (req) => call("/survey/save", "POST", req),
   oaiStatus: () => call("/testbed/oai"),
   oaiRecord: (seconds) => call("/testbed/oai/record", "POST", { seconds }),
   oaiProgress: () => call("/testbed/oai/progress"),

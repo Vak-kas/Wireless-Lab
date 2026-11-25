@@ -1,4 +1,6 @@
 """주파수 상태 보기: 채널별 세기 계산과 모의 장비 경로."""
+from pathlib import Path
+
 import numpy as np
 import pytest
 from nrtrail import devices, survey
@@ -194,3 +196,29 @@ def test_one_failed_channel_does_not_fail_the_sweep(tmp_path, monkeypatch):
     rows = {r["name"]: r for r in survey.run("d", "wifi-5g", only=["ch36", "ch40", "ch44"])["channels"]}
     assert rows["ch36"]["measured"] and rows["ch44"]["measured"]
     assert not rows["ch40"]["measured"] and "Overflow" in rows["ch40"]["error"]
+
+
+def test_save_writes_a_sigmf_file_and_limits_its_length(tmp_path, monkeypatch):
+    """파일로 저장: sessions/saved 에 SigMF 로 남기고, 길이는 샘플 수 한도 안에서만. 모의 장비는 저장하지 않는다."""
+    from nrtrail import sigmf
+    monkeypatch.setattr(survey, "sessions_dir", lambda: tmp_path)
+    dev = {"id": "driver=x", "driver": "x", "freq_min_hz": 70e6, "freq_max_hz": 6e9, "max_sample_rate_hz": 56e6}
+    monkeypatch.setattr(devices, "find_device", lambda _id: dev)
+    asked = []
+
+    def fake_capture(_dev_id, req, out_meta):
+        asked.append(req.duration_s)
+        sigmf.write_capture(out_meta, tone_plus_noise(1e6, 0.1), sample_rate_hz=RATE, center_freq_hz=req.center_freq_hz, source="device")
+        return sigmf.read_meta(out_meta)
+
+    monkeypatch.setattr(devices, "capture", fake_capture)
+    out = survey.save("driver=x", center_hz=433.92e6, bandwidth_hz=2e6, seconds=0.25)
+    assert asked == [0.25]
+    meta = Path(out["meta_path"])
+    assert meta.parent == tmp_path / "saved" and meta.name.endswith("-433.92MHz.sigmf-meta") and meta.exists()
+    assert Path(out["data_path"]).stat().st_size == out["bytes"] > 0 and out["center_hz"] == 433.92e6
+    with pytest.raises(survey.SurveyError, match="최대"):
+        survey.save("driver=x", center_hz=2.4e9, bandwidth_hz=40e6, seconds=5)
+    monkeypatch.setattr(devices, "find_device", lambda _id: {"id": "sim", "driver": "simulated"})
+    with pytest.raises(survey.SurveyError, match="모의"):
+        survey.save("sim", center_hz=1e9, bandwidth_hz=2e6)

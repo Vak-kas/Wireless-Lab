@@ -139,42 +139,73 @@ function DeviceFacts({ info }: { info: SurveyDevice }) {
   );
 }
 
-/** 채널 맵: 칸을 누르면 그 칸이 속한 묶음(누르는 단위)을 한꺼번에 고르거나 푼다. */
+/**
+ * 채널 맵: 칸을 누르면 그 칸이 속한 묶음(고르는 폭)을 한꺼번에 고르거나 푼다.
+ * 폭을 바꾸면 이미 고른 채널이 새 폭의 묶음으로 넓어진다(반쪽만 고른 묶음이 남지 않게). 묶음은 테두리로 묶어 보여 준다.
+ */
 function ChannelMap({ plan, picked, onChange, disabled }: { plan: SurveyPlan; picked: string[]; onChange: (names: string[]) => void; disabled?: boolean }) {
   const [unit, setUnit] = useState(20);
   const cells = plan.map ?? [];
   const reachable = new Set(cells.filter((c) => c.reachable).map((c) => c.name));
+  const groupOf = (name: string, width: number) => (plan.groups?.[String(width)]?.find((g) => g.includes(name)) ?? [name]).filter((n) => reachable.has(n));
   const click = (name: string) => {
-    const group = (plan.groups?.[String(unit)]?.find((g) => g.includes(name)) ?? [name]).filter((n) => reachable.has(n));
+    const group = groupOf(name, unit);
     const all = group.every((n) => picked.includes(n));
     onChange(all ? picked.filter((n) => !group.includes(n)) : [...picked, ...group.filter((n) => !picked.includes(n))]);
   };
+  const changeUnit = (width: number) => {
+    setUnit(width);
+    const wider = new Set(picked.flatMap((n) => groupOf(n, width)));
+    if (wider.size !== picked.length) onChange(cells.map((c) => c.name).filter((n) => wider.has(n)));
+  };
+  // 그리는 순서: 채널 맵 순서대로, 같은 묶음은 한 상자에
+  const blocks: (typeof cells)[] = [];
+  const placed = new Set<string>();
+  for (const c of cells) {
+    if (placed.has(c.name)) continue;
+    const names = plan.groups?.[String(unit)]?.find((g) => g.includes(c.name)) ?? [c.name];
+    const block = cells.filter((x) => names.includes(x.name));
+    block.forEach((x) => placed.add(x.name));
+    blocks.push(block);
+  }
+  const cell = (c: (typeof cells)[number]) => (
+    <button
+      key={c.name}
+      type="button"
+      className="chmap-cell t-caption"
+      aria-pressed={picked.includes(c.name)}
+      disabled={disabled || !c.reachable}
+      title={`${mhz(c.center_hz)} MHz`}
+      onClick={() => click(c.name)}
+      data-testid={`cell-${c.name}`}
+    >
+      {c.name}
+    </button>
+  );
   return (
-    <div data-testid="channel-map">
+    <div data-testid="channel-map" className="chmap-box">
       {(plan.widths?.length ?? 0) > 1 && (
-        <div className="chips" role="group" aria-label={t("monitor.unit")}>
-          {plan.widths!.map((w) => (
-            <Chip key={w} selected={w === unit} onSelect={() => setUnit(w)} disabled={disabled}>
-              {t("monitor.unit.mhz", { w })}
-            </Chip>
-          ))}
+        <div className="chmap-unit">
+          <span className="t-caption muted">{t("monitor.unit")}</span>
+          <div className="segments" role="group" aria-label={t("monitor.unit")}>
+            {plan.widths!.map((w) => (
+              <button key={w} type="button" className="segment t-caption" aria-pressed={w === unit} onClick={() => changeUnit(w)} disabled={disabled}>
+                {t("monitor.unit.mhz", { w })}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       <div className="chmap" role="group" aria-label={t("monitor.map")}>
-        {cells.map((c) => (
-          <button
-            key={c.name}
-            type="button"
-            className="chmap-cell t-caption"
-            aria-pressed={picked.includes(c.name)}
-            disabled={disabled || !c.reachable}
-            title={`${mhz(c.center_hz)} MHz`}
-            onClick={() => click(c.name)}
-            data-testid={`cell-${c.name}`}
-          >
-            {c.name}
-          </button>
-        ))}
+        {blocks.map((block) =>
+          block.length > 1 ? (
+            <div key={block[0]!.name} className="chmap-group">
+              {block.map(cell)}
+            </div>
+          ) : (
+            cell(block[0]!)
+          ),
+        )}
       </div>
       <div className="row">
         <Button variant="link" onClick={() => onChange([...reachable])} disabled={disabled}>
@@ -382,7 +413,7 @@ export function SpectrumScreen() {
     const cells = (current?.map ?? []).filter((c) => picked.includes(c.name));
     const lo = plan === "custom" ? (mhzIn(custom.center) ?? 0) - (mhzIn(custom.span) ?? 0) / 2 : Math.min(...cells.map((c) => c.center_hz - c.width_hz / 2));
     const hi = plan === "custom" ? (mhzIn(custom.center) ?? 0) + (mhzIn(custom.span) ?? 0) / 2 : Math.max(...cells.map((c) => c.center_hz + c.width_hz / 2));
-    viewer.current?.look((lo + hi) / 2, hi - lo);
+    viewer.current?.set((lo + hi) / 2, hi - lo);
   };
   const canLook = plan === "custom" ? Number(custom.center) > 0 && Number(custom.span) > 0 : picked.length > 0;
   const canStart = Boolean(plan) && (plan === "custom" ? Boolean(custom.center && custom.span && custom.step) : picked.length > 0);

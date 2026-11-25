@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -35,8 +36,12 @@ MIN_COVERAGE = 0.9        # 채널 폭의 이만큼이 받은 대역 안에 있�
 CLIP_DBFS = -1.0
 EPS = 1e-12
 VIEW_POINTS = 256         # 스펙트럼 그림의 가로 점 수
-FALL_ROWS = 64            # 워터폴의 주파수 칸 수
-FALL_COLS = 40            # 워터폴의 시간 칸 수(최대)
+FALL_ROWS = 128           # 스펙트로그램의 주파수 칸 수
+FALL_COLS = 100           # 스펙트로그램의 시간 칸 수(최대)
+VIEW_DWELL_S = 0.1        # 들여다보기에서 한 번에 받는 시간(스펙트로그램의 가로 길이)
+VIEW_MAX_SAMPLES = 1 << 22  # 들여다보기 계산에 쓰는 최대 샘플 수(넓은 대역은 앞부분만 쓴다)
+SAVE_DEFAULT_S = 0.5      # 파일로 저장할 때의 기본 길이
+SAVE_MAX_SAMPLES = 1 << 25  # 파일 하나의 최대 샘플 수(샘플당 4~8 바이트)
 MIN_BANDWIDTH_HZ = 200e3
 
 WIFI_5G_BLOCKS = [list(range(36, 65, 4)), list(range(100, 145, 4)), list(range(149, 166, 4))]
@@ -82,9 +87,9 @@ def db(p: float) -> float:
     return round(10 * math.log10(p + EPS), 2)
 
 
-def block_spectra(iq: np.ndarray, rate_hz: float) -> np.ndarray:
+def block_spectra(iq: np.ndarray, rate_hz: float, limit: int = MAX_SAMPLES) -> np.ndarray:
     """1 ms 구간마다의 주파수별 세기. 행 = 구간, 열 = 주파수 칸(낮은 주파수부터). 모든 칸을 더하면 그 구간의 평균 세기다."""
-    x = np.asarray(iq, dtype=np.complex64)[:MAX_SAMPLES]
+    x = np.asarray(iq, dtype=np.complex64)[:limit]
     x = x - x.mean()                                   # LO 누설로 중심 주파수에 생기는 DC 성분 제거
     n_frames = len(x) // NFFT
     if n_frames < 1:
@@ -229,6 +234,45 @@ def describe(dev_id: str) -> dict[str, Any]:
     return out
 
 
+def _check_tunable(dev: dict[str, Any], center_hz: float | None, bandwidth_hz: float | None) -> None:
+    """이 장비가 그 가운데 주파수와 대역폭으로 받을 수 있는가. 못 받으면 이유를 말한다."""
+    if not center_hz or not bandwidth_hz:
+        raise SurveyError("가운데 주파수와 대역폭을 넣어 주세요.")
+    if bandwidth_hz < MIN_BANDWIDTH_HZ:
+        raise SurveyError(f"대역폭은 {MIN_BANDWIDTH_HZ / 1e6:g} MHz 이상이어야 합니다.")
+    problems = devices.check_request(dev, center_hz, bandwidth_hz)
+    if "FREQ_OUT_OF_RANGE" in problems:
+        raise SurveyError(f"이 장비가 받을 수 있는 주파수는 {dev['freq_min_hz'] / 1e6:g} ~ {dev['freq_max_hz'] / 1e6:g} MHz 입니다.")
+    if "RATE_TOO_HIGH" in problems:
+        raise SurveyError(f"이 장비로 한 번에 볼 수 있는 대역폭은 최대 {dev['max_sample_rate_hz'] / 1e6:g} MHz 입니다.")
+
+
+def save(dev_id: str, *, center_hz: float | None = None, bandwidth_hz: float | None = None, gain_db: float | None = None,
+         seconds: float = SAVE_DEFAULT_S) -> dict[str, Any]:
+    """그 대역을 seconds 동안 받아 SigMF 파일(sessions/saved/)로 남긴다. 받은 그대로이며 풀지 않는다."""
+    try:
+        dev = devices.find_device(dev_id)
+    except devices.DeviceError as e:
+        raise SurveyError("장비를 찾을 수 없습니다.") from e
+    if dev["driver"] == "simulated":
+        raise SurveyError("모의 장비는 이미 저장된 파일을 읽는 것이라 따로 저장하지 않습니다.")
+    _check_tunable(dev, center_hz, bandwidth_hz)
+    assert center_hz and bandwidth_hz
+    longest = SAVE_MAX_SAMPLES / bandwidth_hz
+    if not 0 < seconds <= longest:
+        raise SurveyError(f"이 대역폭으로 저장할 수 있는 길이는 최대 {longest:.2f}초입니다.")
+    folder = sessions_dir() / "saved"
+    folder.mkdir(parents=True, exist_ok=True)
+    meta = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{center_hz / 1e6:g}MHz.sigmf-meta"
+    try:
+        cap = devices.capture(dev_id, devices.CaptureRequest(center_hz, bandwidth_hz, seconds, gain_db), meta)
+    except devices.DeviceError as e:
+        raise SurveyError(f"장비에서 받지 못했습니다: {e}") from e
+    return {"meta_path": str(cap.meta_path), "data_path": str(cap.data_path), "bytes": cap.data_path.stat().st_size,
+            "datatype": cap.datatype, "num_samples": cap.num_samples, "seconds": round(cap.duration_s, 4),
+            "center_hz": cap.center_freq_hz, "sample_rate_hz": cap.sample_rate_hz}
+
+
 def spectrum(dev_id: str, *, center_hz: float | None = None, bandwidth_hz: float | None = None, gain_db: float | None = None) -> dict[str, Any]:
     """가운데 주파수와 대역폭을 정해 그 대역의 주파수별 세기를 본다(평균, 최대, 시간에 따른 변화).
 
@@ -240,26 +284,18 @@ def spectrum(dev_id: str, *, center_hz: float | None = None, bandwidth_hz: float
         raise SurveyError("장비를 찾을 수 없습니다.") from e
     sim = dev["driver"] == "simulated"
     if not sim:
-        if not center_hz or not bandwidth_hz:
-            raise SurveyError("가운데 주파수와 대역폭을 넣어 주세요.")
-        if bandwidth_hz < MIN_BANDWIDTH_HZ:
-            raise SurveyError(f"대역폭은 {MIN_BANDWIDTH_HZ / 1e6:g} MHz 이상이어야 합니다.")
-        problems = devices.check_request(dev, center_hz, bandwidth_hz)
-        if "FREQ_OUT_OF_RANGE" in problems:
-            raise SurveyError(f"이 장비가 받을 수 있는 주파수는 {dev['freq_min_hz'] / 1e6:g} ~ {dev['freq_max_hz'] / 1e6:g} MHz 입니다.")
-        if "RATE_TOO_HIGH" in problems:
-            raise SurveyError(f"이 장비로 한 번에 볼 수 있는 대역폭은 최대 {dev['max_sample_rate_hz'] / 1e6:g} MHz 입니다.")
+        _check_tunable(dev, center_hz, bandwidth_hz)
     work = sessions_dir() / "survey"
     work.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=work) as tmp:
         try:
-            cap = devices.capture(dev_id, devices.CaptureRequest(center_hz or 0.0, bandwidth_hz or 0.0, DWELL_S, gain_db),
+            cap = devices.capture(dev_id, devices.CaptureRequest(center_hz or 0.0, bandwidth_hz or 0.0, VIEW_DWELL_S, gain_db),
                                   Path(tmp) / "view.sigmf-meta")
         except devices.DeviceError as e:
             raise SurveyError(f"장비에서 받지 못했습니다: {e}") from e
-        iq = np.asarray(cap.read(0, min(cap.num_samples, MAX_SAMPLES)))
+        iq = np.asarray(cap.read(0, min(cap.num_samples, VIEW_MAX_SAMPLES)))
     rate, center = cap.sample_rate_hz, cap.center_freq_hz
-    spectra = block_spectra(iq, rate)                                   # 구간 × NFFT
+    spectra = block_spectra(iq, rate, VIEW_MAX_SAMPLES)                                   # 구간 × NFFT
     group = NFFT // VIEW_POINTS
     grouped = spectra.reshape(len(spectra), VIEW_POINTS, group).sum(axis=2)   # 점 하나 = rate / VIEW_POINTS 폭의 세기
     step = rate / VIEW_POINTS
@@ -274,7 +310,7 @@ def spectrum(dev_id: str, *, center_hz: float | None = None, bandwidth_hz: float
     norm = (fall_db - lo) / max(hi - lo, 1e-9)
     return {
         "device": dev_id, "unit": "dBFS", "fixed_tuning": sim, "gain_db": gain_db,
-        "center_hz": center, "sample_rate_hz": rate, "bin_hz": step, "dwell_s": DWELL_S,
+        "center_hz": center, "sample_rate_hz": rate, "bin_hz": step, "dwell_s": round(len(iq) / rate, 4),
         "freq_hz": [round(float(f), 1) for f in freqs],
         "mean_db": [db(float(v)) for v in grouped.mean(axis=0)],
         "max_db": [db(float(v)) for v in grouped.max(axis=0)],

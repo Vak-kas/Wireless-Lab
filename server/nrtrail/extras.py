@@ -83,6 +83,10 @@ class SpectrumBody(BaseModel):
     gain_db: float | None = None
 
 
+class SaveBody(SpectrumBody):
+    seconds: float = 0.5
+
+
 def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, session: Callable[[str], Session]) -> None:
     @app.post("/api/sessions/{sid}/ntn")
     def post_ntn(sid: str, body: NtnBody) -> dict[str, Any]:
@@ -142,6 +146,18 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
             try:
                 return await asyncio.to_thread(survey.spectrum, body.device, center_hz=body.center_hz, bandwidth_hz=body.bandwidth_hz,
                                                gain_db=body.gain_db)
+            except survey.SurveyError as e:
+                raise HTTPException(400, str(e)) from e
+
+    @app.post("/api/survey/save")
+    async def survey_save(body: SaveBody) -> dict[str, Any]:
+        from . import survey
+        if locks.busy(body.device):
+            raise HTTPException(409, "이미 재는 중입니다.")
+        async with locks.hold(body.device):
+            try:
+                return await asyncio.to_thread(survey.save, body.device, center_hz=body.center_hz, bandwidth_hz=body.bandwidth_hz,
+                                               gain_db=body.gain_db, seconds=body.seconds)
             except survey.SurveyError as e:
                 raise HTTPException(400, str(e)) from e
 

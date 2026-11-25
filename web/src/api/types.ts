@@ -385,6 +385,18 @@ export interface SpectrumView {
   waterfall: { rows: number; cols: number; values: number[][]; col_ms: number; floor_db: number; ceil_db: number };
 }
 
+/** 파일로 저장한 수신 신호 */
+export interface SavedCapture {
+  meta_path: string;
+  data_path: string;
+  bytes: number;
+  datatype: string;
+  num_samples: number;
+  seconds: number;
+  center_hz: number;
+  sample_rate_hz: number;
+}
+
 export interface SurveyRequest {
   device: string;
   plan: string;
@@ -520,6 +532,8 @@ export interface Api {
   wifiLive(req: { device: string; plan: string; channel: string; gain_db?: number }): Promise<{ channel: string; ppdus: WifiPpdu[]; aps: WifiAp[] }>;
   wifiUsig(req: { device: string; plan: string; channel: string; gain_db?: number }): Promise<{ ppdus: WifiPpdu[]; downlink: number }>;
   surveySpectrum(req: { device: string; center_hz?: number; bandwidth_hz?: number; gain_db?: number }): Promise<SpectrumView>;
+  /** 그 대역을 받아 SigMF 파일로 남긴다 (서버의 sessions/saved/) */
+  surveySave(req: { device: string; center_hz: number; bandwidth_hz: number; gain_db?: number; seconds: number }): Promise<SavedCapture>;
   oaiStatus(): Promise<OaiStatus>;
   oaiRecord(seconds: number): Promise<OaiRecording>;
   /** 기록이 지금 어느 단계인지 (그림에 표시) */
