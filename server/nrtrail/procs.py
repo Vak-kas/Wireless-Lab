@@ -153,6 +153,32 @@ def stop_server(server_pid: int, grace_s: float = 8.0) -> list[str]:
     return did
 
 
+def sweep_orphans(marks: tuple[str, ...]) -> list[str]:
+    """기록에 없이 남은 것까지 치운다: 부모가 사라졌는데(ppid 1) 아직 도는, 명령줄에 marks 가운데 하나가 든 프로세스.
+
+    기록(sessions/run)은 서버가 정상으로 떴을 때만 남는다. 기록이 지워졌거나 옛 판이 띄운 서버, 서버 없이 남은 장비 프로그램(uhdio)은
+    기록으로는 찾을 수 없다. 그런 것이 USRP 를 잡고 있으면 새로 연 프로그램에서 장비가 잡히지 않는다.
+    부모가 살아 있는 것(터미널에서 직접 띄운 서버, 지금 도는 실행기의 서버)은 건드리지 않는다.
+    """
+    if os.name == "nt":
+        return []
+    try:
+        rows = subprocess.run(["ps", "-axo", "pid=,ppid=,command="], capture_output=True, text=True, timeout=15).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        return []
+    did: list[str] = []
+    for row in rows:
+        parts = row.split(None, 2)
+        if len(parts) < 3 or not parts[0].isdigit() or parts[1] != "1":
+            continue
+        pid, command = int(parts[0]), parts[2]
+        mark = next((m for m in marks if m in command), None)
+        if mark is None or pid == os.getpid():
+            continue
+        did.append(f"주인 없는 프로세스 {pid}: {stop_pid(pid, mark)}")
+    return did
+
+
 def sweep(keep_parent: int | None = None) -> list[str]:
     """지난 실행이 남긴 것을 치운다: 죽은 서버의 MATLAB, 그리고 부모가 사라진(주인 없는) 서버.
 

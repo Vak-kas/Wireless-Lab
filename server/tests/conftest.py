@@ -55,4 +55,5 @@ def _no_real_uhdio(monkeypatch):
         from nrtrail import usrp_uhd
     except ImportError:          # 공개판에는 이 모듈이 없다
         return
+    monkeypatch.setattr(usrp_uhd, "ENABLED", False)
     monkeypatch.setattr(usrp_uhd, "_available", False)

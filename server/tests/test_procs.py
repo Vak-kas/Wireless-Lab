@@ -78,3 +78,18 @@ def test_record_and_forget(rundir):
     procs.forget()
     assert not list((rundir / "run").iterdir())
     assert signal.SIGTERM                                                         # (가져오기만 쓰는 것을 막는 줄)
+
+
+def test_orphans_without_a_record_are_swept_only_when_their_parent_is_gone(monkeypatch):
+    """기록에 없어도, 부모가 사라진(ppid 1) 서버·장비 프로그램은 치운다. 부모가 살아 있는 것과 무관한 것은 건드리지 않는다."""
+    rows = "\n".join([
+        "  100     1 /opt/python -m nrtrail --port 52500",
+        "  101   900 /opt/python -m nrtrail --port 8765",          # 부모가 살아 있다
+        "  102     1 /repo/native/uhdio/build/uhdio",
+        "  103     1 /usr/bin/some-other-daemon --port 1",
+    ])
+    monkeypatch.setattr(procs.subprocess, "run", lambda *a, **k: type("P", (), {"stdout": rows})())
+    stopped = []
+    monkeypatch.setattr(procs, "stop_pid", lambda pid, mark: stopped.append((pid, mark)) or "stopped")
+    out = procs.sweep_orphans(("-m nrtrail --port", "/repo/native/uhdio/build/uhdio"))
+    assert stopped == [(100, "-m nrtrail --port"), (102, "/repo/native/uhdio/build/uhdio")] and len(out) == 2

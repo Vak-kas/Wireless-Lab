@@ -160,6 +160,9 @@ class Launcher:
                 raise RuntimeError("화면 빌드 실패: " + out[-400:])
         for line in procs.sweep():                        # 지난 실행이 남긴 서버·MATLAB 을 먼저 치운다
             log("지난 실행의 남은 것 정리: " + line)
+        # 기록에 없이 남은 서버와 장비 프로그램(uhdio)도 치운다: 이런 것이 USRP 를 잡고 있으면 장비가 잡히지 않는다
+        for line in procs.sweep_orphans((procs.SERVER_MARK + " --port", str(ROOT / "native" / "uhdio" / "build" / "uhdio"))):
+            log("지난 실행의 남은 것 정리: " + line)
         self.port = free_port()
         self.server = subprocess.Popen([venv_bin("python"), "-m", "nrtrail", "--port", str(self.port)], cwd=ROOT)
         self.save_state()
