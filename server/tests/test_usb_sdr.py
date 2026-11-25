@@ -52,7 +52,7 @@ def test_only_known_sdrs_are_listed_and_marked_as_needing_pro() -> None:
 def test_a_locked_device_shows_in_the_list_but_cannot_receive(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(usb_sdr, "usb_devices", lambda: usb_sdr.parse_ioreg(IOREG))
     monkeypatch.setattr(usb_sdr, "_cache", None)
-    monkeypatch.setattr(devices, "BACKENDS", {usb_sdr.PREFIX: usb_sdr})
+    monkeypatch.setattr(devices, "RECEIVERS", {usb_sdr.PREFIX: usb_sdr.LockedUsbReceiver()})
     listed = [d for d in devices.list_devices() if d["id"].startswith("locked:")]
     assert len(listed) == 1 and listed[0]["needs"] == "pro" and listed[0]["serial"] == "TESTSER1"
     with pytest.raises(devices.DeviceError, match="Pro"):

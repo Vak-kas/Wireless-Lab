@@ -44,7 +44,7 @@ def main() -> None:
         from . import devices, usrp_matlab
 
         # USRP 찾기를 미리 시작한다(MATLAB 을 띄우는 데 시간이 걸린다). C++ 프로그램(uhdio)이 USRP 를 맡았으면 MATLAB 으로는 찾지 않는다
-        if devices.BACKENDS.get(usrp_matlab.PREFIX) is usrp_matlab:
+        if isinstance(devices.RECEIVERS.get(usrp_matlab.PREFIX), usrp_matlab.MatlabUsrpReceiver):
             usrp_matlab.warm()
     except ImportError:
         pass

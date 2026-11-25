@@ -1,21 +1,26 @@
-"""장비 계층(SPEC 9절): IQ 샘플을 주는 장비(SDR)를 찾고, 받아서 파일로 쓴다. **수신 전용**이다.
+"""SDR 장비 계층: 장비 찾기, 능력표, 받기. **수신 전용**이다(송신은 tx.py).
 
-구조 (송신 쪽 tx.py 와 같은 생각이다)
+구조 — 송신의 Signal/Transmitter 와 같은 모양이다
 
-    장비 찾기 list_devices() ─▶ 받는 쪽(Receiver)마다 found() ─▶ 능력표를 붙여 한 목록으로
-    받기      capture()       ─▶ 그 장비를 맡은 Receiver 를 골라 capture() ─▶ SigMF 파일
+    Receiver                 "장비 한 종류에서 받는 법" (부모 클래스)
+     ├─ SimulatedReceiver    저장해 둔 파일을 장비처럼 흘려보낸다
+     ├─ SoapyReceiver        SoapySDR 로 붙는 장비
+     ├─ UhdReceiver          USRP — C++ 프로그램 uhdio (usrp_uhd.py)
+     ├─ MatlabUsrpReceiver   USRP — MATLAB (usrp_matlab.py)
+     └─ LockedUsbReceiver    꽂힌 것을 알아보기만 (usb_sdr.py)
 
-- **받는 쪽(Receiver)**: 장비 한 종류를 찾고 받는 법. 무엇을 풀지는 모른다(받은 IQ 를 파일로 쓰기만 한다).
-    SimulatedReceiver  저장 파일을 장비처럼 흘려보낸다(장비 없이 시험)
-    SoapyReceiver      SoapySDR 로 붙는 장비(HackRF, Pluto, RTL-SDR 등)
-    (BACKENDS 에 끼우는 것) USRP — MATLAB 으로 찾고 받는다(usrp_matlab), 꽂힌 것만 알아보는 usb_sdr
-  새 장비 종류를 더하려면 found()·capture() 를 가진 것을 하나 쓰고 BACKENDS 에 한 줄을 넣는다.
-- **받은 뒤의 풀이는 여기 없다.** 채널 세기(survey), 블루투스(ble), Wi-Fi(wifi), 기지국(stages)이 각자 capture() 로 받은 파일을 읽는다.
+    RECEIVERS                장비 id 의 머리말 → Receiver. 설치에 따라 끼워진다(USRP 쪽 셋)
+    receiver_for(id)         장비 id 로 맡은 Receiver 를 고른다
+
+- 위쪽(화면, 풀이)은 장비 종류를 모른다. list_devices / capture / stream 만 부르면, 여기서 맡은 Receiver 에 넘긴다.
+- 받은 것은 언제나 SigMF 파일로 나온다. 그래서 누가 받았든 푸는 쪽(MATLAB, 파이썬)은 같다.
+- 새 장비 종류를 더하려면 Receiver 를 하나 쓰고 RECEIVERS 에 한 줄을 넣는다.
+- 장비의 능력(주파수 범위, 최대 샘플레이트, 어느 단계까지 되는지)은 devices/capabilities.json 에 있다.
+- 받은 뒤의 풀이는 여기 없다. 채널 세기(survey), 블루투스(ble), Wi-Fi(wifi), 기지국(stages), 실시간 풀이(streams)가 받은 파일을 읽는다.
 - IQ 가 아니라 칩이 풀어 준 결과를 주는 장비(컴퓨터의 Wi-Fi·블루투스)는 adapters.py 에 있다.
 - 이 모듈은 수신(RX) 스트림만 열고, 송신(TX) 방향 상수·함수는 어디에서도 쓰지 않는다
-  (server/tests/test_devices.py가 소스에서 TX 호출이 없음을 검사한다).
-- SoapySDR이 없어도 가져올 수 있다(모듈은 장비를 쓸 때만 불러온다).
-- 받은 IQ는 SigMF(cf32_le)로 디스크에 바로 흘려 쓴다. 긴 수신도 메모리에 다 올리지 않는다.
+  (server/tests/test_devices.py 가 소스에서 TX 호출이 없음을 검사한다).
+- SoapySDR 이 없어도 가져올 수 있다(모듈은 장비를 쓸 때만 불러온다). 긴 수신도 메모리에 다 올리지 않고 디스크에 바로 쓴다.
 """
 
 from __future__ import annotations
@@ -28,7 +33,7 @@ import time
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -43,10 +48,67 @@ class DeviceError(RuntimeError):
     """사용자에게 보여줄 수 있는 장비 오류."""
 
 
-# 다른 방식으로 장비를 찾고 받는 쪽을 끼우는 자리(예: MATLAB 의 USRP 지원 패키지).
-# id 머리말 → 받는 쪽. list_found() -> [{"id","label","driver","serial", …}], capture(dev_id, req, out_meta) -> Capture 를 갖는다.
-# (있으면 쓰는 것: status() 찾기 상태, reset() 연결 새로 하기)
-BACKENDS: dict[str, Any] = {}
+class Receiver:
+    """장비 한 종류에서 받는 법. 받은 것을 풀 줄은 모른다(받아서 SigMF 파일로 내놓기만 한다).
+
+    장비 종류마다 자식 클래스가 하나 있다. 위쪽(화면, 풀이)은 장비 종류를 모르고 이 클래스의 함수만 부른다.
+
+        Receiver
+         ├─ SimulatedReceiver        저장해 둔 파일을 장비처럼 흘려보낸다          (이 파일)
+         ├─ SoapyReceiver            SoapySDR 로 붙는 장비                          (이 파일)
+         ├─ UhdReceiver              USRP — C++ 프로그램 uhdio 가 UHD 로 직접       (usrp_uhd.py)
+         ├─ MatlabUsrpReceiver       USRP — MATLAB 의 USRP 지원 패키지로            (usrp_matlab.py)
+         └─ LockedUsbReceiver        꽂힌 것을 알아보기만 한다(이 설치로는 못 씀)    (usb_sdr.py)
+
+    자식이 채우는 것
+        prefix       맡는 장비 id 의 머리말("usrp:" 등). None 이면 다른 쪽이 맡지 않은 나머지 전부
+        continuous   끊김 없이 계속 받을 수 있는가
+        list_found   지금 연결된 장비들
+        capture      정해진 길이만큼 받기
+        stream       멈추라고 할 때까지 받기 — 채우지 않으면 "capture 를 되풀이"하는 기본 동작을 쓴다(조각 사이에 틈이 생긴다)
+        status/reset 장비 찾기의 상태와, 연결을 처음부터 다시 하기(해당하는 자식만)
+
+    송신 쪽의 tx.Transmitter 와 짝이 되는 클래스다.
+    """
+
+    prefix: ClassVar[str | None] = None
+    continuous: ClassVar[bool] = False
+
+    def list_found(self, force: bool = False, wait_s: float = 0.0) -> list[dict[str, Any]]:
+        """연결된 장비: [{"id", "label", "driver", "serial", …}]. force 면 기억해 둔 것을 쓰지 않고 다시 찾는다."""
+        raise NotImplementedError
+
+    def capture(self, dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
+        """req.duration_s 만큼 받아 SigMF 로 쓴다."""
+        raise NotImplementedError
+
+    def stream(self, dev_id: str, spec: StreamSpec, folder: Path, on_segment: Any, stop: threading.Event, on_spectrum: Any = None) -> dict[str, Any]:
+        """stop 이 설 때까지 받아 조각마다 on_segment(Segment) 를 부른다.
+
+        기본 동작: "조각 길이만큼 받기(capture)"를 되풀이한다. 조각 사이에 받지 않는 틈이 생기므로 Segment.continuous 가 False 다.
+        끊김 없이 받을 수 있는 자식(continuous = True)은 이 함수를 새로 쓴다.
+        """
+        index, first = 0, 0
+        while not stop.is_set():
+            began = time.monotonic()
+            cap = self.capture(dev_id, CaptureRequest(spec.center_freq_hz, spec.sample_rate_hz, spec.segment_s, spec.gain_db, spec.antenna,
+                                                      offset_index=index), folder / f"seg-{index:06d}.sigmf-meta")
+            on_segment(Segment(index=index, capture=cap, first_sample=first, lost_samples=0, overflows=0, continuous=False))
+            index, first = index + 1, first + cap.num_samples
+            stop.wait(max(0.0, spec.segment_s - (time.monotonic() - began)))     # 파일을 읽는 모의 장비도 실제 시간에 맞춰 낸다
+        return {"stopped": True, "segments": index, "samples": first, "lost": 0, "overflows": 0}
+
+    def status(self) -> dict[str, Any] | None:
+        """장비 찾기의 상태(찾는 중인지, 마지막에 왜 못 찾았는지). 뒤에서 찾는 자식만 돌려준다."""
+        return None
+
+    def reset(self) -> None:
+        """장비 연결을 처음부터 다시 한다(해당하는 자식만)."""
+
+
+# 설치에 따라 끼워지는 받는 쪽: 장비 id 의 머리말 → Receiver. (모의 장비와 SoapySDR 은 언제나 있다 — _receivers 참고)
+# 새 장비 종류를 더하려면 Receiver 를 하나 쓰고 여기에 넣는다. 송신 쪽의 tx.TRANSMITTERS 와 같은 자리다.
+RECEIVERS: dict[str, Receiver] = {}
 
 
 @lru_cache(maxsize=1)
@@ -78,15 +140,15 @@ def _info(dev_id: str, label: str, driver: str, cap: dict[str, Any], serial: str
     return out
 
 
-def _receivers() -> list[tuple[str | None, Any]]:
-    """(id 머리말, 받는 쪽)의 목록. 머리말이 None 인 것은 "나머지 전부"를 맡는다(SoapySDR 의 장비 id 에는 정해진 머리말이 없다)."""
-    return [(SIM_PREFIX, SimulatedReceiver()), *BACKENDS.items(), (None, SoapyReceiver())]
+def _receivers() -> list[Receiver]:
+    """받는 쪽 전부, 물어보는 순서대로. 머리말이 없는 SoapySDR 은 "나머지 전부"를 맡으므로 맨 뒤에 둔다."""
+    return [SimulatedReceiver(), *RECEIVERS.values(), SoapyReceiver()]
 
 
-def receiver_for(dev_id: str) -> Any:
-    """이 장비를 맡은 받는 쪽."""
-    for prefix, receiver in _receivers():
-        if prefix is None or dev_id.startswith(prefix):
+def receiver_for(dev_id: str) -> Receiver:
+    """이 장비를 맡은 받는 쪽: 장비 id 의 머리말로 고른다."""
+    for receiver in _receivers():
+        if receiver.prefix is None or dev_id.startswith(receiver.prefix):
             return receiver
     raise DeviceError(f"device not found: {dev_id}")
 
@@ -94,7 +156,7 @@ def receiver_for(dev_id: str) -> Any:
 def list_devices() -> list[dict[str, Any]]:
     """인식된 장비 목록. 받는 쪽마다 찾은 것을 모으고, 능력표(capabilities.json)의 값을 붙인다."""
     out = []
-    for _prefix, receiver in _receivers():
+    for receiver in _receivers():
         try:
             found = receiver.list_found()
         except Exception:  # noqa: BLE001 — 한 쪽의 장비 찾기가 실패해도 나머지 목록은 보여 준다
@@ -115,32 +177,32 @@ def list_devices() -> list[dict[str, Any]]:
 def search_status() -> list[dict[str, Any]]:
     """장비를 뒤에서 찾는 쪽들의 상태(찾는 중인지, 마지막에 왜 못 찾았는지)."""
     out = []
-    for backend in BACKENDS.values():
-        if hasattr(backend, "status"):
-            try:
-                out.append(backend.status())
-            except Exception as e:  # noqa: BLE001
-                out.append({"backend": "?", "searching": False, "found": 0, "error": str(e)})
+    for receiver in RECEIVERS.values():
+        try:
+            state = receiver.status()
+        except Exception as e:  # noqa: BLE001
+            state = {"backend": "?", "searching": False, "found": 0, "error": str(e)}
+        if state is not None:
+            out.append(state)
     return out
 
 
 def rescan() -> None:
     """지금 다시 찾기 시작한다(기다리지 않는다)."""
-    for backend in BACKENDS.values():
+    for receiver in RECEIVERS.values():
         try:
-            backend.list_found(force=True, wait_s=0)
+            receiver.list_found(force=True, wait_s=0)
         except Exception:  # noqa: BLE001, S110 — 실패 이유는 search_status 에 남는다
             pass
 
 
 def reset() -> None:
     """장비 연결을 처음부터 다시 한다(뒤에서 돈다. 진행은 search_status 로 본다)."""
-    for backend in BACKENDS.values():
-        if hasattr(backend, "reset"):
-            try:
-                backend.reset()
-            except Exception:  # noqa: BLE001, S110 — 실패 이유는 search_status 에 남는다
-                pass
+    for receiver in RECEIVERS.values():
+        try:
+            receiver.reset()
+        except Exception:  # noqa: BLE001, S110 — 실패 이유는 search_status 에 남는다
+            pass
 
 
 def find_device(dev_id: str) -> dict[str, Any]:
@@ -201,7 +263,7 @@ class Segment:
 def can_stream(dev_id: str) -> bool:
     """이 장비를 맡은 쪽이 끊김 없이 받을 수 있는가(받으면서 그림용 스펙트럼도 바로 계산해 준다)."""
     try:
-        return hasattr(receiver_for(dev_id), "stream")
+        return receiver_for(dev_id).continuous
     except DeviceError:
         return False
 
@@ -210,23 +272,11 @@ def stream(dev_id: str, spec: StreamSpec, folder: Path, on_segment: Any, stop: t
     """stop 이 설 때까지 받아 조각마다 on_segment(Segment) 를 부른다(이 함수는 그동안 돌아오지 않는다).
     on_spectrum 을 주고 spec.spectrum_ms 가 0 보다 크면, 그 간격마다 on_spectrum({"row", "sample", "mean", "max"}) 도 부른다(끊김 없이 받는 장비만).
 
-    그 장비를 맡은 쪽에 stream() 이 있으면 끊김 없이 받는다(USRP 의 uhdio).
-    없으면 "조각 길이만큼 받기"를 되풀이한다 — 조각 사이에 틈이 생기고, Segment.continuous 가 False 다.
+    그 장비를 맡은 Receiver 에 맡긴다. 끊김 없이 받는 쪽(USRP 의 uhdio)은 그렇게 받고,
+    그렇지 못한 쪽은 Receiver.stream 의 기본 동작("조각 길이만큼 받기"를 되풀이)으로 받는다.
     """
     folder.mkdir(parents=True, exist_ok=True)
-    backend = receiver_for(dev_id)
-    if hasattr(backend, "stream"):
-        out: dict[str, Any] = backend.stream(dev_id, spec, folder, on_segment, stop, on_spectrum)
-        return out
-    index, first = 0, 0
-    while not stop.is_set():
-        began = time.monotonic()
-        cap = backend.capture(dev_id, CaptureRequest(spec.center_freq_hz, spec.sample_rate_hz, spec.segment_s, spec.gain_db, spec.antenna,
-                                                     offset_index=index), folder / f"seg-{index:06d}.sigmf-meta")
-        on_segment(Segment(index=index, capture=cap, first_sample=first, lost_samples=0, overflows=0, continuous=False))
-        index, first = index + 1, first + cap.num_samples
-        stop.wait(max(0.0, spec.segment_s - (time.monotonic() - began)))     # 파일을 읽는 모의 장비도 실제 시간에 맞춰 낸다
-    return {"stopped": True, "segments": index, "samples": first, "lost": 0, "overflows": 0}
+    return receiver_for(dev_id).stream(dev_id, spec, folder, on_segment, stop, on_spectrum)
 
 
 def capture(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
@@ -236,10 +286,12 @@ def capture(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:
     return cap
 
 
-class SimulatedReceiver:
+class SimulatedReceiver(Receiver):
     """모의 장비: 저장해 둔 연습 신호(골든 캡처)마다 하나. 장비 없이 "장비로 받는 흐름"을 시험한다."""
 
-    def list_found(self) -> list[dict[str, Any]]:
+    prefix = SIM_PREFIX
+
+    def list_found(self, force: bool = False, wait_s: float = 0.0) -> list[dict[str, Any]]:
         label = capability_for("simulated")["label"]
         return [{"id": f"{SIM_PREFIX}{p.parent.name}", "label": f"{label} · {p.parent.name}", "driver": "simulated"}
                 for p in sorted(GOLDEN.glob("*/capture.sigmf-meta"))]
@@ -248,10 +300,12 @@ class SimulatedReceiver:
         return _capture_simulated(dev_id, req, out_meta)
 
 
-class SoapyReceiver:
-    """SoapySDR 로 붙는 장비. SoapySDR 이 없으면 아무것도 찾지 않는다."""
+class SoapyReceiver(Receiver):
+    """SoapySDR 로 붙는 장비. SoapySDR 이 없으면 아무것도 찾지 않는다. 장비 id 에 정해진 머리말이 없어 "나머지 전부"를 맡는다."""
 
-    def list_found(self) -> list[dict[str, Any]]:
+    prefix = None
+
+    def list_found(self, force: bool = False, wait_s: float = 0.0) -> list[dict[str, Any]]:
         if not soapy_available():
             return []
         soapy = importlib.import_module("SoapySDR")
@@ -335,7 +389,7 @@ def _capture_soapy(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Ca
 def probe(dev_id: str) -> dict[str, Any]:
     """장비가 직접 알려 주는 값(하드웨어 정보, 안테나, 이득·샘플레이트·주파수 범위, 클럭 원천). 수신 쪽만 묻는다.
     하나라도 못 읽으면 그 항목만 빠진다."""
-    if dev_id.startswith(SIM_PREFIX) or any(dev_id.startswith(p) for p in BACKENDS) or not soapy_available():
+    if dev_id.startswith(SIM_PREFIX) or any(dev_id.startswith(p) for p in RECEIVERS) or not soapy_available():
         return {}
     soapy = importlib.import_module("SoapySDR")
     rx = soapy.SOAPY_SDR_RX  # 수신 방향만 쓴다

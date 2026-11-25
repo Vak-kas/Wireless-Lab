@@ -107,3 +107,40 @@ def test_narrowband_device_is_limited_to_spectrum(client, monkeypatch):
 
 def test_unknown_device_is_rejected(client):
     assert client.post("/api/sessions", json={"source": {"kind": "device", "device": "driver=nope"}}).status_code == 400
+
+
+def test_every_receiver_is_a_receiver_and_the_right_one_is_picked_by_id_prefix(monkeypatch):
+    """받는 쪽은 모두 Receiver 의 자식이고, 장비 id 의 머리말로 맡을 쪽이 정해진다. 머리말이 없는 SoapySDR 은 나머지를 맡는다."""
+    class Radio(devices.Receiver):
+        prefix = "radio:"
+        continuous = True
+
+    monkeypatch.setattr(devices, "RECEIVERS", {"radio:": Radio()})
+    assert all(isinstance(r, devices.Receiver) for r in devices._receivers())
+    assert isinstance(devices.receiver_for("radio:1"), Radio) and devices.can_stream("radio:1")
+    assert isinstance(devices.receiver_for("simulated:x"), devices.SimulatedReceiver) and not devices.can_stream("simulated:x")
+    assert isinstance(devices.receiver_for("driver=hackrf"), devices.SoapyReceiver)
+    assert devices.Receiver().status() is None and devices.search_status() == []      # 상태를 주지 않는 쪽은 찾기 상태에 나오지 않는다
+
+
+def test_a_receiver_without_its_own_stream_repeats_short_captures(tmp_path):
+    """stream 을 새로 쓰지 않은 자식은 부모의 기본 동작으로 받는다: 짧게 받기를 되풀이하고, 조각 사이에 틈이 있다고 알린다."""
+    import threading
+
+    import numpy as np
+
+    class Counter(devices.Receiver):
+        prefix = "count:"
+
+        def capture(self, dev_id, req, out_meta):
+            return sigmf.write_capture(out_meta, np.zeros(100, dtype=np.complex64), sample_rate_hz=1e6, center_freq_hz=req.center_freq_hz, source="device")
+
+    got, stop = [], threading.Event()
+
+    def on_segment(seg):
+        got.append(seg)
+        if len(got) == 3:
+            stop.set()
+
+    out = Counter().stream("count:1", devices.StreamSpec(1e9, 1e6, segment_s=0.01), tmp_path, on_segment, stop)
+    assert out["segments"] == 3 and [s.first_sample for s in got] == [0, 100, 200] and not any(s.continuous for s in got)

@@ -118,6 +118,18 @@ def capture(dev_id: str, req: devices.CaptureRequest, out_meta: Path) -> sigmf.C
     raise devices.DeviceError("이 장비를 사용하려면 Pro 판이 필요합니다.")
 
 
+class LockedUsbReceiver(devices.Receiver):
+    """꽂힌 SDR 을 USB 번호로 알아보기만 한다. 이 설치로는 받을 수 없다(화면에 "Pro 필요"로 나온다)."""
+
+    prefix = PREFIX
+
+    def list_found(self, force: bool = False, wait_s: float = 0.0) -> list[dict[str, Any]]:
+        return list_found(force, wait_s)
+
+    def capture(self, dev_id: str, req: devices.CaptureRequest, out_meta: Path) -> sigmf.Capture:
+        return capture(dev_id, req, out_meta)
+
+
 def install() -> None:
     """장비 계층에 끼운다. 이 설치가 그 장비를 직접 쓸 수 있으면(Pro) 부르지 않는다."""
-    devices.BACKENDS[PREFIX] = sys.modules[__name__]
+    devices.RECEIVERS[PREFIX] = LockedUsbReceiver()
