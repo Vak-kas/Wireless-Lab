@@ -266,7 +266,7 @@
   "spectrum.custom.center": "가운데 주파수 (MHz)",
   "spectrum.custom.span": "전체 폭 (MHz)",
   "spectrum.custom.step": "한 칸 폭 (MHz)",
-  "spectrum.gain": "수신 이득 (dB, 비우면 장비 기본값)",
+  "spectrum.gain": "수신 이득 (dB, 비우면 기본값)",
   "spectrum.busy": "재는 중…",
   "spectrum.repeat.stop": "멈추기",
   "spectrum.stat.label": "보여 줄 값",
@@ -345,7 +345,7 @@
   "monitor.pick_none": "전부 풀기",
   "monitor.picked": "{n}개 고름",
   "monitor.unreachable": "흐린 칸은 이 장비가 받을 수 없는 주파수입니다.",
-  "monitor.start": "채널별 세기 모니터링",
+  "monitor.start": "세기 비교 시작",
   "monitor.back": "설정으로 돌아가기",
   "monitor.title": "채널 {n}개를 지켜보는 중",
   "monitor.lead": "고른 채널을 계속 돌아가며 재고, 최근 {n}바퀴의 중앙값을 보여 줍니다.",
@@ -805,5 +805,13 @@
   "live.scope.ago": "{s}초 전",
   "live.wifi.no_aps": "아직 비콘을 풀지 못했습니다. 비콘은 0.1초에 한 번쯤 나오는데, 채널이 붐비면 프레임의 일부만 풀어서 잡히는 데 시간이 걸릴 수 있습니다.",
   "view.center": "가운데 주파수 (MHz)",
-  "view.width": "대역폭 (MHz)"
+  "view.width": "대역폭 (MHz)",
+  "job.label": "이 칸에서 할 일",
+  "job.live": "실시간 보기",
+  "job.levels": "채널별 세기 비교",
+  "job.aps": "주변 AP 찾기",
+  "job.live.hint": "한 대역을 계속 받아 그림으로 보고, 신호 종류를 표시하고, 녹화합니다.",
+  "job.levels.hint": "고른 채널들을 돌아가며 세기를 재서 막대로 비교합니다. 기준을 저장해 두면 평소보다 세진 채널을 알려 줍니다.",
+  "job.aps.hint": "고른 Wi-Fi 채널들을 돌며 비콘을 읽어 주변 AP 를 찾습니다.",
+  "spectrum.plan.hint_channels": "대역을 고르고, 볼 채널을 누르세요."
 }

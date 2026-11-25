@@ -59,6 +59,8 @@ export function SpectrumView({
   stopSignal,
   onLive,
   onEdit,
+  gainField,
+  selectorOnly,
 }: {
   info: SurveyDevice;
   gain: string;
@@ -71,6 +73,10 @@ export function SpectrumView({
   stopSignal?: number;
   /** 사용자가 가운데 주파수·대역폭 칸을 직접 고쳤다(MHz. 아직 숫자가 아니면 0) */
   onEdit?: (centerMhz: number, widthMhz: number) => void;
+  /** 가운데 주파수·대역폭 칸 옆에 함께 놓을 칸(수신 이득) */
+  gainField?: ReactNode;
+  /** true 면 selector 만 그린다(다른 일을 하는 중이라 볼 대역 칸과 받기 단추가 필요 없다) */
+  selectorOnly?: boolean;
   /** 실시간으로 받는 중인지 바깥에 알린다 */
   onLive?: (running: boolean) => void;
 }) {
@@ -181,7 +187,7 @@ export function SpectrumView({
   const controls = (
     <div className={selector ? "card view-one" : "card view-controls"} data-testid="view-controls">
       {selector}
-      {!sim && (
+      {!sim && !selectorOnly && (
         <>
           {/* 볼 대역: 위에서 고르면 채워지고, 직접 적어도 된다(적은 값이 채널과 맞으면 위의 채널이 체크된다) */}
           <div className={selector ? "row view-target" : "row"}>
@@ -213,6 +219,7 @@ export function SpectrumView({
                 />
               )}
             </Field>
+            {gainField}
           </div>
           {max !== undefined && (
             <p className="t-caption muted" data-testid="view-max">
@@ -221,11 +228,13 @@ export function SpectrumView({
           )}
         </>
       )}
-      {selector && error && (
+      {selector && error && !selectorOnly && (
         <p className="t-caption" role="alert" data-testid="view-error">
           ! {error}
         </p>
       )}
+      {!selectorOnly && (
+        <>
       <div className="row">
         {live.can && (
           <>
@@ -242,6 +251,8 @@ export function SpectrumView({
         </Button>
       </div>
       {live.can && <p className="t-caption muted">{t("live.hint")}</p>}
+        </>
+      )}
     </div>
   );
   const results = (

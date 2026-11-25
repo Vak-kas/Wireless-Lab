@@ -1112,6 +1112,16 @@ details.fold > .fold-body {
   padding-top: var(--space-md);
   border-top: 1px solid var(--line);
 }
+/* 하는 일 고르기와, 그 일의 시작 단추 줄(이득 칸과 단추를 한 줄에) */
+.jobs {
+  justify-self: start;
+}
+.job-go {
+  align-items: end;
+}
+.view-target {
+  align-items: end;
+}
 .chip-add {
   min-width: var(--size-touch-min);
   font-weight: 600;

@@ -266,7 +266,7 @@
   "spectrum.custom.center": "Centre frequency (MHz)",
   "spectrum.custom.span": "Total span (MHz)",
   "spectrum.custom.step": "Slice width (MHz)",
-  "spectrum.gain": "Receive gain (dB, empty = device default)",
+  "spectrum.gain": "RX gain (dB, blank: default)",
   "spectrum.busy": "Measuring…",
   "spectrum.repeat.stop": "Stop",
   "spectrum.stat.label": "Value shown",
@@ -345,7 +345,7 @@
   "monitor.pick_none": "Clear",
   "monitor.picked": "{n} selected",
   "monitor.unreachable": "Greyed cells are frequencies this device cannot receive.",
-  "monitor.start": "Monitor level per channel",
+  "monitor.start": "Start comparing",
   "monitor.back": "Back to setup",
   "monitor.title": "Watching {n} channels",
   "monitor.lead": "The selected channels are measured in turn; the median of the last {n} sweeps is shown.",
@@ -804,5 +804,13 @@
   "signal.dc": "The sharp spike at the centre frequency leaks from the device itself and is left out of the table.",
   "live.scope.now": "now",
   "live.scope.ago": "{s} s ago",
-  "live.wifi.no_aps": "No beacon decoded yet. Beacons come about every 0.1 s, but on a busy channel only part of the frames are decoded, so it can take a while."
+  "live.wifi.no_aps": "No beacon decoded yet. Beacons come about every 0.1 s, but on a busy channel only part of the frames are decoded, so it can take a while.",
+  "job.label": "What this pane does",
+  "job.live": "Live view",
+  "job.levels": "Compare channel levels",
+  "job.aps": "Find nearby APs",
+  "job.live.hint": "Receives one band continuously, draws it, names the signals and records.",
+  "job.levels.hint": "Steps through the picked channels and compares their levels as bars. Save a baseline to be told when a channel rises above normal.",
+  "job.aps.hint": "Steps through the picked Wi-Fi channels and reads beacons to find nearby APs.",
+  "spectrum.plan.hint_channels": "Pick a band and press the channels to look at."
 }

@@ -63,6 +63,7 @@ test("장비를 고르면 장비 정보가 나오고, 쓸 수 없는 대역은 �
   expect(within(card).getByText("0 ~ 76 dB")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "파일에 담긴 대역" })).toBeNull(); // 실제 장비에는 모의용 대역을 보이지 않는다
   expect(screen.getByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(await screen.findByTestId("job-levels"));
   expect(screen.getByTestId("monitor-start")).toBeDisabled(); // 채널을 아직 고르지 않았다
 });
 
@@ -79,6 +80,7 @@ test("채널 맵: 누르는 단위에 따라 묶음째 고르고, 닿지 않는 
   expect(screen.getByTestId("cell-ch52")).toBeDisabled();
   await userEvent.click(screen.getByRole("button", { name: "40 MHz" }));
   await userEvent.click(screen.getByTestId("cell-ch48"));
+  await userEvent.click(await screen.findByTestId("job-levels"));
   await userEvent.click(screen.getByTestId("monitor-start"));
   expect(a.monitorStart).toHaveBeenCalledWith(expect.objectContaining({ device: "driver=uhd", plan: "wifi-5g", channels: ["ch44", "ch48"] }));
 });
@@ -93,6 +95,7 @@ test("모니터링: 세기·증가량·경고를 보여 주고, 설정으로 돌
   ]);
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(await screen.findByTestId("job-levels"));
   await userEvent.click(screen.getByTestId("monitor-start"));
   const status = await screen.findByTestId("monitor-status");
   await waitFor(() => expect(within(status).getByText(/ch40 이\(가\) 기준보다 6 dB 넘게/)).toBeInTheDocument());
@@ -154,6 +157,7 @@ test("모니터를 멈춘 뒤 표에서 들여다보기를 누르면 그 채널�
   a.surveySpectrum = vi.fn(async () => VIEW);
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(await screen.findByTestId("job-levels"));
   await userEvent.click(screen.getByTestId("monitor-start"));
   await userEvent.click(await screen.findByTestId("survey-look-ch36"));
   expect(await screen.findByText(/채널 모니터가 장비를 쓰는 중/)).toBeInTheDocument(); // 장비는 하나라 동시에 못 쓴다
@@ -170,6 +174,7 @@ test("주변 AP 찾기: 찾은 AP의 '이 대역 고르기'로 그 AP가 쓰는 
   a.wifiAps = vi.fn(async () => ({ aps: [{ ssid: "home", bssid: "AA:BB", seen_on: "ch36", primary: "ch44", width_mhz: 80, eht: true, count: 2, power_db: -31.25 }] }));
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(await screen.findByTestId("job-aps"));
   await userEvent.click(await screen.findByTestId("ap-find"));
   expect(a.wifiAps).toHaveBeenCalledWith({ device: "driver=uhd", plan: "wifi-5g", channels: ["ch36"], gain_db: undefined });
   const table = await screen.findByTestId("ap-table");
@@ -261,6 +266,7 @@ test("모니터링 탭: 주변 AP 와 프레임·송신 폭이 스크롤 없이 
   }));
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(await screen.findByTestId("job-levels"));
   await userEvent.click(screen.getByTestId("monitor-start"));
   await waitFor(() => expect(a.wifiLive).toHaveBeenCalledWith({ device: "driver=uhd", plan: "wifi-5g", channel: "ch36", gain_db: undefined }));
   expect(await screen.findByTestId("survey-table")).toBeInTheDocument(); // 처음에는 채널 세기 탭
@@ -301,6 +307,7 @@ test("블루투스: 광고 채널 셋이 기본으로 골라지고, 모니터링
   renderWithStore(<SpectrumScreen />, a);
   for (const n of [37, 38, 39]) expect(await screen.findByTestId(`cell-ch${n}`)).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByTestId("cell-ch0")).toHaveAttribute("aria-pressed", "false");
+  await userEvent.click(await screen.findByTestId("job-levels"));
   await userEvent.click(screen.getByTestId("monitor-start"));
   await waitFor(() => expect(a.bleScan).toHaveBeenCalledWith({ device: "driver=uhd", channel: 37, gain_db: undefined }));
   await waitFor(() => expect(screen.getByTestId("tab-near")).toHaveTextContent("주변 기기1"));
@@ -325,6 +332,7 @@ test("수신이 한두 번 실패해도 모니터링은 멈추지 않고, 잇달
   });
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(await screen.findByTestId("job-levels"));
   await userEvent.click(screen.getByTestId("monitor-start"));
   expect(await screen.findByTestId("monitor-hiccup")).toHaveTextContent("Overflow"); // 한 번 실패: 알리고 계속
   expect(await screen.findByTestId("survey-table", undefined, { timeout: 3000 })).toBeInTheDocument(); // 다음 바퀴는 성공
@@ -484,4 +492,18 @@ test("가운데 주파수와 대역폭을 직접 적으면 그대로 보고, 채
   await userEvent.click(screen.getByTestId("cell-ch44")); // 채널을 누르면 칸이 다시 고른 것을 따른다
   expect(center).toHaveValue("5220");
   expect(width).toHaveValue("20");
+});
+
+test("하는 일을 고르면 그 일에 필요한 것만 보인다: 실시간 보기에는 볼 대역 칸과 받기 단추, 세기 비교에는 시작 단추만", async () => {
+  renderWithStore(<SpectrumScreen />, api());
+  expect(await screen.findByTestId("job-live")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("view-center")).toBeInTheDocument();
+  expect(screen.getByTestId("rx-gain")).toBeInTheDocument(); // 수신 이득은 주파수 칸 옆에 있다
+  expect(screen.queryByTestId("monitor-start")).toBeNull();
+  await userEvent.click(screen.getByTestId("job-levels"));
+  expect(screen.getByTestId("monitor-start")).toBeInTheDocument();
+  expect(screen.queryByTestId("view-center")).toBeNull();
+  expect(screen.queryByTestId("view-run")).toBeNull();
+  expect(screen.queryByTestId("band-add")).toBeNull(); // 추가한 주파수는 실시간 보기에서만 쓴다
+  expect(screen.getByTestId("job-aps")).toBeDisabled(); // 이 설치에는 Wi-Fi 풀이가 없다
 });
