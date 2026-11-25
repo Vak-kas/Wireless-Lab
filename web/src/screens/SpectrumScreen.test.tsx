@@ -389,3 +389,36 @@ test("파일로 저장을 누르면 지금 칸의 대역과 길이로 저장을 
   expect(a.surveySave).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 433.92e6, bandwidth_hz: 2e6, gain_db: undefined, seconds: 1 });
   expect(await screen.findByTestId("view-saved")).toHaveTextContent("/s/saved/x.sigmf-data");
 });
+
+test("실시간으로 받기: 맞는 풀이를 꽂아 시작하고, 놓친 샘플 수와 풀이 결과를 보여 주며, 멈출 수 있다", async () => {
+  const a = api();
+  const live = (extra: object) => ({
+    id: "s1", device: "driver=uhd", running: true, error: "", center_hz: 2437e6, sample_rate_hz: 20e6, segment_s: 0.5, segments: 4, seconds: 2,
+    lost_samples: 0, overflows: 0, continuous: true,
+    taps: {
+      spectrum: { done: 4, skipped: 0, error: "", took_s: 0.1, view: VIEW },
+      wifi: { done: 1, skipped: 3, error: "", took_s: 1.2, channel: "ch6", formats: { "Non-HT": 5 },
+        aps: [{ ssid: "lab-ap", bssid: "02:00:00:00:00:01", seen_on: "ch6", primary: "ch6", width_mhz: 20, eht: false, count: 3, power_db: -40 }] },
+    },
+    ...extra,
+  });
+  a.streamTaps = vi.fn(async () => ({ taps: [{ name: "spectrum", ok: true, reason: "" }, { name: "wifi", ok: true, reason: "" }, { name: "ble", ok: false, reason: "x" }, { name: "record", ok: true, reason: "" }] }));
+  a.streamStart = vi.fn(async () => live({}));
+  a.streamState = vi.fn(async () => live({ lost_samples: 12, overflows: 1 }));
+  a.streamStop = vi.fn(async () => live({ running: false }));
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.type(await screen.findByTestId("view-center"), "2437");
+  await userEvent.type(screen.getByTestId("view-width"), "20");
+  await userEvent.click(await screen.findByTestId("live-toggle"));
+  expect(a.streamStart).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 2437e6, bandwidth_hz: 20e6, gain_db: undefined, taps: ["spectrum", "wifi"] });
+  const status = await screen.findByTestId("live-status");
+  expect(within(status).getByText("놓친 샘플 없음")).toBeInTheDocument();
+  expect(within(status).getByText(/1조각 풀고 3조각 건너뜀/)).toBeInTheDocument();
+  expect(within(screen.getByTestId("live-wifi")).getByText("lab-ap")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "스펙트로그램" })).toBeInTheDocument();
+  expect(screen.getByTestId("view-run")).toBeDisabled();
+  expect(await within(status).findByText(/놓친 샘플 12개/, {}, { timeout: 3000 })).toBeInTheDocument();
+  await userEvent.click(screen.getByTestId("live-toggle"));
+  expect(a.streamStop).toHaveBeenCalledWith("s1");
+  expect(await screen.findByText(/멈춤 · 2.0초 받음/)).toBeInTheDocument();
+});

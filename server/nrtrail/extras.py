@@ -277,6 +277,13 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         wifi.register(app, locks)
 
     try:
+        from . import streams
+    except ImportError:
+        pass                            # 계속 받기가 없는 설치: 화면이 /api/streams 가 없는 것을 보고 그 칸을 숨긴다
+    else:
+        streams.register(app, locks)
+
+    try:
         from . import tx
     except ImportError:
         @app.get("/api/tx")

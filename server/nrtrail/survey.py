@@ -294,28 +294,44 @@ def spectrum(dev_id: str, *, center_hz: float | None = None, bandwidth_hz: float
         except devices.DeviceError as e:
             raise SurveyError(f"장비에서 받지 못했습니다: {e}") from e
         iq = np.asarray(cap.read(0, min(cap.num_samples, VIEW_MAX_SAMPLES)))
-    rate, center = cap.sample_rate_hz, cap.center_freq_hz
-    spectra = block_spectra(iq, rate, VIEW_MAX_SAMPLES)                                   # 구간 × NFFT
-    group = NFFT // VIEW_POINTS
-    grouped = spectra.reshape(len(spectra), VIEW_POINTS, group).sum(axis=2)   # 점 하나 = rate / VIEW_POINTS 폭의 세기
+    view = view_of(iq, cap.sample_rate_hz, cap.center_freq_hz)
+    view.pop("fall_db")
+    return {"device": dev_id, "unit": "dBFS", "fixed_tuning": sim, "gain_db": gain_db} | view
+
+
+def fall_columns(spectra: np.ndarray, cols: int) -> np.ndarray:
+    """스펙트로그램의 세로줄들: 구간별 스펙트럼을 시간 cols 칸 × 주파수 FALL_ROWS 칸의 세기(dB)로 줄인다."""
+    cols = max(1, min(cols, len(spectra)))
+    per_col = len(spectra) // cols
+    power = spectra[: cols * per_col].reshape(cols, per_col, FALL_ROWS, NFFT // FALL_ROWS).sum(axis=3).mean(axis=1)
+    out: np.ndarray = 10 * np.log10(power + EPS)
+    return out
+
+
+def fall_grid(columns_db: np.ndarray, col_ms: float) -> dict[str, Any]:
+    """세로줄들(시간 × 주파수, dB) → 화면에 넘기는 모양. 가장 약한 칸을 0, 가장 센 칸을 1 로 맞춘다."""
+    lo, hi = float(columns_db.min()), float(columns_db.max())
+    norm = (columns_db - lo) / max(hi - lo, 1e-9)
+    return {"rows": FALL_ROWS, "cols": len(columns_db), "values": [[round(float(v), 3) for v in row] for row in norm.T],
+            "col_ms": round(col_ms, 3), "floor_db": round(lo, 1), "ceil_db": round(hi, 1)}
+
+
+def view_of(iq: np.ndarray, rate: float, center: float, columns: int = FALL_COLS) -> dict[str, Any]:
+    """받은 신호 한 덩어리 → 주파수별 세기(평균·최대)와 스펙트로그램. 들여다보기와 계속 받기가 같이 쓴다.
+    "fall_db" 는 정규화하기 전의 세로줄들(numpy)이다 — 여러 덩어리를 이어 붙일 때 쓴다. 화면에 보낼 때는 뺀다."""
+    spectra = block_spectra(iq, rate, VIEW_MAX_SAMPLES)                 # 구간 × NFFT
+    grouped = spectra.reshape(len(spectra), VIEW_POINTS, NFFT // VIEW_POINTS).sum(axis=2)   # 점 하나 = rate / VIEW_POINTS 폭의 세기
     step = rate / VIEW_POINTS
     freqs = center - rate / 2 + step * (np.arange(VIEW_POINTS) + 0.5)
     peak = _peak_dbfs(iq)
-    # 워터폴: 주파수 칸 × 시간 칸, 가장 약한 칸을 0, 가장 센 칸을 1 로
-    cols = min(FALL_COLS, len(spectra))
-    per_col = len(spectra) // cols
-    fall = spectra[: cols * per_col].reshape(cols, per_col, FALL_ROWS, NFFT // FALL_ROWS).sum(axis=3).mean(axis=1)   # 시간 × 주파수
-    fall_db = 10 * np.log10(fall + EPS)
-    lo, hi = float(fall_db.min()), float(fall_db.max())
-    norm = (fall_db - lo) / max(hi - lo, 1e-9)
+    fall = fall_columns(spectra, columns)
+    block_ms = 1e3 * max(1, round(BLOCK_S * rate / NFFT)) * NFFT / rate
     return {
-        "device": dev_id, "unit": "dBFS", "fixed_tuning": sim, "gain_db": gain_db,
-        "center_hz": center, "sample_rate_hz": rate, "bin_hz": step, "dwell_s": round(len(iq) / rate, 4),
+        "center_hz": center, "sample_rate_hz": rate, "bin_hz": step, "dwell_s": round(min(len(iq), VIEW_MAX_SAMPLES) / rate, 4),
         "freq_hz": [round(float(f), 1) for f in freqs],
         "mean_db": [db(float(v)) for v in grouped.mean(axis=0)],
         "max_db": [db(float(v)) for v in grouped.max(axis=0)],
         "total_dbfs": db(float(spectra.sum(axis=1).mean())), "peak_dbfs": peak, "clipped": peak > CLIP_DBFS,
-        "waterfall": {"rows": FALL_ROWS, "cols": cols, "values": [[round(float(v), 3) for v in row] for row in norm.T],
-                      "col_ms": round(1e3 * per_col * max(1, round(BLOCK_S * rate / NFFT)) * NFFT / rate, 3),
-                      "floor_db": round(lo, 1), "ceil_db": round(hi, 1)},
+        "waterfall": fall_grid(fall, block_ms * (len(spectra) // len(fall))),
+        "fall_db": fall,
     }

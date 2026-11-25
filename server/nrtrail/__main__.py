@@ -55,6 +55,12 @@ def main() -> None:
     try:
         uvicorn.run(app, host=HOST, port=args.port, log_level="warning")
     finally:
+        try:
+            from . import streams
+
+            streams.REGISTRY.stop_all()        # 계속 받던 것부터 멈춘다
+        except ImportError:
+            pass
         # 꺼질 때 MATLAB 을 남기지 않는다(남으면 USRP 를 잡은 채로 다음 실행을 막는다)
         try:
             from .engines import matlab as matlab_engine

@@ -23,6 +23,8 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import json
+import threading
+import time
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -172,6 +174,49 @@ class CaptureRequest:
     antenna: str | None = None
     external_clock: bool = False
     offset_index: int = 0   # 모의 장비: 몇 번째 수신인지(파일의 뒤쪽 구간을 흘려보낸다)
+
+
+@dataclass
+class StreamSpec:
+    """계속 받기의 조건. 조각(segment) 하나의 길이가 풀이에 넘기는 단위다."""
+    center_freq_hz: float
+    sample_rate_hz: float
+    gain_db: float | None = None
+    antenna: str | None = None
+    segment_s: float = 0.5
+
+
+@dataclass
+class Segment:
+    """계속 받기의 조각 하나(SigMF 파일). 조각들을 차례로 이으면 받은 신호 전체다."""
+    index: int
+    capture: sigmf.Capture
+    first_sample: int        # 이 조각의 첫 샘플이 처음부터 몇 번째인가
+    lost_samples: int        # 이 조각 안에서 놓쳐서 0 으로 채운 샘플 수
+    overflows: int           # 이 조각을 받는 동안 장비가 "넘쳤다"고 알린 횟수
+    continuous: bool         # True: 앞 조각과 끊김 없이 이어진다. False: 조각 사이에 받지 않은 틈이 있다
+
+
+def stream(dev_id: str, spec: StreamSpec, folder: Path, on_segment: Any, stop: threading.Event) -> dict[str, Any]:
+    """stop 이 설 때까지 받아 조각마다 on_segment(Segment) 를 부른다(이 함수는 그동안 돌아오지 않는다).
+
+    그 장비를 맡은 쪽에 stream() 이 있으면 끊김 없이 받는다(USRP 의 uhdio).
+    없으면 "조각 길이만큼 받기"를 되풀이한다 — 조각 사이에 틈이 생기고, Segment.continuous 가 False 다.
+    """
+    folder.mkdir(parents=True, exist_ok=True)
+    backend = receiver_for(dev_id)
+    if hasattr(backend, "stream"):
+        out: dict[str, Any] = backend.stream(dev_id, spec, folder, on_segment, stop)
+        return out
+    index, first = 0, 0
+    while not stop.is_set():
+        began = time.monotonic()
+        cap = backend.capture(dev_id, CaptureRequest(spec.center_freq_hz, spec.sample_rate_hz, spec.segment_s, spec.gain_db, spec.antenna,
+                                                     offset_index=index), folder / f"seg-{index:06d}.sigmf-meta")
+        on_segment(Segment(index=index, capture=cap, first_sample=first, lost_samples=0, overflows=0, continuous=False))
+        index, first = index + 1, first + cap.num_samples
+        stop.wait(max(0.0, spec.segment_s - (time.monotonic() - began)))     # 파일을 읽는 모의 장비도 실제 시간에 맞춰 낸다
+    return {"stopped": True, "segments": index, "samples": first, "lost": 0, "overflows": 0}
 
 
 def capture(dev_id: str, req: CaptureRequest, out_meta: Path) -> sigmf.Capture:

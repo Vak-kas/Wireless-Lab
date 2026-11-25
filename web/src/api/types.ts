@@ -385,6 +385,65 @@ export interface SpectrumView {
   waterfall: { rows: number; cols: number; values: number[][]; col_ms: number; floor_db: number; ceil_db: number };
 }
 
+/** 계속 받기에 꽂을 수 있는 풀이 하나와, 못 꽂는다면 그 이유 */
+export interface StreamTapInfo {
+  name: string;
+  ok: boolean;
+  reason: string;
+}
+
+/** 풀이 하나의 상태와 결과. 풀이마다 채우는 칸이 다르다 */
+export interface StreamTapState {
+  /** 푼 조각 수 */
+  done: number;
+  /** 밀려서 풀지 못하고 건너뛴 조각 수 */
+  skipped: number;
+  error: string;
+  took_s: number;
+  /** spectrum */
+  view?: Omit<SpectrumView, "device" | "fixed_tuning">;
+  /** wifi, ble */
+  channel?: string | number;
+  aps?: WifiAp[];
+  formats?: Record<string, number>;
+  devices?: BleDevice[];
+  directed?: Record<string, number>;
+  crc_failed?: number;
+  /** record */
+  data_path?: string;
+  bytes?: number;
+  seconds?: number;
+  gaps?: number;
+  full?: boolean;
+}
+
+/** 계속 받기(끊김 없이 받으면서 푸는 것) 하나의 상태 */
+export interface StreamState {
+  id: string;
+  device: string;
+  running: boolean;
+  error: string;
+  center_hz: number;
+  sample_rate_hz: number;
+  segment_s: number;
+  segments: number;
+  seconds: number;
+  /** 놓쳐서 0 으로 채운 샘플 수. 0 이면 받은 구간이 끊김 없이 이어진다 */
+  lost_samples: number;
+  overflows: number;
+  /** false: 끊김 없이 받지 못하는 장비라 조각 사이에 틈이 있다 */
+  continuous: boolean;
+  taps: Record<string, StreamTapState>;
+}
+
+export interface StreamRequest {
+  device: string;
+  center_hz: number;
+  bandwidth_hz: number;
+  gain_db?: number;
+  taps?: string[];
+}
+
 /** 파일로 저장한 수신 신호 */
 export interface SavedCapture {
   meta_path: string;
@@ -532,6 +591,11 @@ export interface Api {
   wifiLive(req: { device: string; plan: string; channel: string; gain_db?: number }): Promise<{ channel: string; ppdus: WifiPpdu[]; aps: WifiAp[] }>;
   wifiUsig(req: { device: string; plan: string; channel: string; gain_db?: number }): Promise<{ ppdus: WifiPpdu[]; downlink: number }>;
   surveySpectrum(req: { device: string; center_hz?: number; bandwidth_hz?: number; gain_db?: number }): Promise<SpectrumView>;
+  /** 계속 받기: 이 조건에 꽂을 수 있는 풀이들 */
+  streamTaps(req: StreamRequest): Promise<{ taps: StreamTapInfo[] }>;
+  streamStart(req: StreamRequest): Promise<StreamState>;
+  streamState(id: string): Promise<StreamState>;
+  streamStop(id: string): Promise<StreamState>;
   /** 그 대역을 받아 SigMF 파일로 남긴다 (서버의 sessions/saved/) */
   surveySave(req: { device: string; center_hz: number; bandwidth_hz: number; gain_db?: number; seconds: number }): Promise<SavedCapture>;
   oaiStatus(): Promise<OaiStatus>;

@@ -246,6 +246,18 @@ export const mockApi: Api = {
   wifiUsig: async () => {
     throw new Error("mock");
   },
+  streamTaps: async () => {
+    throw new Error("mock");
+  },
+  streamStart: async () => {
+    throw new Error("mock");
+  },
+  streamState: async () => {
+    throw new Error("mock");
+  },
+  streamStop: async () => {
+    throw new Error("mock");
+  },
   surveySave: async () => {
     throw new Error("mock");
   },

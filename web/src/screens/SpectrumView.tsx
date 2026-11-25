@@ -7,6 +7,7 @@ import { Badge, Button, Chip, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { BUILTIN, fit, loadBands, saveBands, type Band } from "./bands";
+import { LiveResults, useLiveStream } from "./LiveStream";
 
 const REPEAT_MS = 1500;
 const mhz = (hz: number, digits = 3) => Number((hz / 1e6).toFixed(digits)).toString();
@@ -18,7 +19,7 @@ export interface SpectrumViewHandle {
   set(centerHz: number, bandwidthHz: number): void;
 }
 
-function plots(v: View): { line: Plot; fall: Plot } {
+export function plots(v: View): { line: Plot; fall: Plot } {
   const x = v.freq_hz.map((f) => f / 1e6);
   return {
     line: {
@@ -63,6 +64,8 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
   const [seconds, setSeconds] = useState("0.5");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<SavedCapture | null>(null);
+  const live = useLiveStream(info.device.id);
+  const [record, setRecord] = useState(false);
 
   const look = useCallback(
     async (c: string, w: string) => {
@@ -124,6 +127,16 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
     } finally {
       setSaving(false);
     }
+  };
+
+  /** 계속 받기: 지금 칸의 대역을 멈출 때까지 끊김 없이 받으면서, 맞는 풀이를 모두 돌린다 */
+  const goLive = () => {
+    if (paused) return setError(t("view.error.paused"));
+    if (!sim && !(Number(center) > 0 && Number(width) > 0)) return setError(t("view.error.inputs"));
+    setError("");
+    setRepeat(false);
+    setView(null);
+    void live.start({ device: info.device.id, center_hz: sim ? 0 : Number(center) * 1e6, bandwidth_hz: sim ? 0 : Number(width) * 1e6, gain_db: gain.trim() ? Number(gain) : undefined }, record);
   };
 
   useImperativeHandle(ref, () => ({
@@ -206,19 +219,32 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
           </div>
           {!sim && max !== undefined && <p className="t-caption muted">{t("view.max_width", { mhz: mhz(max) })}</p>}
           <div className="row">
-            <Button onClick={() => void look(center, width)} disabled={busy || repeat} data-testid="view-run">
+            <Button onClick={() => void look(center, width)} disabled={busy || repeat || live.running} data-testid="view-run">
               {busy && !repeat ? t("spectrum.busy") : t("view.run")}
             </Button>
-            <Button variant="secondary" onClick={() => setRepeat(!repeat)} aria-pressed={repeat} data-testid="view-repeat">
+            <Button variant="secondary" onClick={() => setRepeat(!repeat)} aria-pressed={repeat} disabled={live.running} data-testid="view-repeat">
               {repeat ? t("spectrum.repeat.stop") : t("view.repeat")}
             </Button>
           </div>
+          {live.can && (
+            <>
+              <div className="row">
+                <Button variant={live.running ? "primary" : "secondary"} onClick={() => (live.running ? void live.stop() : goLive())} disabled={live.starting || busy || saving} aria-pressed={live.running} data-testid="live-toggle">
+                  {live.running ? t("live.stop") : live.starting ? t("live.starting") : t("live.start")}
+                </Button>
+                <label className="t-caption">
+                  <input type="checkbox" checked={record} onChange={(e) => setRecord(e.target.checked)} disabled={live.running} data-testid="live-record-toggle" /> {t("live.record")}
+                </label>
+              </div>
+              <p className="t-caption muted">{t("live.hint")}</p>
+            </>
+          )}
           {!sim && (
             <div className="row">
               <Field label={t("view.save.seconds")}>
                 {(f) => <input {...f} inputMode="decimal" value={seconds} onChange={(e) => setSeconds(e.target.value)} data-testid="view-save-seconds" />}
               </Field>
-              <Button variant="secondary" onClick={() => void save()} disabled={saving || busy} data-testid="view-save">
+              <Button variant="secondary" onClick={() => void save()} disabled={saving || busy || live.running} data-testid="view-save">
                 {saving ? t("view.save.busy") : t("view.save")}
               </Button>
             </div>
@@ -235,6 +261,7 @@ export function SpectrumView({ info, gain, ref, paused, beside }: { info: Survey
   );
   const results = (
     <>
+      {live.state && <LiveResults state={live.state} />}
         {view && p && (
           <>
             <dl className="facts t-caption view-facts" data-testid="view-facts">
