@@ -18,9 +18,9 @@ test("첫 화면은 내 장비와 수신·송신·시나리오만 보여 주고,
   const api = fakeApi();
   api.devices = async () => [usrp, sim];
   renderWithStore(<StartScreen />, api);
-  const card = await screen.findByTestId("home-device-usrp:B200:S1");
-  expect(within(card).getByText("USRP B200")).toBeInTheDocument();
-  expect(within(card).getByText("S1")).toBeInTheDocument();
+  // 쓸 장비는 이름표 한 줄로 나온다(자세한 정보는 "내 장비" 칸). 연결된 SDR 은 처음부터 켜져 있다
+  const card = await screen.findByTestId("home-picks");
+  expect(within(card).getByTestId("home-pick-usrp:B200:S1")).toHaveTextContent("USRP B200 (S1)");
   expect(within(card).getByTestId("home-pick-usrp:B200:S1")).toHaveAttribute("aria-pressed", "true");
   for (const id of ["rx", "nr"]) expect(screen.getByTestId(`task-${id}`)).toBeEnabled();
   expect(screen.getByTestId("task-tx")).toBeDisabled(); // 송신 기능이 없는 설치에서는 꺼져 있다
@@ -89,10 +89,10 @@ test("SDR 이 없을 때: 컴퓨터의 Wi-Fi·블루투스 어댑터가 쓸 장�
   ];
   api.adapters = async () => found;
   renderWithStore(<StartScreen />, api);
-  const wifi = await screen.findByTestId("home-adapter-wifi:en0");
-  expect(within(wifi).getByText("내장")).toBeInTheDocument();
-  const bt = screen.getByTestId("home-adapter-bt:usb");
-  expect(within(bt).getByText("외장")).toBeInTheDocument();
+  const wifi = await screen.findByTestId("home-picks");
+  const bt = wifi;
+  expect(within(wifi).getByTestId("home-pick-wifi:en0")).toHaveTextContent("Wi-Fi · 내장");
+  expect(within(bt).getByTestId("home-pick-bt:usb")).toHaveTextContent("Bluetooth · 외장");
   // SDR 이 없으면 어댑터가 처음부터 "사용"이다. 수신을 누르면 어댑터마다 칸이 놓인다(어댑터는 받기만 한다)
   expect(within(wifi).getByTestId("home-pick-wifi:en0")).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByTestId("task-tx")).toBeDisabled();
@@ -109,9 +109,8 @@ test("SDR 이 있으면 컴퓨터의 어댑터는 같은 목록에 나오되 처
   renderWithStore(<StartScreen />, api);
   const pick = await screen.findByTestId("home-pick-wifi:en0");
   expect(pick).toHaveAttribute("aria-pressed", "false");
-  expect(pick).toHaveTextContent("사용 안 함");
   await userEvent.click(pick);
-  expect(pick).toHaveTextContent("사용");
+  expect(pick).toHaveAttribute("aria-pressed", "true");
   await userEvent.click(screen.getByTestId("task-rx"));
   expect(JSON.parse(sessionStorage.getItem("nrtrail.bench")!)).toEqual([
     { device: "usrp:B200:S1", mode: "rx" },

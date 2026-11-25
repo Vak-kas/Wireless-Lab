@@ -5,7 +5,7 @@ import { Badge, Button, Empty } from "../components/ui";
 import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
-import { AdapterCard, DeviceCard, ModeSwitch, ReferenceSwitch, SearchNote, useUsableDevices } from "../devices/DeviceHub";
+import { DeviceCard, SearchNote, useUsableDevices } from "../devices/DeviceHub";
 import { saveBench, type Pane } from "../devices/intent";
 import { PhoneTile } from "./PhoneTile";
 
@@ -86,8 +86,6 @@ export function StartScreen() {
   const [recent, setRecent] = useState<Session[]>([]);
   const [busy, setBusy] = useState(false);
   const [txReady, setTxReady] = useState(false);
-  /** 처음 정해진 것에서 사용자가 뒤집은 장비. 처음에는 SDR 은 쓰고, 컴퓨터의 어댑터는 SDR 이 없을 때만 쓴다 */
-  const [flipped, setFlipped] = useState<string[]>([]);
 
   useEffect(() => {
     void api.doctor(true).then(setDoctor);
@@ -98,8 +96,7 @@ export function StartScreen() {
   const real = devices.filter((d) => d.driver !== "simulated");
   const locked = hub.locked;
 
-  const isPicked = (id: string, adapter: boolean) => (adapter ? real.length === 0 : true) !== flipped.includes(id);
-  const flip = (id: string) => setFlipped((old) => (old.includes(id) ? old.filter((x) => x !== id) : [...old, id]));
+  const { isPicked } = hub;
   const chosen = real.filter((d) => isPicked(d.id, false));
   const chosenAdapters = hub.adapters.filter((a) => isPicked(a.id, true));
   const total = chosen.length + chosenAdapters.length;
@@ -111,13 +108,6 @@ export function StartScreen() {
     saveBench(panes);
     go("bench");
   };
-
-  /** 장비 카드의 "쓰기" 단추 */
-  const pick = (id: string, adapter: boolean) => (
-    <button type="button" className="pick t-caption" aria-pressed={isPicked(id, adapter)} onClick={() => flip(id)} data-testid={`home-pick-${id}`}>
-      {isPicked(id, adapter) ? `✓ ${t("home.pick.on")}` : t("home.pick.off")}
-    </button>
-  );
 
   const begin = async (fn: () => Promise<Session>) => {
     setBusy(true);
@@ -164,28 +154,32 @@ export function StartScreen() {
         ) : null}
         {real.length + hub.adapters.length > 0 && (
           <>
-            <h3 className="t-tagline home-group">{t("home.devices")}</h3>
-            <p className="t-caption muted">{t("home.devices.lead")}</p>
-            <div className="pick-list">
-              {real.map((d) => (
-                <div className="card home-device" key={d.id} data-testid={`home-device-${d.id}`} data-picked={isPicked(d.id, false)}>
-                  <DeviceCard device={d} action={<ReferenceSwitch device={d} />} />
-                  {pick(d.id, false)}
-                </div>
-              ))}
-              {hub.adapters.map((a) => (
-                <div className="card home-device" key={a.id} data-testid={`home-adapter-${a.id}`} data-picked={isPicked(a.id, true)}>
-                  <AdapterCard adapter={a} action={<ModeSwitch adapter={a} />} />
-                  {pick(a.id, true)}
-                </div>
-              ))}
+            {/* 쓸 장비: 이름만 한 줄로. 자세한 정보와 설정은 "내 장비" 칸에 있다 */}
+            <div className="home-picks" data-testid="home-picks">
+              <span className="t-caption muted">{t("home.devices")}</span>
+              <div className="chips">
+                {real.map((d) => (
+                  <button key={d.id} type="button" className="chip t-caption" aria-pressed={isPicked(d.id, false)} onClick={() => hub.flip(d.id)} data-testid={`home-pick-${d.id}`}>
+                    {isPicked(d.id, false) ? "✓ " : ""}
+                    {d.label}
+                  </button>
+                ))}
+                {hub.adapters.map((a) => (
+                  <button key={a.id} type="button" className="chip t-caption" aria-pressed={isPicked(a.id, true)} onClick={() => hub.flip(a.id)} data-testid={`home-pick-${a.id}`}>
+                    {isPicked(a.id, true) ? "✓ " : ""}
+                    {a.label} · {t(`hub.attach.${a.attach}`)}
+                  </button>
+                ))}
+              </div>
+              <Button variant="link" onClick={hub.showMine} data-testid="home-mine">
+                {t("home.devices.more")}
+              </Button>
             </div>
-            <h3 className="t-tagline home-group">{t("home.what", { n: total })}</h3>
             <div className="tasks" data-testid="home-tasks">
               <Task id="rx" disabled={busy || total === 0} onClick={() => openBench("rx")} />
               <Task id="tx" soon={!txReady} disabled={busy || chosen.length === 0} onClick={() => openBench("tx")} />
             </div>
-            <p className="t-caption muted">{total > 1 ? t("home.what.many") : t("home.what.hint")}</p>
+            <p className="t-caption muted home-note">{total > 1 ? t("home.what.many") : t("home.what.hint")}</p>
             {real.length > 0 && (
               <>
                 <h3 className="t-tagline home-group">{t("home.scenarios")}</h3>

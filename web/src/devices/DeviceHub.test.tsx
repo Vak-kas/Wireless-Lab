@@ -311,3 +311,23 @@ test("기준 신호: 고를 것이 없는 장비(외부 기준을 못 받음)에
   await act(() => vi.advanceTimersByTimeAsync(50));
   expect(view.container.querySelector('[data-testid^="reference-"]')).toBeNull();
 });
+
+test("내 장비 칸에서 장비마다 사용/사용 안 함을 바꿀 수 있고, 컴퓨터의 어댑터는 SDR 이 있으면 처음에는 꺼져 있다", async () => {
+  const api = fakeApi();
+  api.devices = async () => [{ id: "usrp:B200:S1", label: "USRP B200 (S1)", driver: "uhd", serial: "S1", stages: {} }];
+  api.adapters = async () => [{ id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: {} }];
+  renderWithStore(
+    <DeviceHub>
+      <div />
+    </DeviceHub>,
+    api,
+  );
+  await userEvent.click(await screen.findByTestId("connect-start"));
+  await userEvent.click(screen.getByTestId("my-devices-button"));
+  const drawer = screen.getByTestId("my-devices");
+  expect(within(drawer).getByTestId("mine-pick-usrp:B200:S1")).toHaveAttribute("aria-pressed", "true");
+  const wifi = within(drawer).getByTestId("mine-pick-wifi:en0");
+  expect(wifi).toHaveTextContent("사용 안 함");
+  await userEvent.click(wifi);
+  expect(wifi).toHaveAttribute("aria-pressed", "true");
+});

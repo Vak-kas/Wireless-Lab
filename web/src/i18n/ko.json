@@ -412,7 +412,7 @@
   "hub.mine.reconnect": "장비 연결 창 열기",
   "hub.none_mode": "꽂는 장비(SDR) 없이 시작했습니다. SDR 이 필요한 기능은 감춰 두었고, 이 컴퓨터의 Wi-Fi·블루투스는 아래에서 쓸 수 있습니다.",
   "home.title": "무엇을 해 볼까요",
-  "home.lead": "쓸 장비를 고르고, 수신이나 송신을 누르세요.",
+  "home.lead": "수신이나 송신을 누르세요. 쓸 장비는 아래에서 켜고 끕니다.",
   "home.tasks": "이 장비로 할 일",
   "home.empty_hint": "장비가 없어도 아래 '장비 없이 해 보기'에서 연습 신호로 해 볼 수 있습니다.",
   "home.task.nr": "기지국 따라가기",
@@ -729,7 +729,7 @@
   "live.ble.title": "주변 블루투스 기기 (광고 채널 {channel})",
   "live.caption.waterfall": "스펙트로그램: 왼쪽이 {s}초 전, 오른쪽이 지금입니다. 아래가 낮은 주파수, 진할수록 셉니다.",
   "nav.bench": "작업판",
-  "home.devices": "① 쓸 장비",
+  "home.devices": "쓸 장비",
   "home.pick": "이 장비 쓰기",
   "home.what": "② 무엇을 할까요 (고른 장비 {n}대)",
   "home.what.hint": "수신이나 송신을 누르면 작업판이 열립니다. 어느 주파수를 볼지, 무엇을 보낼지는 그 안에서 고릅니다.",
@@ -763,5 +763,6 @@
   "home.pick.on": "사용",
   "home.pick.off": "사용 안 함",
   "home.devices.lead": "쓸 장비를 켜고 끕니다. SDR 과 이 컴퓨터의 Wi-Fi·블루투스가 함께 나옵니다.",
-  "hub.search.cleaned": "장비를 잡고 있었을 수 있는 프로세스 {n}개를 끝냈습니다."
+  "hub.search.cleaned": "장비를 잡고 있었을 수 있는 프로세스 {n}개를 끝냈습니다.",
+  "home.devices.more": "장비 정보·설정"
 }

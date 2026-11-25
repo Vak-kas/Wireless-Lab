@@ -412,7 +412,7 @@
   "hub.mine.reconnect": "Open the connect window",
   "hub.none_mode": "Started without a plug-in device (SDR). Features that need an SDR are hidden; this computer's Wi-Fi and Bluetooth are available below.",
   "home.title": "What would you like to do?",
-  "home.lead": "Pick the devices to use, then press Receive or Transmit.",
+  "home.lead": "Press Receive or Transmit. Turn devices on or off below.",
   "home.tasks": "Tasks for this device",
   "home.empty_hint": "Without a device you can still practise with stored signals below.",
   "home.task.nr": "Follow a base station",
@@ -729,7 +729,7 @@
   "live.ble.title": "Nearby Bluetooth devices (advertising channel {channel})",
   "live.caption.waterfall": "Spectrogram: left is {s} s ago, right is now. Low frequencies at the bottom, darker is stronger.",
   "nav.bench": "Workbench",
-  "home.devices": "① Devices to use",
+  "home.devices": "Devices in use",
   "home.pick": "Use this device",
   "home.what": "② What to do ({n} device(s) picked)",
   "home.what.hint": "Receive or Transmit opens the workbench. You choose the frequency and what to send there.",
@@ -763,5 +763,6 @@
   "home.pick.on": "In use",
   "home.pick.off": "Not used",
   "home.devices.lead": "Turn devices on or off. SDRs and this computer's Wi-Fi and Bluetooth appear together.",
-  "hub.search.cleaned": "Stopped {n} process(es) that may have been holding the device."
+  "hub.search.cleaned": "Stopped {n} process(es) that may have been holding the device.",
+  "home.devices.more": "Device details and settings"
 }

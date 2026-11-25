@@ -28,6 +28,30 @@ interface Hub {
   rescan(): void;
   /** 장비 연결을 처음부터 다시 한다 (안 잡히거나 "사용 중"으로 나올 때) */
   reset(): void;
+  /** 이 장비를 쓰기로 골랐는가. SDR 은 처음부터 쓰고, 컴퓨터의 어댑터는 SDR 이 없을 때만 처음부터 쓴다 */
+  isPicked(id: string, adapter: boolean): boolean;
+  /** 쓰기/안 쓰기를 뒤집는다 */
+  flip(id: string): void;
+  /** "내 장비" 칸을 연다 */
+  showMine(): void;
+}
+
+/** 쓸 장비 고르기: 처음 정해진 것에서 사용자가 뒤집은 것만 기억한다. */
+function usePicks(realCount: number): Pick<Hub, "isPicked" | "flip"> {
+  const [flipped, setFlipped] = useState<string[]>([]);
+  const isPicked = useCallback((id: string, adapter: boolean) => (adapter ? realCount === 0 : true) !== flipped.includes(id), [flipped, realCount]);
+  const flip = useCallback((id: string) => setFlipped((old) => (old.includes(id) ? old.filter((x) => x !== id) : [...old, id])), []);
+  return { isPicked, flip };
+}
+
+/** 장비 카드에 붙는 "사용 / 사용 안 함" 단추 */
+export function PickButton({ id, adapter, hub, testid }: { id: string; adapter: boolean; hub: Pick<Hub, "isPicked" | "flip">; testid?: string }) {
+  const on = hub.isPicked(id, adapter);
+  return (
+    <button type="button" className="pick t-caption" aria-pressed={on} onClick={() => hub.flip(id)} data-testid={testid ?? `mine-pick-${id}`}>
+      {on ? `✓ ${t("home.pick.on")}` : t("home.pick.off")}
+    </button>
+  );
 }
 const Ctx = createContext<Hub | null>(null);
 
@@ -37,7 +61,8 @@ export function useUsableDevices(): Hub {
   const { api } = useStore();
   const own = useDevices(api, hub === null);
   const ownAdapters = useAdapters(hub === null);
-  return hub ?? { devices: own === null ? null : own.filter((d) => !d.needs), locked: (own ?? []).filter((d) => d.needs), adapters: ownAdapters.list, adaptersReady: ownAdapters.ready, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined };
+  const ownPicks = usePicks((own ?? []).filter((d) => !d.needs && !isSim(d)).length);
+  return hub ?? { devices: own === null ? null : own.filter((d) => !d.needs), locked: (own ?? []).filter((d) => d.needs), adapters: ownAdapters.list, adaptersReady: ownAdapters.ready, mode: "device", connect: () => undefined, search: null, rescan: () => undefined, reset: () => undefined, ...ownPicks, showMine: () => undefined };
 }
 
 const ADAPTER_POLL_MS = 20000;
@@ -488,7 +513,11 @@ export function DeviceHub({ children }: { children: ReactNode }) {
   const usable = useMemo(() => (all === null ? null : (mode === "none" ? all.filter(isSim) : all).filter((d) => !d.needs)), [all, mode]);
   const locked = useMemo(() => (mode === "none" ? [] : (all ?? []).filter((d) => d.needs)), [all, mode]);
   const adapters = adaptersAll;
-  const hub = useMemo<Hub>(() => ({ devices: usable, locked, adapters, adaptersReady, mode, connect: () => setConnecting(true), search, rescan, reset }), [usable, locked, adapters, adaptersReady, mode, search, rescan, reset]);
+  const picks = usePicks(mode === "none" ? 0 : real.length);
+  const hub = useMemo<Hub>(
+    () => ({ devices: usable, locked, adapters, adaptersReady, mode, connect: () => setConnecting(true), search, rescan, reset, ...picks, showMine: () => setOpen(true) }),
+    [usable, locked, adapters, adaptersReady, mode, search, rescan, reset, picks],
+  );
 
   return (
     <Ctx.Provider value={hub}>
@@ -565,11 +594,31 @@ export function DeviceHub({ children }: { children: ReactNode }) {
           {real.length === 0 ? (
             <SearchNote search={search} onRescan={rescan} onReset={reset} />
           ) : (
-            real.map((d) => <DeviceCard key={d.id} device={d} />)
+            real.map((d) => (
+              <DeviceCard
+                key={d.id}
+                device={d}
+                action={
+                  <>
+                    <ReferenceSwitch device={d} />
+                    {mode !== "none" && <PickButton id={d.id} adapter={false} hub={picks} />}
+                  </>
+                }
+              />
+            ))
           )}
           {adapters.length > 0 && <div className="t-caption-strong">{t("hub.adapters.title")}</div>}
           {adapters.map((a) => (
-            <AdapterCard key={a.id} adapter={a} />
+            <AdapterCard
+              key={a.id}
+              adapter={a}
+              action={
+                <>
+                  <ModeSwitch adapter={a} />
+                  <PickButton id={a.id} adapter hub={picks} />
+                </>
+              }
+            />
           ))}
           <div className="dialog-actions">
             <Button
