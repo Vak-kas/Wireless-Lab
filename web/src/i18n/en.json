@@ -700,5 +700,6 @@
   "view.band.save": "Add",
   "view.band.add_hint": "Enter a centre frequency and bandwidth below, give it a name and add it. It is saved in this browser.",
   "view.band.remove": "Remove {name}",
-  "spectrum.look_picked": "Look at the picked range ↓"
+  "spectrum.look_picked": "Look at the picked range ↓",
+  "spectrum.device_info": "Device details: {label}"
 }

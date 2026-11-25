@@ -700,5 +700,6 @@
   "view.band.save": "등록",
   "view.band.add_hint": "아래 칸에 가운데 주파수와 대역폭을 넣고 이름을 붙여 등록하세요. 이 브라우저에 저장됩니다.",
   "view.band.remove": "{name} 지우기",
-  "spectrum.look_picked": "고른 범위 들여다보기 ↓"
+  "spectrum.look_picked": "고른 범위 들여다보기 ↓",
+  "spectrum.device_info": "장비 정보: {label}"
 }

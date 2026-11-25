@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import type { Plot, SpectrumView as View, SurveyDevice } from "../api";
 import { Tile, TileHead } from "../components/layout";
 import { GridPlot } from "../components/plots/GridPlot";
@@ -43,7 +43,8 @@ function plots(v: View): { line: Plot; fall: Plot } {
 
 /** 가운데 주파수와 대역폭을 정해 그 대역을 들여다본다: 주파수별 세기(평균·최대)와 시간에 따른 변화. */
 /** paused: 채널 모니터가 장비를 쓰는 중이면 여기서 따로 받을 수 없다(장비는 하나). */
-export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; gain: string; ref?: Ref<SpectrumViewHandle>; paused?: boolean }) {
+/** beside: 주면 그 칸(채널 고르기)과 입력 칸을 나란히 놓고 그림은 그 아래에 그린다. 없으면 혼자 한 구역을 차지한다. */
+export function SpectrumView({ info, gain, ref, paused, beside }: { info: SurveyDevice; gain: string; ref?: Ref<SpectrumViewHandle>; paused?: boolean; beside?: ReactNode }) {
   const { api, fail } = useStore();
   const sim = info.device.driver === "simulated";
   const [center, setCenter] = useState(sim && info.capture ? mhz(info.capture.center_freq_hz) : "");
@@ -132,11 +133,14 @@ export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; 
   const bands = sim ? [] : [...fit(BUILTIN, info.device.freq_min_hz, info.device.freq_max_hz, max), ...mine];
   const current = (b: Band) => Number(center) === b.center_mhz && Number(width) === b.width_mhz;
 
-  return (
-    <div ref={tile}>
-      <Tile tone="light" id="spectrum-view">
-        <TileHead eyebrow={t("view.eyebrow")} title={t("view.title")} lead={sim ? t("view.lead_sim") : t("view.lead")} />
-        <div className="card view-controls" data-testid="view-controls">
+  const controls = (
+        <div className={beside ? "card" : "card view-controls"} data-testid="view-controls">
+          {beside && (
+            <>
+              <h3 className="t-tagline">{t("view.eyebrow")}</h3>
+              <p className="t-caption muted">{sim ? t("view.lead_sim") : t("view.lead")}</p>
+            </>
+          )}
           {!sim && (
             <>
               <div className="chips" role="group" aria-label={t("view.bands")} data-testid="view-bands">
@@ -187,6 +191,9 @@ export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; 
             </Button>
           </div>
         </div>
+  );
+  const results = (
+    <>
         {view && p && (
           <>
             <dl className="facts t-caption view-facts" data-testid="view-facts">
@@ -218,6 +225,26 @@ export function SpectrumView({ info, gain, ref, paused }: { info: SurveyDevice; 
             </div>
           </>
         )}
+    </>
+  );
+
+  if (beside) {
+    return (
+      <div ref={tile} id="spectrum-view">
+        <div className="source-grid view-beside">
+          {beside}
+          {controls}
+        </div>
+        {results}
+      </div>
+    );
+  }
+  return (
+    <div ref={tile}>
+      <Tile tone="light" id="spectrum-view">
+        <TileHead eyebrow={t("view.eyebrow")} title={t("view.title")} lead={sim ? t("view.lead_sim") : t("view.lead")} />
+        {controls}
+        {results}
       </Tile>
     </div>
   );

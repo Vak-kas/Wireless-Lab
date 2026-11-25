@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { BleDevice, MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
-import { Badge, Button, Chip, Empty, Field } from "../components/ui";
+import { Badge, Button, Chip, Empty, Field, Fold } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { useUsableDevices } from "../devices/DeviceHub";
@@ -675,8 +675,13 @@ export function SpectrumScreen() {
           />
         )}
         {info && (
-          <div className="source-grid">
-            <DeviceFacts info={info} />
+          <>
+            <SpectrumView
+              key={info.device.id}
+              info={info}
+              gain={gain}
+              ref={viewer}
+              beside={
             <div className="card" data-testid="survey-controls">
               <h3 className="t-tagline">{t("spectrum.plan.title")}</h3>
               <div className="chips" role="group" aria-label={t("spectrum.plan.title")}>
@@ -721,10 +726,14 @@ export function SpectrumScreen() {
               {wifi && real && plan.startsWith("wifi-") && <p className="t-caption muted">{t("wifi.aps.hint")}</p>}
               {aps && <ApTable aps={aps} onPick={pickAp} />}
             </div>
-          </div>
+              }
+            />
+            <Fold title={t("spectrum.device_info", { label: info.device.label })}>
+              <DeviceFacts info={info} />
+            </Fold>
+          </>
         )}
       </Tile>
-      {info && <SpectrumView key={info.device.id} info={info} gain={gain} ref={viewer} />}
     </>
   );
 }

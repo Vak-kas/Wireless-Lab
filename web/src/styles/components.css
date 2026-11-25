@@ -1039,6 +1039,12 @@ details.fold > .fold-body {
 #spectrum-view .card + .card {
   margin-top: var(--space-lg);
 }
+#spectrum-view .view-beside {
+  margin-bottom: var(--space-lg);
+}
+#spectrum-view .view-beside > .card + .card {
+  margin-top: 0;
+}
 [data-state="raised"] > .survey-bar {
   fill: var(--warn);
 }
