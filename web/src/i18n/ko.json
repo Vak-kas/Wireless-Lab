@@ -816,5 +816,7 @@
   "spectrum.plan.hint_channels": "대역을 고르고, 볼 채널을 누르세요.",
   "bench.all": "전체 보기",
   "bench.start_all": "모두 시작",
-  "bench.idle_note": "아직 받고 있지 않습니다. 이 장비의 책갈피에서 볼 곳을 정한 뒤 '모두 시작'을 누르세요."
+  "bench.idle_note": "아직 받고 있지 않습니다. 이 장비의 책갈피에서 볼 곳을 정한 뒤 '모두 시작'을 누르세요.",
+  "bench.tabs": "장비 책갈피",
+  "bench.mode.near": "주변 보기"
 }

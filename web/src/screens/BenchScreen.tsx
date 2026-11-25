@@ -34,7 +34,9 @@ export function BenchScreen() {
    * 지금 보는 책갈피: 장비 id 면 그 장비의 설정 페이지, "all" 이면 전체 보기(모든 장비의 결과만 나란히).
    * 안 보이는 칸도 지워지지 않고 계속 돈다.
    */
-  const [view, setView] = useState("");
+  const [view, setViewRaw] = useState("");
+  /** 책갈피를 넘긴 방향: 뒤쪽 책갈피로 가면 next, 앞쪽으로 가면 prev. 페이지가 그쪽에서 미끄러져 들어온다 */
+  const [turn, setTurn] = useState<"next" | "prev">("next");
   /** "모두 시작"을 누를 때마다 하나씩 올라간다. 칸들이 이 값이 바뀐 것을 보고, 설정해 둔 대로 받기를 시작한다 */
   const [startSignal, setStartSignal] = useState(0);
   /** 지금 받고 있는 칸들 */
@@ -77,6 +79,12 @@ export function BenchScreen() {
     return busyOf.get(device)!;
   };
   const shown = view === "all" && panes.length > 1 ? "all" : panes.some((p) => p.device === view) ? view : (panes[0]?.device ?? "");
+  /** 책갈피의 순서: 전체 보기가 맨 앞, 그 뒤로 장비들 */
+  const order = (id: string) => (id === "all" ? -1 : panes.findIndex((p) => p.device === id));
+  const setView = (id: string) => {
+    setTurn(order(id) >= order(shown) ? "next" : "prev");
+    setViewRaw(id);
+  };
   const anyBusy = panes.some((p) => busy[p.device]) || sending;
   const stopAll = () => {
     setStopSignal((n) => n + 1);
@@ -134,27 +142,6 @@ export function BenchScreen() {
         action={
           panes.length > 0 ? (
             <div className="bench-bar" data-testid="bench-bar">
-              {/* 책갈피: 전체 보기 + 장비마다 하나. 받는 중인 장비는 점이 켜진다 */}
-              {panes.length > 1 && (
-                <button type="button" className="bench-tab t-caption" aria-pressed={shown === "all"} onClick={() => setView("all")} data-testid="bench-tab-all">
-                  {t("bench.all")}
-                </button>
-              )}
-              {panes.map((p) => (
-                <button
-                  key={p.device}
-                  type="button"
-                  className="bench-tab t-caption"
-                  aria-pressed={shown === p.device}
-                  data-busy={busy[p.device] ? "true" : "false"}
-                  onClick={() => setView(p.device)}
-                  data-testid={`bench-tab-${p.device}`}
-                >
-                  <span className="bench-dot" aria-hidden="true" />
-                  {label(p.device)}
-                  <span className="sr-only">{busy[p.device] ? t("bench.busy") : t("bench.idle")}</span>
-                </button>
-              ))}
               <Button onClick={startAll} disabled={sending} data-testid="bench-start-all">
                 {t("bench.start_all")}
               </Button>
@@ -177,7 +164,34 @@ export function BenchScreen() {
             {t("bench.empty")}
           </Empty>
         )}
-        <div className="bench" data-testid="bench" data-count={panes.length} data-layout={shown === "all" ? "overview" : "tabs"}>
+        {panes.length > 0 && (
+          <div className="bench-tabs" role="tablist" aria-label={t("bench.tabs")} data-testid="bench-tabs">
+            {/* 책갈피: 전체 보기 + 장비마다 하나. 페이지 위에 붙어 있고, 받는 중인 장비는 점이 켜진다 */}
+            {panes.length > 1 && (
+              <button type="button" role="tab" className="bench-tab t-caption" aria-selected={shown === "all"} onClick={() => setView("all")} data-testid="bench-tab-all">
+                {t("bench.all")}
+              </button>
+            )}
+            {panes.map((p) => (
+              <button
+                key={p.device}
+                type="button"
+                role="tab"
+                className="bench-tab t-caption"
+                aria-selected={shown === p.device}
+                data-busy={busy[p.device] ? "true" : "false"}
+                onClick={() => setView(p.device)}
+                data-testid={`bench-tab-${p.device}`}
+              >
+                <span className="bench-dot" aria-hidden="true" />
+                {label(p.device)}
+                <span className="bench-mode">{p.kind === "adapter" ? t("bench.mode.near") : t(`bench.mode.${p.mode}`)}</span>
+                <span className="sr-only">{busy[p.device] ? t("bench.busy") : t("bench.idle")}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="bench" data-testid="bench" data-turn={turn} data-count={panes.length} data-layout={shown === "all" ? "overview" : "tabs"}>
           {panes.map((p) => (
             <section className="bench-pane" key={p.device} id={`pane-${p.device}`} data-testid={`pane-${p.device}`} aria-label={label(p.device)} data-active={shown === p.device} data-busy={busy[p.device] ? "true" : "false"}>
               <header className="bench-head">

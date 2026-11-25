@@ -815,5 +815,7 @@
   "spectrum.plan.hint_channels": "Pick a band and press the channels to look at.",
   "bench.all": "Overview",
   "bench.start_all": "Start all",
-  "bench.idle_note": "Not receiving yet. Set where to look on this device's tab, then press Start all."
+  "bench.idle_note": "Not receiving yet. Set where to look on this device's tab, then press Start all.",
+  "bench.tabs": "Device tabs",
+  "bench.mode.near": "Nearby"
 }

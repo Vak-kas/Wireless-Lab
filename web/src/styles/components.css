@@ -1446,21 +1446,54 @@ details.fold > .fold-body {
   align-items: center;
   gap: var(--space-xs);
 }
+/* 책갈피: 페이지 위에 붙은 서류철 탭. 고른 탭은 아래 페이지와 이어져 보인다 */
+.bench-tabs {
+  position: sticky;
+  top: calc(var(--size-nav-height) + var(--size-subnav-height));
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-xxs);
+  padding: var(--space-sm) var(--space-sm) 0;
+  margin-bottom: -1px;
+  background: inherit;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  text-align: left;
+}
 .bench-tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xxs);
+  gap: var(--space-xs);
+  flex: none;
   min-height: var(--size-touch-min);
-  padding: 0 var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  margin-bottom: -1px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  border-bottom-color: var(--line);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    padding var(--motion-fast),
+    color var(--motion-fast);
+}
+.bench-tab:hover {
+  color: var(--fg);
+}
+.bench-tab[aria-selected="true"] {
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
   background: var(--card);
   color: var(--fg);
-  cursor: pointer;
+  font-weight: 600;
+  border-bottom-color: var(--card);
+  box-shadow: inset 0 3px 0 var(--link);
 }
-.bench-tab[aria-pressed="true"] {
-  border-color: var(--link);
-  box-shadow: inset 0 0 0 1px var(--link);
+.bench-mode {
+  color: var(--fg-muted);
+  font-weight: 400;
 }
 .bench-dot {
   width: 8px;
@@ -1470,6 +1503,35 @@ details.fold > .fold-body {
 }
 .bench-tab[data-busy="true"] .bench-dot {
   background: var(--color-success);
+}
+/* 책장을 넘기는 움직임: 고른 페이지가 넘긴 쪽에서 미끄러져 들어온다. 움직임을 줄이도록 설정한 사람에게는 넣지 않는다 */
+@keyframes page-next {
+  from {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+}
+@keyframes page-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-48px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bench[data-layout="tabs"][data-turn="next"] .bench-pane[data-active="true"],
+  .bench[data-layout="overview"][data-turn="next"] .bench-pane {
+    animation: page-next var(--motion-normal) ease-out;
+  }
+  .bench[data-layout="tabs"][data-turn="prev"] .bench-pane[data-active="true"],
+  .bench[data-layout="overview"][data-turn="prev"] .bench-pane {
+    animation: page-prev var(--motion-normal) ease-out;
+  }
+}
+/* 페이지는 책갈피 바로 아래에 붙는다 */
+.bench[data-layout="tabs"] .bench-pane {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  background: var(--card);
 }
 /* 책갈피(장비 하나의 설정 페이지): 고른 칸만 보이고 나머지는 숨긴 채 계속 돈다 */
 .bench[data-layout="tabs"] {
