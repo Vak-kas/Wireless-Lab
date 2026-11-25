@@ -232,6 +232,9 @@ export const mockApi: Api = {
   txStart: async () => {
     throw new Error("mock");
   },
+  txStartGroup: async () => {
+    throw new Error("mock");
+  },
   txStop: async () => ({ stopping: false }),
   bleScan: async () => {
     throw new Error("mock");

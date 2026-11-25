@@ -2,13 +2,14 @@
 """nrtrail 을 프로그램처럼 실행한다: 서버를 띄우고, 창을 열고, 창을 닫으면 전부 끈다.
 
     python tools/app.py              창을 연다 (macOS 는 nrtrail.app 을 더블클릭해도 같다)
-    python tools/app.py --no-oai     OAI 테스트베드는 켜지 않는다
+    python tools/app.py --oai        OAI 기지국 시뮬레이터도 처음부터 켜 둔다(평소에는 켜지 않는다)
     python tools/app.py --self-test  창 없이 켜고 끄는 동작만 확인한다
 
 켜는 것
   1. 로컬 서버 (127.0.0.1, 빈 포트). 화면이 빌드돼 있지 않으면 먼저 빌드한다.
-  2. OAI NTN RF 시뮬레이터 gNB — testbed/oai-ntn 과 빌드된 이미지가 있을 때만.
+  2. --oai 를 줬을 때만: OAI NTN RF 시뮬레이터 gNB (testbed/oai-ntn 과 빌드된 이미지가 있어야 한다).
      Docker 가 꺼져 있으면 켠다. 전파를 내보내지 않는 소프트웨어 시뮬레이터다.
+     평소에는 켜지 않는다 — 시뮬레이션 화면에서 "새로 기록"을 누를 때 서버가 그때 켜고, 기록이 끝나면 끈다.
 끄는 것 (창의 X, 종료 메뉴, Ctrl+C 어느 것이든)
   서버, 이 실행기가 띄운 OAI 컨테이너, 그리고 이 실행기가 켠 경우에만 Docker.
 """
@@ -179,7 +180,7 @@ class Launcher:
     # ---------- OAI 테스트베드 (있을 때만) ----------
     def start_oai(self) -> None:
         if not self.with_oai:
-            self.oai_note = "OAI: 켜지 않음(--no-oai)"
+            self.oai_note = "OAI: 켜지 않음(필요할 때 화면에서 켠다. 처음부터 켜 두려면 --oai)"
             return
         if not (OAI_DIR / "docker-compose.yml").exists():
             self.oai_note = "OAI: 테스트베드 파일이 없어 건너뜀"
@@ -236,7 +237,7 @@ def main() -> int:
     args = sys.argv[1:]
     if "--reaper" in args:
         return reaper(int(args[args.index("--reaper") + 1]))
-    launcher = Launcher(with_oai="--no-oai" not in args)
+    launcher = Launcher(with_oai="--oai" in args)
     atexit.register(launcher.stop)
     for sig in (signal.SIGINT, signal.SIGTERM, *([signal.SIGHUP] if hasattr(signal, "SIGHUP") else [])):
         signal.signal(sig, lambda *_: sys.exit(0))

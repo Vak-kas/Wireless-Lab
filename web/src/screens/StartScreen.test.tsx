@@ -73,7 +73,9 @@ test("장비가 없으면 연결하라고 안내하고, 시뮬레이션으로 �
   const api = fakeApi();
   api.devices = async () => [sim];
   renderWithStore(<StartScreen />, api);
-  expect(await screen.findByTestId("home-no-device")).toHaveTextContent("연결된 장비가 없습니다");
+  const none = await screen.findByTestId("home-no-device");
+  expect(none).toHaveTextContent("장비를 확인하는 중"); // 찾기 상태를 아직 못 받았을 때는 "없다"고 하지 않는다
+  expect(within(none).getByTestId("search-rescan")).toBeEnabled(); // 다시 찾기는 언제나 누를 수 있다
   expect(screen.queryByTestId("task-nr")).toBeNull();
   expect(screen.getByTestId("home-sim")).toBeEnabled(); // 시뮬레이션 화면으로 가는 길은 남아 있다
 });

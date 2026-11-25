@@ -326,7 +326,11 @@ export function SearchNote({ search, onRescan, onReset }: { search: DeviceSearch
   const forS = b.map((x) => x.searching_for_s).find((x) => x !== null && x !== undefined);
   return (
     <div className="search-note" data-testid="search-note">
-      {searching ? (
+      {search === null ? (
+        <p className="searching t-caption" data-testid="search-loading">
+          <span className="spinner" aria-hidden="true" /> {t("hub.search.loading")}
+        </p>
+      ) : searching ? (
         <p className="searching t-caption" data-testid="connect-searching">
           <span className="spinner" aria-hidden="true" /> {t("hub.search.searching", { s: Math.round(forS ?? 0) })}
         </p>
@@ -343,18 +347,17 @@ export function SearchNote({ search, onRescan, onReset }: { search: DeviceSearch
           {b.length === 0 ? t("hub.search.unsupported") : t("hub.search.none", { s: Math.round(ago ?? 0) })}
         </p>
       )}
-      {b.length > 0 && (
-        <div className="row">
-          <Button variant="link" onClick={onRescan} disabled={searching} data-testid="search-rescan">
-            {t("hub.search.rescan")}
-          </Button>
-          {onReset && (
+      {/* 다시 찾기는 언제나 누를 수 있다(찾는 쪽이 없는 설치에서도 목록을 다시 읽는다) */}
+      <div className="row">
+        <Button variant="link" onClick={onRescan} disabled={searching} data-testid="search-rescan">
+          {t("hub.search.rescan")}
+        </Button>
+        {b.length > 0 && onReset && (
             <Button variant="link" onClick={onReset} disabled={searching} data-testid="search-reset" title={t("hub.search.reset_hint")}>
               {t("hub.search.reset")}
-            </Button>
-          )}
-        </div>
-      )}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

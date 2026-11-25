@@ -1,7 +1,7 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, test } from "vitest";
-import type { DeviceInfo } from "../api";
+import { beforeEach, expect, test, vi } from "vitest";
+import type { DeviceInfo, TxRequest } from "../api";
 import { fakeApi, renderWithStore } from "../test-utils";
 import { BenchScreen } from "./BenchScreen";
 
@@ -49,4 +49,34 @@ test("작업판: 놓인 칸이 없으면 첫 화면으로 가라고 안내한다
   x.devices = async () => [];
   renderWithStore(<BenchScreen />, x);
   expect(await screen.findByText(/놓인 칸이 없습니다/)).toBeInTheDocument();
+});
+
+test("작업판: 송신 칸이 둘이면 함께 시작할 수 있고, 경고에서 두 가지를 확인해야 장비마다의 확인이 실려 나간다", async () => {
+  sessionStorage.setItem("nrtrail.bench", JSON.stringify([{ device: a.id, mode: "tx" }, { device: b.id, mode: "tx" }]));
+  const x = api();
+  x.txStatus = async () => ({ available: true, warning_version: "v1", default_gain_db: 0, max_seconds: 30, standards: [] });
+  const sent = vi.fn(async (_items: TxRequest[]) => ({ id: "g1", aligned: "host" as const, streams: [{ id: "g1-0", device: a.id, seconds: 2, stopped: false, underruns: 0 }, { id: "g1-1", device: b.id, seconds: 2, stopped: false, underruns: 3 }] }));
+  x.txStartGroup = sent;
+  renderWithStore(<BenchScreen />, x);
+  const first = await screen.findByTestId(`pane-${a.id}`);
+  const second = screen.getByTestId(`pane-${b.id}`);
+  const start = await screen.findByTestId("together-start");
+  expect(start).toBeDisabled(); // 주파수를 아직 안 넣었다
+  await userEvent.type(await within(first).findByTestId("tx-center"), "2450");
+  await userEvent.type(await within(second).findByTestId("tx-center"), "5200");
+  await waitFor(() => expect(start).toBeEnabled());
+  await userEvent.click(start);
+  const warning = screen.getByTestId("together-warning");
+  expect(within(warning).getByText("2450 MHz")).toBeInTheDocument();
+  expect(within(warning).getByText("5200 MHz")).toBeInTheDocument();
+  expect(screen.getByTestId("together-confirm")).toBeDisabled();
+  await userEvent.click(screen.getByTestId("together-agree"));
+  await userEvent.click(screen.getByTestId("together-closed"));
+  await userEvent.click(screen.getByTestId("together-confirm"));
+  const items = sent.mock.calls[0]![0];
+  expect(items.map((i) => [i.device, i.center_hz, i.confirm?.accepted, i.confirm?.version, i.confirm?.shown.center_hz])).toEqual([
+    [a.id, 2450e6, true, "v1", 2450e6],
+    [b.id, 5200e6, true, "v1", 5200e6],
+  ]);
+  expect(await screen.findByTestId("together-done")).toHaveTextContent("끊김 3번");
 });

@@ -107,7 +107,8 @@ function RxResult({ rx }: { rx: TxReceived }) {
  * 실험용 송신. 시작할 때마다 경고창에서 책임과 환경을 확인해야 나간다(서버도 확인이 없는 요청을 거부한다).
  * 내보낼 수 있는 것은 시험 톤과 사용자가 준 파형 파일뿐이고, 길이가 정해진 송신만 한다.
  */
-export function TxScreen({ device: fixed, embedded }: { device?: string; embedded?: boolean } = {}) {
+/** onDraft: 지금 칸에 적힌 대로의 송신 요청(값이 모자라면 null)을 바깥에 알린다. 작업판이 여러 칸을 함께 시작시킬 때 쓴다. */
+export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string; embedded?: boolean; onDraft?: (req: TxRequest | null) => void } = {}) {
   const { api, fail } = useStore();
   const hub = useUsableDevices();
   const real = (hub.devices ?? []).filter((d) => !isSim(d));
@@ -186,21 +187,29 @@ export function TxScreen({ device: fixed, embedded }: { device?: string; embedde
   const rxDevice = real.some((d) => d.id === rxPicked) ? rxPicked : (real.find((d) => d.id !== device)?.id ?? device);
   const rxGainDb = rxGain.trim() ? n(rxGain) : (status?.receive?.default_gain_db ?? 20);
 
+  /** 지금 칸에 적힌 대로의 요청(보내면서 받기는 빼고). 값이 모자라면 null */
+  const base: TxRequest = {
+    device,
+    center_hz: n(center) * 1e6,
+    sample_rate_hz: n(rateMhz) * 1e6,
+    gain_db: gainDb,
+    seconds: n(seconds),
+    waveform: kind === "tone" ? { kind, offset_hz: n(offset) * 1e3, amplitude: n(amplitude) } : kind === "standard" ? { kind, standard } : { kind, path: path.trim() },
+  };
+  const complete = Boolean(device) && base.center_hz > 0 && base.sample_rate_hz > 0 && base.seconds > 0 && Number.isFinite(base.gain_db) && !(kind === "file" && !path.trim());
+  const draft = complete && status?.available ? JSON.stringify(base) : "";
+  useEffect(() => {
+    onDraft?.(draft ? (JSON.parse(draft) as TxRequest) : null);
+  }, [draft, onDraft]);
+  useEffect(() => () => onDraft?.(null), [onDraft]);
+
   const ask = () => {
-    const req: TxRequest = {
-      device,
-      center_hz: n(center) * 1e6,
-      sample_rate_hz: n(rateMhz) * 1e6,
-      gain_db: gainDb,
-      seconds: n(seconds),
-      waveform: kind === "tone" ? { kind, offset_hz: n(offset) * 1e3, amplitude: n(amplitude) } : kind === "standard" ? { kind, standard } : { kind, path: path.trim() },
-      ...(rxOn ? { receive: { device: rxDevice, gain_db: rxGainDb, seconds: n(rxSeconds) } } : {}),
-    };
+    const req: TxRequest = { ...base, ...(rxOn ? { receive: { device: rxDevice, gain_db: rxGainDb, seconds: n(rxSeconds) } } : {}) };
     if (rxOn && (!(n(rxSeconds) > 0) || !Number.isFinite(rxGainDb))) {
       setError(t("tx.error.inputs"));
       return;
     }
-    if (!device || !(req.center_hz > 0) || !(req.sample_rate_hz > 0) || !(req.seconds > 0) || !Number.isFinite(req.gain_db) || (kind === "file" && !path.trim())) {
+    if (!complete) {
       setError(t("tx.error.inputs"));
       return;
     }

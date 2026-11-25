@@ -244,6 +244,13 @@ export interface TxResult {
   received?: TxReceived;
 }
 
+/** 함께 시작한 송신의 결과. aligned: "pps" 면 같은 시각 신호에 맞춰, "host" 면 컴퓨터가 맞춰(수 ms 까지 어긋날 수 있다) */
+export interface TxGroupResult {
+  id: string;
+  aligned: "pps" | "host" | null;
+  streams: { id: string; device: string; seconds: number; stopped: boolean; underruns: number }[];
+}
+
 export interface TxRequest {
   device: string;
   center_hz: number;
@@ -583,6 +590,8 @@ export interface Api {
   deviceReset(): Promise<DeviceSearch>;
   txStatus(): Promise<TxStatus>;
   txStart(req: TxRequest): Promise<TxResult>;
+  /** 여러 장비의 송신을 같은 시각에 시작시킨다. 요청마다 경고 확인이 들어 있어야 한다 */
+  txStartGroup(items: TxRequest[]): Promise<TxGroupResult>;
   txStop(): Promise<{ stopping: boolean }>;
   bleScan(req: { device: string; channel: number; gain_db?: number; seconds?: number }): Promise<BleScan>;
   wifiStatus(): Promise<{ available: boolean }>;

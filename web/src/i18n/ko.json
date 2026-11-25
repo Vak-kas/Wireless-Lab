@@ -745,5 +745,17 @@
   "bench.close": "칸 닫기",
   "bench.gone": "이 장비가 지금 연결돼 있지 않습니다.",
   "bench.add": "칸 더 놓기:",
-  "bench.hint": "칸은 서로 따로 돕니다. 한 칸에서 받는 동안 다른 칸에서 보내거나 받을 수 있습니다."
+  "bench.hint": "칸은 서로 따로 돕니다. 한 칸에서 받는 동안 다른 칸에서 보내거나 받을 수 있습니다.",
+  "hub.search.loading": "장비를 확인하는 중…",
+  "bench.together.title": "송신 칸 함께 시작",
+  "bench.together.lead": "송신 칸들에 적힌 값 그대로, 모든 장비를 같은 시각에 시작시킵니다. 경고 확인은 시작할 때마다 받습니다.",
+  "bench.together.start": "송신 {n}대 함께 시작",
+  "bench.together.sending": "보내는 중…",
+  "bench.together.stop": "모두 멈추기",
+  "bench.together.incomplete": "값이 다 채워지지 않은 송신 칸이 {n}개 있습니다. 그 칸은 빠집니다.",
+  "bench.together.warn": "아래 {n}대가 동시에 송신합니다. 장비마다 주파수와 출력을 확인하세요.",
+  "bench.together.aligned.pps": "장비들이 같은 시각 신호(외부 PPS·GPS)에 맞춰 시작했습니다.",
+  "bench.together.aligned.host": "컴퓨터가 장비들의 시계를 맞춰 시작했습니다. 장비 사이가 수 ms 까지 어긋날 수 있습니다. 더 정확히 맞추려면 장비마다 기준 신호를 외부(10 MHz·PPS)로 두세요.",
+  "bench.together.row": "{s}초 보냄, 끊김 {u}번",
+  "bench.together.stopped": "중간에 멈춤"
 }

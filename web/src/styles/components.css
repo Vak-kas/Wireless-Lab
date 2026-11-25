@@ -1340,6 +1340,12 @@ details.fold > .fold-body {
 .bench-pane .tile {
   padding: var(--space-lg) var(--space-md);
 }
+.bench-together {
+  display: grid;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  text-align: left;
+}
 .bench-add {
   display: flex;
   flex-wrap: wrap;

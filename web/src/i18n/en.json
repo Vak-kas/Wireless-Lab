@@ -745,5 +745,17 @@
   "bench.close": "Close pane",
   "bench.gone": "This device is not connected right now.",
   "bench.add": "Add a pane:",
-  "bench.hint": "Panes run independently. While one receives, another can send or receive."
+  "bench.hint": "Panes run independently. While one receives, another can send or receive.",
+  "hub.search.loading": "Checking for devices…",
+  "bench.together.title": "Start the transmit panes together",
+  "bench.together.lead": "Starts every device at the same time with the values written in the transmit panes. The warning is confirmed on every start.",
+  "bench.together.start": "Start {n} transmitters together",
+  "bench.together.sending": "Sending…",
+  "bench.together.stop": "Stop all",
+  "bench.together.incomplete": "{n} transmit pane(s) are not fully filled in and will be left out.",
+  "bench.together.warn": "The {n} devices below will transmit at the same time. Check the frequency and gain of each.",
+  "bench.together.aligned.pps": "The devices started on a common time signal (external PPS or GPS).",
+  "bench.together.aligned.host": "The computer set the device clocks before starting. Devices may differ by a few ms. For tighter alignment give each device an external reference (10 MHz and PPS).",
+  "bench.together.row": "sent {s} s, {u} underruns",
+  "bench.together.stopped": "stopped early"
 }

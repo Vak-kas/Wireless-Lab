@@ -91,6 +91,7 @@ export const httpApi: Api = {
   deviceReset: () => call("/devices/reset", "POST", {}),
   txStatus: () => call("/tx"),
   txStart: (req) => call("/tx/start", "POST", req),
+  txStartGroup: (items) => call("/tx/start-group", "POST", { items }),
   txStop: () => call("/tx/stop", "POST", {}),
   bleScan: (req) => call("/ble/scan", "POST", req),
   wifiStatus: () => call("/wifi"),
