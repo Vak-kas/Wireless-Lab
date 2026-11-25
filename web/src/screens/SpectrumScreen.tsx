@@ -224,7 +224,8 @@ function ChannelMap({ plan, picked, onChange, disabled }: { plan: SurveyPlan; pi
 /**
  * 주파수 상태: ① 장비와 대역·채널을 고르고 ② 모니터링한다. 모니터링 중에 "설정으로 돌아가기"로 다시 고를 수 있다.
  */
-export function SpectrumScreen() {
+/** device 를 주면 그 장비로 고정하고, embedded 면 작업판의 칸 안이라 화면 머리와 장비 고르기를 그리지 않는다. */
+export function SpectrumScreen({ device: fixed, embedded }: { device?: string; embedded?: boolean } = {}) {
   const { api, fail } = useStore();
   const [info, setInfo] = useState<SurveyDevice | null>(null);
   const [plan, setPlan] = useState("");
@@ -238,8 +239,8 @@ export function SpectrumScreen() {
   /** 첫 화면에서 넘어올 때 받은 쪽지(어느 장비로, 어느 대역을) */
   const [intent] = useState(takeIntent);
   /** 사용자가 장비를 직접 골랐는가 (쪽지로 넘어온 것도 고른 것으로 친다) */
-  const chosen = useRef(intent !== null);
-  const [device, setDevice] = useState(intent?.device ?? "");
+  const chosen = useRef(intent !== null || fixed !== undefined);
+  const [device, setDevice] = useState(fixed ?? intent?.device ?? "");
   const [wifi, setWifi] = useState(false);
   const wifiReady = useRef(false);
   const [aps, setAps] = useState<WifiAp[] | null>(null);
@@ -261,10 +262,10 @@ export function SpectrumScreen() {
   // USRP 는 몇 초 늦게 나타나므로, 나타나면 그때 고른다.
   const { devices, mode, connect } = useUsableDevices();
   useEffect(() => {
-    if (!devices) return;
+    if (!devices || fixed !== undefined) return;
     const real = devices.find((d) => d.driver !== "simulated");
     setDevice((cur) => (chosen.current && (cur === "" || devices.some((d) => d.id === cur)) ? cur : (real?.id ?? "")));
-  }, [devices]);
+  }, [devices, fixed]);
 
   useEffect(() => {
     void api.wifiStatus().then(
@@ -517,7 +518,13 @@ export function SpectrumScreen() {
     }));
     return (
       <>
-        <SubNav title={t("nav.spectrum")} action={<Button variant="secondary" onClick={back} data-testid="monitor-back">{`← ${t("monitor.back")}`}</Button>} />
+        {embedded ? (
+          <p className="row">
+            <Button variant="secondary" onClick={back} data-testid="monitor-back">{`← ${t("monitor.back")}`}</Button>
+          </p>
+        ) : (
+          <SubNav title={t("nav.spectrum")} action={<Button variant="secondary" onClick={back} data-testid="monitor-back">{`← ${t("monitor.back")}`}</Button>} />
+        )}
         <Tile tone="light">
           <TileHead eyebrow={`${info.device.label} · ${t(`spectrum.plan.${mon.plan}`)}`} title={t("monitor.title", { n: rows.length })} lead={t("monitor.lead", { n: mon.smooth })}>
             <Button onClick={() => setRunning(!running)} data-testid="monitor-toggle">
@@ -682,10 +689,10 @@ export function SpectrumScreen() {
 
   return (
     <>
-      <SubNav title={t("nav.spectrum")} />
+      {!embedded && <SubNav title={t("nav.spectrum")} />}
       <Tile tone="light">
-        <TileHead title={t("spectrum.title")} lead={t("spectrum.lead")} />
-        {mode === "none" && (
+        {!embedded && <TileHead title={t("spectrum.title")} lead={t("spectrum.lead")} />}
+        {!embedded && mode === "none" && (
           <p className="t-caption muted" data-testid="no-device-mode">
             {t("hub.none_mode")}{" "}
             <Button variant="link" onClick={connect}>
@@ -693,7 +700,7 @@ export function SpectrumScreen() {
             </Button>
           </p>
         )}
-        {devices !== null && (
+        {!embedded && devices !== null && (
           <DevicePicker
             devices={devices}
             device={device}

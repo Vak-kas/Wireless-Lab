@@ -107,14 +107,14 @@ function RxResult({ rx }: { rx: TxReceived }) {
  * 실험용 송신. 시작할 때마다 경고창에서 책임과 환경을 확인해야 나간다(서버도 확인이 없는 요청을 거부한다).
  * 내보낼 수 있는 것은 시험 톤과 사용자가 준 파형 파일뿐이고, 길이가 정해진 송신만 한다.
  */
-export function TxScreen() {
+export function TxScreen({ device: fixed, embedded }: { device?: string; embedded?: boolean } = {}) {
   const { api, fail } = useStore();
   const hub = useUsableDevices();
   const real = (hub.devices ?? []).filter((d) => !isSim(d));
   const [status, setStatus] = useState<TxStatus | null>(null);
   const [wanted] = useState(takeTxDevice);
   const [picked, setPicked] = useState("");
-  const device = real.some((d) => d.id === picked) ? picked : (real.find((d) => d.id === wanted)?.id ?? real[0]?.id ?? "");
+  const device = fixed !== undefined ? (real.some((d) => d.id === fixed) ? fixed : "") : real.some((d) => d.id === picked) ? picked : (real.find((d) => d.id === wanted)?.id ?? real[0]?.id ?? "");
   const [center, setCenter] = useState("");
   const [rate, setRate] = useState("1");
   const [gain, setGain] = useState("");
@@ -241,9 +241,9 @@ export function TxScreen() {
 
   return (
     <>
-      <SubNav title={t("tx.nav")} />
+      {!embedded && <SubNav title={t("tx.nav")} />}
       <Tile tone="light">
-        <TileHead eyebrow={t("tx.eyebrow")} title={t("tx.title")} lead={t("tx.lead")} />
+        {!embedded && <TileHead eyebrow={t("tx.eyebrow")} title={t("tx.title")} lead={t("tx.lead")} />}
         <p className="center-row row">
           <Badge level="warn">{t("tx.strip")}</Badge>
         </p>
@@ -251,13 +251,15 @@ export function TxScreen() {
         {status?.available && real.length === 0 && <Empty>{t("sim.no_real")}</Empty>}
         {status?.available && real.length > 0 && (
           <div className="card view-controls" data-testid="tx-form">
-            <div className="chips" role="group" aria-label={t("start.device.pick")}>
-              {real.map((d) => (
-                <Chip key={d.id} selected={d.id === device} onSelect={() => setPicked(d.id)} disabled={sending}>
-                  {d.label}
-                </Chip>
-              ))}
-            </div>
+            {!embedded && (
+              <div className="chips" role="group" aria-label={t("start.device.pick")}>
+                {real.map((d) => (
+                  <Chip key={d.id} selected={d.id === device} onSelect={() => setPicked(d.id)} disabled={sending}>
+                    {d.label}
+                  </Chip>
+                ))}
+              </div>
+            )}
             <div>
               <div className="t-caption-strong">{t("tx.pick.title")}</div>
               <div className="chips" role="group" aria-label={t("tx.pick.title")}>

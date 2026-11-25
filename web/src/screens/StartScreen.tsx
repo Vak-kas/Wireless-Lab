@@ -6,12 +6,12 @@ import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
 import { AdapterCard, DeviceCard, ModeSwitch, ReferenceSwitch, SearchNote, useUsableDevices } from "../devices/DeviceHub";
-import { saveIntent, saveNearby, saveTxDevice, type SpectrumIntent } from "../devices/intent";
+import { saveBench, saveNearby } from "../devices/intent";
 import { PhoneTile } from "./PhoneTile";
 
 const DOCTOR_LEVEL = { ok: "ok", warn: "warn", missing: "error" } as const;
 
-/** 1. 시작: 입력 소스 선택(연습 / 파일 / 장비), 장비 상태, 최근 세션. */
+/** 1. 시작: 쓸 장비를 고르고 수신·송신(작업판)이나 시나리오로 들어간다. 그 아래에 장비 상태와 최근 세션. */
 const TASK_ICONS: Record<string, React.ReactNode> = {
   // 기지국 탑과 퍼지는 신호
   nr: (
@@ -20,21 +20,11 @@ const TASK_ICONS: Record<string, React.ReactNode> = {
       <path d="M8.5 7.5a5 5 0 0 1 7 0M6 5a8.5 8.5 0 0 1 12 0" />
     </>
   ),
-  // 부채꼴로 퍼지는 무선 신호
-  wifi: (
+  // 받는 신호: 아래로 향한 화살표와 주파수별 세기 곡선
+  rx: (
     <>
-      <path d="M4 10a11.5 11.5 0 0 1 16 0M7 13.5a7.5 7.5 0 0 1 10 0M10 17a3.2 3.2 0 0 1 4 0" />
-      <circle cx="12" cy="19.5" r="0.8" />
-    </>
-  ),
-  // 주파수별 세기 곡선
-  view: <path d="M3 19h18M4 16l3-1 2-8 2 8 2-3 2 3 2-5 3 6" />,
-  // 근거리 무선: 이어진 두 점
-  bt: (
-    <>
-      <circle cx="7" cy="12" r="2.5" />
-      <circle cx="17" cy="12" r="2.5" />
-      <path d="M9.5 12h5M12 6v2M12 16v2" />
+      <path d="M12 3v8M8.5 7.5L12 11l3.5-3.5" />
+      <path d="M3 20h18M4 17l3-1 2-3 2 3 2-2 2 2 2-3 3 4" />
     </>
   ),
   // 주변 Wi-Fi 망: 부채꼴과 목록
@@ -96,6 +86,8 @@ export function StartScreen() {
   const [recent, setRecent] = useState<Session[]>([]);
   const [busy, setBusy] = useState(false);
   const [txReady, setTxReady] = useState(false);
+  /** 쓰지 않겠다고 표시를 끈 장비. 처음에는 연결된 장비를 모두 쓴다 */
+  const [off, setOff] = useState<string[]>([]);
 
   useEffect(() => {
     void api.doctor(true).then(setDoctor);
@@ -106,10 +98,12 @@ export function StartScreen() {
   const real = devices.filter((d) => d.driver !== "simulated");
   const locked = hub.locked;
 
-  /** 주파수 상태 화면으로 넘어가며 "이 장비로, 이 대역을" 미리 골라 둔다. */
-  const openSpectrum = (intent: SpectrumIntent) => {
-    saveIntent(intent);
-    go("spectrum");
+  const chosen = real.filter((d) => !off.includes(d.id));
+
+  /** 고른 장비마다 칸 하나씩 놓고 작업판을 연다. 칸마다 수신·송신은 작업판에서 바꿀 수 있다. */
+  const openBench = (mode: "rx" | "tx") => {
+    saveBench(chosen.map((d) => ({ device: d.id, mode })));
+    go("bench");
   };
 
   const begin = async (fn: () => Promise<Session>) => {
@@ -133,7 +127,7 @@ export function StartScreen() {
             <DeviceCard device={d} />
             <h3 className="t-tagline">{t("home.tasks.pro")}</h3>
             <div className="tasks">
-              {["nr", "wifi", "view", "bt", "tx"].map((id) => (
+              {["rx", "tx", "nr"].map((id) => (
                 <Task key={id} id={id} disabled />
               ))}
             </div>
@@ -155,32 +149,38 @@ export function StartScreen() {
             <p className="t-caption muted">{t("home.empty_hint")}</p>
           </div>
         ) : (
-          real.map((d) => (
-            <div className="card home-device" key={d.id} data-testid={`home-device-${d.id}`}>
-              <DeviceCard device={d} action={<ReferenceSwitch device={d} />} />
-              <h3 className="t-tagline">{t("home.tasks")}</h3>
-              <div className="tasks">
-                <Task
-                  id="nr"
-                  disabled={busy}
-                  onClick={() => void begin(() => start({ kind: "device", device: d.id, device_label: d.label }))}
-                  note={Object.values(d.stages ?? {}).some((v) => v !== "ok") ? d.note : undefined}
-                />
-                <Task id="wifi" disabled={busy} onClick={() => openSpectrum({ device: d.id, plan: "wifi-5g" })} />
-                <Task id="view" disabled={busy} onClick={() => openSpectrum({ device: d.id, focus: "view" })} />
-                <Task id="bt" disabled={busy} onClick={() => openSpectrum({ device: d.id, plan: "ble" })} />
-                <Task
-                  id="tx"
-                  soon={!txReady}
-                  disabled={busy}
-                  onClick={() => {
-                    saveTxDevice(d.id);
-                    go("tx");
-                  }}
-                />
+          <>
+            <h3 className="t-tagline home-group">{t("home.devices")}</h3>
+            {real.map((d) => (
+              <div className="card home-device" key={d.id} data-testid={`home-device-${d.id}`} data-picked={!off.includes(d.id)}>
+                <DeviceCard device={d} action={<ReferenceSwitch device={d} />} />
+                <label className="t-caption home-pick">
+                  <input
+                    type="checkbox"
+                    checked={!off.includes(d.id)}
+                    onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== d.id) : [...off, d.id])}
+                    data-testid={`home-pick-${d.id}`}
+                  />{" "}
+                  {t("home.pick")}
+                </label>
               </div>
+            ))}
+            <h3 className="t-tagline home-group">{t("home.what", { n: chosen.length })}</h3>
+            <div className="tasks" data-testid="home-tasks">
+              <Task id="rx" disabled={busy || chosen.length === 0} onClick={() => openBench("rx")} />
+              <Task id="tx" soon={!txReady} disabled={busy || chosen.length === 0} onClick={() => openBench("tx")} />
             </div>
-          ))
+            <p className="t-caption muted">{chosen.length > 1 ? t("home.what.many") : t("home.what.hint")}</p>
+            <h3 className="t-tagline home-group">{t("home.scenarios")}</h3>
+            <div className="tasks">
+              <Task
+                id="nr"
+                disabled={busy || chosen.length === 0}
+                onClick={() => void begin(() => start({ kind: "device", device: chosen[0]!.id, device_label: chosen[0]!.label }))}
+                note={chosen[0] && Object.values(chosen[0].stages ?? {}).some((v) => v !== "ok") ? chosen[0].note : undefined}
+              />
+            </div>
+          </>
         )}
         {!hub.adaptersReady && (
           <p className="searching t-caption" data-testid="home-adapters-loading">

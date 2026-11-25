@@ -69,3 +69,29 @@ export function takeTxDevice(): string {
     return "";
   }
 }
+
+/** 작업판의 칸 하나: 어느 장비로 수신을 하나 송신을 하나. */
+export interface Pane {
+  device: string;
+  mode: "rx" | "tx";
+}
+
+const BENCH_KEY = "nrtrail.bench";
+
+/** 작업판에 놓을 칸들. 새로 고쳐도 남도록 지우지 않는다(탭을 닫으면 사라진다). */
+export function saveBench(panes: Pane[]): void {
+  try {
+    sessionStorage.setItem(BENCH_KEY, JSON.stringify(panes));
+  } catch {
+    /* 못 쓰면 작업판에서 다시 고른다 */
+  }
+}
+
+export function loadBench(): Pane[] {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(BENCH_KEY) ?? "[]") as unknown;
+    return Array.isArray(raw) ? (raw as Pane[]).filter((p) => typeof p?.device === "string" && (p.mode === "rx" || p.mode === "tx")) : [];
+  } catch {
+    return [];
+  }
+}

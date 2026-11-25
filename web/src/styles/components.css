@@ -1305,6 +1305,48 @@ details.fold > .fold-body {
 .task-soon {
   color: var(--fg-muted);
 }
+.home-pick {
+  display: block;
+  margin-top: var(--space-xs);
+}
+.home-device[data-picked="false"] {
+  opacity: 0.6;
+}
+/* ---------- 작업판: 장비마다 칸 하나 ---------- */
+.bench {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+  text-align: left;
+}
+.bench-pane {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  min-width: 0;
+  overflow: hidden;
+}
+.bench-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--line);
+}
+.bench-head > :first-child {
+  flex: 1;
+}
+.bench-pane .tile {
+  padding: var(--space-lg) var(--space-md);
+}
+.bench-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-lg);
+}
 .live {
   display: grid;
   gap: var(--space-sm);

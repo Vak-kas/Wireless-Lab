@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 /** 주소창의 # 뒤를 화면 경로로 쓴다. 예: #/s/abc/follow */
 export interface Route {
-  screen: "start" | "scan" | "follow" | "ntn" | "track" | "sessions" | "settings" | "spectrum" | "tx" | "nearby" | "sim";
+  screen: "start" | "scan" | "follow" | "ntn" | "track" | "sessions" | "settings" | "spectrum" | "tx" | "nearby" | "sim" | "bench";
   sessionId?: string;
 }
 
@@ -20,6 +20,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === "tx") return { screen: "tx" };
   if (parts[0] === "nearby") return { screen: "nearby" };
   if (parts[0] === "sim") return { screen: "sim" };
+  if (parts[0] === "bench") return { screen: "bench" };
   return { screen: "start" };
 }
 
