@@ -316,7 +316,7 @@
   "view.center": "Centre frequency (MHz)",
   "view.width": "Bandwidth (MHz)",
   "view.max_width": "This device can show at most {mhz} MHz at once.",
-  "view.run": "Look",
+  "view.run": "Look once",
   "view.repeat": "Keep looking",
   "view.error.inputs": "Enter the centre frequency and bandwidth as numbers.",
   "view.plot.spectrum": "Level by frequency",
@@ -711,7 +711,7 @@
   "live.starting": "Starting…",
   "live.stop": "Stop live receive",
   "live.record": "Record",
-  "live.hint": "Receives without gaps until you stop and keeps drawing the spectrogram. On a Wi-Fi channel (20 MHz) or a Bluetooth advertising channel (2402, 2426, 2480 MHz at 4 MHz) the matching decoder runs too. Record saves the received I/Q samples from that moment to a SigMF file (sessions/saved) and stops when pressed again (up to 4 GB per file).",
+  "live.hint": "Receive live: receives without gaps until you stop and keeps drawing. On a Wi-Fi channel (20 MHz) or a Bluetooth advertising channel (4 MHz) the matching decoder runs too. Record: saves the received I/Q samples from that moment to a SigMF file (sessions/saved) until pressed again (up to 4 GB per file). Look once: receives 0.1 s and shows one picture.",
   "live.running": "Receiving · {s} s",
   "live.stopped": "Stopped · {s} s received",
   "live.no_loss": "No samples lost",
@@ -770,5 +770,13 @@
   "view.band.width": "Bandwidth (MHz, blank: {n})",
   "view.target": "Looking at: centre {c} MHz · width {w} MHz",
   "view.target.none": "Pick a place to look above.",
-  "view.target.clipped": "(the picked range is wide, so only the middle {mhz} MHz is shown)"
+  "view.target.clipped": "(the picked range is wide, so only the middle {mhz} MHz is shown)",
+  "live.wifi.all": "Decoded all {n} frames found.",
+  "live.wifi.some": "Decoded {m} of {n} frames found. The channel is busy, so an evenly spread share that fits in time is decoded. Record and decode later to cover everything.",
+  "bench.layout": "Pane layout",
+  "bench.layout.side": "Side by side",
+  "bench.layout.tabs": "One at a time",
+  "bench.stop_all": "Stop all",
+  "bench.busy": "receiving",
+  "bench.idle": "stopped"
 }

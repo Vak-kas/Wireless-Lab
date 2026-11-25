@@ -1039,6 +1039,14 @@ details.fold > .fold-body {
 #spectrum-view .card + .card {
   margin-top: var(--space-lg);
 }
+/* 스펙트로그램(캔버스): 칸 하나를 점 하나로 찍고 늘려 보여 준다. 글자색의 불투명도가 세기다 */
+.spectrogram {
+  display: block;
+  width: 100%;
+  height: 320px;
+  color: var(--fg);
+  image-rendering: pixelated;
+}
 /* 수신 화면의 한 칸: 어디를 볼까요 + 보기 단추 */
 .view-one {
   display: grid;
@@ -1372,6 +1380,54 @@ details.fold > .fold-body {
   font-weight: 600;
 }
 /* ---------- 작업판: 장비마다 칸 하나 ---------- */
+/* 맨 위 줄: 칸 이름표(받는 중이면 점이 켜짐), 놓는 법, 모두 멈추기. 화면을 내려도 따라온다(sub-nav 가 붙어 있다) */
+.bench-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.bench-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  min-height: var(--size-touch-min);
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+}
+.bench-tab[aria-pressed="true"] {
+  border-color: var(--link);
+  box-shadow: inset 0 0 0 1px var(--link);
+}
+.bench-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.bench-tab[data-busy="true"] .bench-dot {
+  background: var(--color-success);
+}
+/* 나란히: 칸 수만큼 세로 단으로(창이 좁아도 한 줄에). 하나씩: 고른 칸만 보이고 나머지는 숨긴 채 계속 돈다 */
+.bench[data-layout="side"][data-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.bench[data-layout="side"][data-count="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.bench[data-layout="side"][data-count="4"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.bench[data-layout="tabs"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bench[data-layout="tabs"] .bench-pane[data-active="false"] {
+  display: none;
+}
 .bench {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));

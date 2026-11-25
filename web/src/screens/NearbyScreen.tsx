@@ -199,7 +199,7 @@ function BleResult({ data }: { data: BleNearby }) {
 
 /** 컴퓨터의 Wi-Fi·블루투스 어댑터로 주변을 본다(방송 정보만. 연결하지 않는다). */
 /** adapter 를 주면 그 어댑터로 고정하고, embedded 면 작업판의 칸 안이라 화면 머리와 어댑터 고르기를 그리지 않는다. */
-export function NearbyScreen({ adapter: fixed, embedded }: { adapter?: string; embedded?: boolean } = {}) {
+export function NearbyScreen({ adapter: fixed, embedded, stopSignal, onBusy }: { adapter?: string; embedded?: boolean; stopSignal?: number; onBusy?: (busy: boolean) => void } = {}) {
   const { api } = useStore();
   const { adapters } = useUsableDevices();
   const [wanted] = useState(takeNearby);
@@ -215,6 +215,10 @@ export function NearbyScreen({ adapter: fixed, embedded }: { adapter?: string; e
   /** 운영체제 권한 때문에 실패했는가 (설정 창을 여는 단추를 보여 준다) */
   const [denied, setDenied] = useState(false);
   const [repeat, setRepeat] = useState(true);
+  useEffect(() => onBusy?.(repeat), [repeat, onBusy]);
+  useEffect(() => {
+    if (stopSignal) setRepeat(false);
+  }, [stopSignal]);
   const [rounds, setRounds] = useState(0);
   const running = useRef(false);
 

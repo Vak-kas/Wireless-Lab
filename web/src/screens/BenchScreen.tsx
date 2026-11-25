@@ -30,6 +30,13 @@ export function BenchScreen() {
   const [closed, setClosed] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<TxGroupResult | null>(null);
+  /** 칸을 놓는 법: 나란히(side) / 하나씩(tabs). 하나씩일 때는 고른 칸만 보이고 나머지는 뒤에서 계속 돈다 */
+  const [layout, setLayout] = useState<"side" | "tabs">("side");
+  const [active, setActive] = useState("");
+  /** 지금 받고 있는 칸들 */
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+  /** "모두 멈추기"를 누를 때마다 하나씩 올라간다. 칸들이 이 값이 바뀐 것을 보고 멈춘다 */
+  const [stopSignal, setStopSignal] = useState(0);
 
   useEffect(() => {
     void api.txStatus().then(
@@ -59,6 +66,18 @@ export function BenchScreen() {
     },
     [reporters],
   );
+
+  const busyOf = useMemo(() => new Map<string, (b: boolean) => void>(), []);
+  const busyReporter = (device: string) => {
+    if (!busyOf.has(device)) busyOf.set(device, (b) => setBusy((old) => (old[device] === b ? old : { ...old, [device]: b })));
+    return busyOf.get(device)!;
+  };
+  const shown = panes.some((p) => p.device === active) ? active : (panes[0]?.device ?? "");
+  const anyBusy = panes.some((p) => busy[p.device]) || sending;
+  const stopAll = () => {
+    setStopSignal((n) => n + 1);
+    void api.txStop().catch(() => undefined);
+  };
 
   const together = panes.filter((p) => p.mode === "tx" && drafts[p.device]).map((p) => drafts[p.device]!);
   const txPanes = panes.filter((p) => p.mode === "tx").length;
@@ -99,7 +118,46 @@ export function BenchScreen() {
 
   return (
     <>
-      <SubNav title={t("nav.bench")} />
+      <SubNav
+        title={t("nav.bench")}
+        action={
+          panes.length > 0 ? (
+            <div className="bench-bar" data-testid="bench-bar">
+              {/* 칸 이름표: 받는 중이면 점이 켜진다. 누르면 그 칸으로 간다(하나씩 보기에서는 그 칸을 보여 준다) */}
+              {panes.map((p) => (
+                <button
+                  key={p.device}
+                  type="button"
+                  className="bench-tab t-caption"
+                  aria-pressed={layout === "tabs" && shown === p.device}
+                  data-busy={busy[p.device] ? "true" : "false"}
+                  onClick={() => {
+                    setActive(p.device);
+                    if (layout === "side") document.getElementById(`pane-${p.device}`)?.scrollIntoView?.({ block: "start" });
+                  }}
+                  data-testid={`bench-tab-${p.device}`}
+                >
+                  <span className="bench-dot" aria-hidden="true" />
+                  {label(p.device)}
+                  <span className="sr-only">{busy[p.device] ? t("bench.busy") : t("bench.idle")}</span>
+                </button>
+              ))}
+              {panes.length > 1 && (
+                <div className="segments" role="group" aria-label={t("bench.layout")}>
+                  {(["side", "tabs"] as const).map((x) => (
+                    <button key={x} type="button" className="segment t-caption" aria-pressed={layout === x} onClick={() => setLayout(x)} data-testid={`bench-layout-${x}`}>
+                      {t(`bench.layout.${x}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Button variant="secondary" onClick={stopAll} disabled={!anyBusy} data-testid="bench-stop-all">
+                {t("bench.stop_all")}
+              </Button>
+            </div>
+          ) : undefined
+        }
+      />
       <Tile tone="light">
         {panes.length === 0 && (
           <Empty
@@ -112,9 +170,9 @@ export function BenchScreen() {
             {t("bench.empty")}
           </Empty>
         )}
-        <div className="bench" data-testid="bench" data-count={panes.length}>
+        <div className="bench" data-testid="bench" data-count={panes.length} data-layout={panes.length > 1 ? layout : "side"}>
           {panes.map((p) => (
-            <section className="bench-pane" key={p.device} data-testid={`pane-${p.device}`} aria-label={label(p.device)}>
+            <section className="bench-pane" key={p.device} id={`pane-${p.device}`} data-testid={`pane-${p.device}`} aria-label={label(p.device)} data-active={shown === p.device}>
               <header className="bench-head">
                 <span className="t-body-strong">{label(p.device)}</span>
                 <div className="segments" role="group" aria-label={t("bench.mode")}>
@@ -140,12 +198,12 @@ export function BenchScreen() {
                 hub.adaptersReady && !adapterOf(p.device) ? (
                   <Empty>{t("bench.gone")}</Empty>
                 ) : (
-                  <NearbyScreen adapter={p.device} embedded />
+                  <NearbyScreen adapter={p.device} embedded stopSignal={stopSignal} onBusy={busyReporter(p.device)} />
                 )
               ) : hub.devices !== null && !devices.some((d) => d.id === p.device) ? (
                 <Empty>{t("bench.gone")}</Empty>
               ) : p.mode === "rx" ? (
-                <SpectrumScreen key="rx" device={p.device} embedded />
+                <SpectrumScreen key="rx" device={p.device} embedded stopSignal={stopSignal} onBusy={busyReporter(p.device)} />
               ) : (
                 <TxScreen key="tx" device={p.device} embedded onDraft={reporter(p.device)} />
               )}

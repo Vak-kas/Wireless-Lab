@@ -226,7 +226,8 @@ function ChannelMap({ plan, picked, onChange, disabled }: { plan: SurveyPlan; pi
  * 주파수 상태: ① 장비와 대역·채널을 고르고 ② 모니터링한다. 모니터링 중에 "설정으로 돌아가기"로 다시 고를 수 있다.
  */
 /** device 를 주면 그 장비로 고정하고, embedded 면 작업판의 칸 안이라 화면 머리와 장비 고르기를 그리지 않는다. */
-export function SpectrumScreen({ device: fixed, embedded }: { device?: string; embedded?: boolean } = {}) {
+/** stopSignal: 값이 바뀌면 하던 받기를 멈춘다. onBusy: 받는 중인지 바깥에 알린다(둘 다 작업판이 쓴다). */
+export function SpectrumScreen({ device: fixed, embedded, stopSignal, onBusy }: { device?: string; embedded?: boolean; stopSignal?: number; onBusy?: (busy: boolean) => void } = {}) {
   const { api, fail } = useStore();
   const [info, setInfo] = useState<SurveyDevice | null>(null);
   const [plan, setPlan] = useState("");
@@ -260,6 +261,11 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
   const [hiccup, setHiccup] = useState("");
   const fails = useRef(0);
   const viewer = useRef<SpectrumViewHandle>(null);
+  const [liveOnAir, setLiveOnAir] = useState(false);
+  useEffect(() => onBusy?.(running || liveOnAir), [running, liveOnAir, onBusy]);
+  useEffect(() => {
+    if (stopSignal) setRunning(false);
+  }, [stopSignal]);
 
   // 사용자가 직접 고르기 전에는 실제 장비만 기본으로 고른다(모의 장비는 "모의 실험하기"를 눌러야 쓴다).
   // USRP 는 몇 초 늦게 나타나므로, 나타나면 그때 고른다.
@@ -703,7 +709,7 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
             </div>
           </details>
         </Tile>
-        {real && <SpectrumView key={info.device.id} info={info} gain={gain} ref={viewer} paused={running} />}
+        {real && <SpectrumView key={info.device.id} info={info} gain={gain} ref={viewer} paused={running} stopSignal={stopSignal} onLive={setLiveOnAir} />}
       </>
     );
   }
@@ -741,6 +747,8 @@ export function SpectrumScreen({ device: fixed, embedded }: { device?: string; e
               gain={gain}
               ref={viewer}
               target={real ? target : undefined}
+              stopSignal={stopSignal}
+              onLive={setLiveOnAir}
               selector={
                 <div className="selector" data-testid="survey-controls">
                   <h3 className="t-tagline">{t("spectrum.plan.title")}</h3>

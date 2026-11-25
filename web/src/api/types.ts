@@ -415,6 +415,9 @@ export interface StreamTapState {
   channel?: string | number;
   aps?: WifiAp[];
   formats?: Record<string, number>;
+  /** wifi: 찾은 프레임 수와 그 가운데 푼 수(붐비면 일부만 푼다) */
+  frames_found?: number;
+  frames_decoded?: number;
   devices?: BleDevice[];
   directed?: Record<string, number>;
   crc_failed?: number;

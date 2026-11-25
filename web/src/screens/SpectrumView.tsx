@@ -8,7 +8,6 @@ import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { LiveResults, useLiveStream } from "./LiveStream";
 
-const REPEAT_MS = 1500;
 const mhz = (hz: number, digits = 3) => Number((hz / 1e6).toFixed(digits)).toString();
 
 export interface SpectrumViewHandle {
@@ -57,6 +56,8 @@ export function SpectrumView({
   paused,
   selector,
   target,
+  stopSignal,
+  onLive,
 }: {
   info: SurveyDevice;
   gain: string;
@@ -65,6 +66,10 @@ export function SpectrumView({
   selector?: ReactNode;
   /** 위에서 고른 대역. null 이면 아직 고르지 않았다 */
   target?: { center_hz: number; width_hz: number } | null;
+  /** 값이 바뀌면 실시간 받기를 멈춘다(작업판의 "모두 멈추기") */
+  stopSignal?: number;
+  /** 실시간으로 받는 중인지 바깥에 알린다 */
+  onLive?: (running: boolean) => void;
 }) {
   const { api, fail } = useStore();
   const sim = info.device.driver === "simulated";
@@ -72,24 +77,29 @@ export function SpectrumView({
   const [width, setWidth] = useState(sim && info.capture ? mhz(info.capture.sample_rate_hz) : "");
   const [view, setView] = useState<View | null>(null);
   const [busy, setBusy] = useState(false);
-  const [repeat, setRepeat] = useState(false);
   const [error, setError] = useState("");
   const running = useRef(false);
   const max = info.device.max_sample_rate_hz;
   const tile = useRef<HTMLDivElement>(null);
   const live = useLiveStream(info.device.id);
+  const liveRunning = live.running;
+  const stopLive = live.stop;
+  useEffect(() => onLive?.(liveRunning), [liveRunning, onLive]);
+  useEffect(() => {
+    if (stopSignal) void stopLive();
+    // 신호가 바뀔 때만 멈춘다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopSignal]);
 
   const look = useCallback(
     async (c: string, w: string) => {
       if (running.current) return;
       if (paused) {
         setError(t("view.error.paused"));
-        setRepeat(false);
         return;
       }
       if (!sim && !(Number(c) > 0 && Number(w) > 0)) {
         setError(t(selector ? "view.target.none" : "view.error.inputs"));
-        setRepeat(false);
         return;
       }
       setError("");
@@ -105,7 +115,6 @@ export function SpectrumView({
           }),
         );
       } catch (e) {
-        setRepeat(false);
         fail(String(e instanceof Error ? e.message : e));
       } finally {
         running.current = false;
@@ -121,7 +130,6 @@ export function SpectrumView({
     const w = mhz(max !== undefined ? Math.min(bandwidthHz, max) : bandwidthHz);
     setCenter(c);
     setWidth(w);
-    setRepeat(false);
     setError("");
     if (run) void look(c, w);
   };
@@ -138,7 +146,6 @@ export function SpectrumView({
       setCenter("");
       setWidth("");
     }
-    setRepeat(false);
     setError("");
     // target 은 값(가운데·폭)으로만 본다
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,7 +156,6 @@ export function SpectrumView({
     if (paused) return setError(t("view.error.paused"));
     if (!sim && !(Number(center) > 0 && Number(width) > 0)) return setError(t(selector ? "view.target.none" : "view.error.inputs"));
     setError("");
-    setRepeat(false);
     setView(null);
     void live.start({ device: info.device.id, center_hz: sim ? 0 : Number(center) * 1e6, bandwidth_hz: sim ? 0 : Number(width) * 1e6, gain_db: gain.trim() ? Number(gain) : undefined }, record);
   };
@@ -165,13 +171,6 @@ export function SpectrumView({
     },
     set: fill,
   }));
-
-  useEffect(() => {
-    if (!repeat) return;
-    void look(center, width);
-    const timer = setInterval(() => void look(center, width), REPEAT_MS);
-    return () => clearInterval(timer);
-  }, [repeat, look, center, width]);
 
   const p = view ? plots(view) : null;
   const clipped = !sim && max !== undefined && targetWidth !== undefined && targetWidth > max;
@@ -205,15 +204,9 @@ export function SpectrumView({
         </p>
       )}
       <div className="row">
-        <Button onClick={() => void look(center, width)} disabled={busy || repeat || live.running} data-testid="view-run">
-          {busy && !repeat ? t("spectrum.busy") : t("view.run")}
-        </Button>
-        <Button variant="secondary" onClick={() => setRepeat(!repeat)} aria-pressed={repeat} disabled={live.running} data-testid="view-repeat">
-          {repeat ? t("spectrum.repeat.stop") : t("view.repeat")}
-        </Button>
         {live.can && (
           <>
-            <Button variant={live.running ? "primary" : "secondary"} onClick={() => (live.running ? void live.stop() : goLive())} disabled={live.starting || busy} aria-pressed={live.running} data-testid="live-toggle">
+            <Button onClick={() => (live.running ? void live.stop() : goLive())} disabled={live.starting || busy} aria-pressed={live.running} data-testid="live-toggle">
               {live.running ? t("live.stop") : live.starting ? t("live.starting") : t("live.start")}
             </Button>
             <Button variant="secondary" onClick={toggleRecord} disabled={live.starting || busy} aria-pressed={recording} data-testid="live-record-toggle">
@@ -221,6 +214,9 @@ export function SpectrumView({
             </Button>
           </>
         )}
+        <Button variant="secondary" onClick={() => void look(center, width)} disabled={busy || live.running} data-testid="view-run">
+          {busy ? t("spectrum.busy") : t("view.run")}
+        </Button>
       </div>
       {live.can && <p className="t-caption muted">{t("live.hint")}</p>}
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { SpectrumView as View, StreamState } from "../api";
-import { GridPlot } from "../components/plots/GridPlot";
+import { Spectrogram } from "../components/plots/Spectrogram";
 import { LinePlot } from "../components/plots/LinePlot";
 import { Badge } from "../components/ui";
 import { t } from "../i18n";
@@ -9,7 +9,7 @@ import { BleTable } from "./BlePanel";
 import { plots } from "./SpectrumView";
 import { ApTable } from "./WifiPanels";
 
-const POLL_MS = 1000;
+const POLL_MS = 400;
 
 interface StartRequest {
   device: string;
@@ -135,6 +135,11 @@ export function LiveResults({ state }: { state: StreamState }) {
         <div className="card live" data-testid="live-wifi">
           <h4 className="t-caption-strong">{t("live.wifi.title", { channel: wifi.channel ?? "" })}</h4>
           <ApTable aps={wifi.aps ?? []} empty={t("wifi.live.no_aps")} />
+          {(wifi.frames_found ?? 0) > 0 && (
+            <p className="t-caption muted" data-testid="live-wifi-frames">
+              {wifi.frames_decoded === wifi.frames_found ? t("live.wifi.all", { n: wifi.frames_found ?? 0 }) : t("live.wifi.some", { n: wifi.frames_found ?? 0, m: wifi.frames_decoded ?? 0 })}
+            </p>
+          )}
           {formats.length > 0 && (
             <p className="t-caption muted">
               {t("live.wifi.formats")} {formats.map(([f, n]) => `${f} ${n}`).join(" · ")}
@@ -155,7 +160,7 @@ export function LiveResults({ state }: { state: StreamState }) {
             <p className="t-caption muted center">{t("view.caption.spectrum")}</p>
           </div>
           <div className="card">
-            <GridPlot plot={p.fall} />
+            <Spectrogram grid={view!.waterfall} label={t("view.plot.waterfall")} />
             <p className="t-caption muted center">{t("live.caption.waterfall", { s: ((view!.waterfall.cols * view!.waterfall.col_ms) / 1e3).toFixed(1) })}</p>
           </div>
         </>
