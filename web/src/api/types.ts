@@ -447,6 +447,8 @@ export interface StreamState {
   overflows: number;
   /** false: 끊김 없이 받지 못하는 장비라 조각 사이에 틈이 있다 */
   continuous: boolean;
+  /** 받는 쪽이 계산해 주는 실시간 그림(끊김 없이 받는 장비만). 없으면 "spectrum" 풀이의 그림을 쓴다 */
+  scope?: { row_ms: number; bins: number; last: number } | null;
   taps: Record<string, StreamTapState>;
 }
 
@@ -612,6 +614,8 @@ export interface Api {
   streamStart(req: StreamRequest): Promise<StreamState>;
   streamState(id: string): Promise<StreamState>;
   streamStop(id: string): Promise<StreamState>;
+  /** 실시간 그림의 새 줄들: 번호가 after 보다 큰 것. mean·max 는 줄마다 주파수 칸별 세기(dBFS) */
+  streamRows(id: string, after: number): Promise<{ next: number; mean: number[][]; max: number[][] }>;
   /** 받는 도중에 풀이를 꽂거나 뺀다 (녹화 단추: name = "record") */
   streamTap(id: string, name: string, on: boolean): Promise<StreamState>;
   /** 그 대역을 받아 SigMF 파일로 남긴다 (서버의 sessions/saved/) */

@@ -778,5 +778,7 @@
   "bench.layout.tabs": "One at a time",
   "bench.stop_all": "Stop all",
   "bench.busy": "receiving",
-  "bench.idle": "stopped"
+  "bench.idle": "stopped",
+  "live.scope.caption": "Top: level per frequency now (dark line mean, light line peak). Bottom: the last {s} s (right is now, low frequencies at the bottom, darker is stronger). {n} rows per second, shading from {lo} to {hi} dBFS.",
+  "live.scope.waiting": "Waiting for the first signal…"
 }

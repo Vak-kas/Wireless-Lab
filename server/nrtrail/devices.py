@@ -184,6 +184,7 @@ class StreamSpec:
     gain_db: float | None = None
     antenna: str | None = None
     segment_s: float = 0.5
+    spectrum_ms: float = 0.0     # 0 보다 크면, 받는 쪽이 이 간격마다 주파수별 세기 한 줄을 바로 계산해 준다(끊김 없이 받는 장비만)
 
 
 @dataclass
@@ -197,8 +198,17 @@ class Segment:
     continuous: bool         # True: 앞 조각과 끊김 없이 이어진다. False: 조각 사이에 받지 않은 틈이 있다
 
 
-def stream(dev_id: str, spec: StreamSpec, folder: Path, on_segment: Any, stop: threading.Event) -> dict[str, Any]:
+def can_stream(dev_id: str) -> bool:
+    """이 장비를 맡은 쪽이 끊김 없이 받을 수 있는가(받으면서 그림용 스펙트럼도 바로 계산해 준다)."""
+    try:
+        return hasattr(receiver_for(dev_id), "stream")
+    except DeviceError:
+        return False
+
+
+def stream(dev_id: str, spec: StreamSpec, folder: Path, on_segment: Any, stop: threading.Event, on_spectrum: Any = None) -> dict[str, Any]:
     """stop 이 설 때까지 받아 조각마다 on_segment(Segment) 를 부른다(이 함수는 그동안 돌아오지 않는다).
+    on_spectrum 을 주고 spec.spectrum_ms 가 0 보다 크면, 그 간격마다 on_spectrum({"row", "sample", "mean", "max"}) 도 부른다(끊김 없이 받는 장비만).
 
     그 장비를 맡은 쪽에 stream() 이 있으면 끊김 없이 받는다(USRP 의 uhdio).
     없으면 "조각 길이만큼 받기"를 되풀이한다 — 조각 사이에 틈이 생기고, Segment.continuous 가 False 다.
@@ -206,7 +216,7 @@ def stream(dev_id: str, spec: StreamSpec, folder: Path, on_segment: Any, stop: t
     folder.mkdir(parents=True, exist_ok=True)
     backend = receiver_for(dev_id)
     if hasattr(backend, "stream"):
-        out: dict[str, Any] = backend.stream(dev_id, spec, folder, on_segment, stop)
+        out: dict[str, Any] = backend.stream(dev_id, spec, folder, on_segment, stop, on_spectrum)
         return out
     index, first = 0, 0
     while not stop.is_set():

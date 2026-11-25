@@ -1039,6 +1039,29 @@ details.fold > .fold-body {
 #spectrum-view .card + .card {
   margin-top: var(--space-lg);
 }
+/* 실시간 그림: 위에 지금의 스펙트럼 선, 아래에 흘러가는 스펙트로그램 */
+.scope {
+  display: grid;
+  gap: var(--space-xs);
+}
+.scope-line,
+.scope-fall {
+  display: block;
+  width: 100%;
+  color: var(--fg);
+}
+.scope-line {
+  height: 180px;
+  border-bottom: 1px solid var(--line);
+}
+.scope-fall {
+  height: 300px;
+  image-rendering: pixelated;
+}
+.scope-axis {
+  display: flex;
+  justify-content: space-between;
+}
 /* 스펙트로그램(캔버스): 칸 하나를 점 하나로 찍고 늘려 보여 준다. 글자색의 불투명도가 세기다 */
 .spectrogram {
   display: block;

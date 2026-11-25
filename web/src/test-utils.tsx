@@ -110,6 +110,7 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     streamStart: no,
     streamState: no,
     streamStop: no,
+    streamRows: no,
     streamTap: no,
     oaiProgress: async () => ({ phase: "idle" }),
     ntn: no,

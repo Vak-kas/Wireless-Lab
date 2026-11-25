@@ -6,6 +6,7 @@ import { Badge } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { BleTable } from "./BlePanel";
+import { LiveScope } from "./LiveScope";
 import { plots } from "./SpectrumView";
 import { ApTable } from "./WifiPanels";
 
@@ -153,7 +154,9 @@ export function LiveResults({ state }: { state: StreamState }) {
           <BleTable devices={ble.devices ?? []} directed={ble.directed ?? {}} broken={ble.crc_failed ?? 0} />
         </div>
       )}
-      {p && (
+      {state.scope ? (
+        <LiveScope id={state.id} running={state.running} centerHz={state.center_hz} rateHz={state.sample_rate_hz} rowMs={state.scope.row_ms || 50} />
+      ) : p && (
         <>
           <div className="card">
             <LinePlot plot={p.line} />

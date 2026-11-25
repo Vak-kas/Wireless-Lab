@@ -258,6 +258,9 @@ export const mockApi: Api = {
   streamState: async () => {
     throw new Error("mock");
   },
+  streamRows: async () => {
+    throw new Error("mock");
+  },
   streamTap: async () => {
     throw new Error("mock");
   },

@@ -418,3 +418,27 @@ test("실시간으로 받기: 맞는 풀이를 꽂아 시작하고, 놓친 샘�
   expect(a.streamStop).toHaveBeenCalledWith("s1");
   expect(await screen.findByText(/멈춤 · 2.0초 받음/)).toBeInTheDocument();
 });
+
+test("실시간 그림: 받는 쪽이 줄을 계산해 주는 장비에서는 그 줄을 0.1초마다 가져와 그리고, 이어서 다음 번호부터 가져온다", async () => {
+  const a = api();
+  const live = { id: "s2", device: "driver=uhd", running: true, error: "", center_hz: 5180e6, sample_rate_hz: 20e6, segment_s: 0.25, segments: 1, seconds: 0.25,
+    lost_samples: 0, overflows: 0, continuous: true, scope: { row_ms: 50, bins: 4, last: 1 }, taps: {} };
+  a.streamTaps = vi.fn(async () => ({ taps: [{ name: "spectrum", ok: true, reason: "" }] }));
+  a.streamStart = vi.fn(async () => live);
+  a.streamState = vi.fn(async () => live);
+  a.streamStop = vi.fn(async () => ({ ...live, running: false }));
+  const asked: number[] = [];
+  a.streamRows = vi.fn(async (_id: string, after: number) => {
+    asked.push(after);
+    return after < 1 ? { next: 1, mean: [[-80, -80, -60, -80], [-80, -80, -58, -80]], max: [[-70, -70, -40, -70], [-70, -70, -38, -70]] } : { next: after, mean: [], max: [] };
+  });
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("cell-ch36"));
+  await userEvent.click(await screen.findByTestId("live-toggle"));
+  const scope = await screen.findByTestId("live-scope");
+  expect(within(scope).getByRole("img", { name: "스펙트로그램" })).toBeInTheDocument();
+  expect(within(scope).getByText("5170 MHz")).toBeInTheDocument(); // 가로축: 받는 대역의 왼쪽 끝
+  await waitFor(() => expect(screen.getByTestId("live-scope-note")).toHaveTextContent("초당 20줄"));
+  await waitFor(() => expect(asked.slice(0, 2)).toEqual([-1, 1])); // 처음엔 전부, 그다음엔 받은 번호 뒤부터
+  await userEvent.click(screen.getByTestId("live-toggle"));
+});
