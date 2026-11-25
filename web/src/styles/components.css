@@ -1447,19 +1447,40 @@ details.fold > .fold-body {
   gap: var(--space-xs);
 }
 /* 책갈피: 페이지 위에 붙은 서류철 탭. 고른 탭은 아래 페이지와 이어져 보인다 */
-.bench-tabs {
+/* 작업판은 책갈피 줄이 바로 위에 오도록 위쪽 여백을 줄인다 */
+.tile:has(.bench-strip) {
+  padding-top: var(--space-md);
+}
+.bench-strip {
   position: sticky;
   top: calc(var(--size-nav-height) + var(--size-subnav-height));
   z-index: 10;
   display: flex;
   align-items: flex-end;
-  gap: var(--space-xxs);
-  padding: var(--space-sm) var(--space-sm) 0;
+  gap: var(--space-md);
   margin-bottom: -1px;
+  padding-top: var(--space-sm);
   background: inherit;
   border-bottom: 1px solid var(--line);
-  overflow-x: auto;
   text-align: left;
+}
+.bench-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-xxs);
+  padding: 0 var(--space-sm);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+/* 모두 시작·모두 멈추기: 책갈피 줄의 오른쪽 끝 */
+.bench-all {
+  flex: none;
+  display: flex;
+  gap: var(--space-xs);
+  padding: 0 var(--space-sm) var(--space-xs);
 }
 .bench-tab {
   display: inline-flex;

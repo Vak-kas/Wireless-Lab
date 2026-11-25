@@ -137,21 +137,7 @@ export function BenchScreen() {
 
   return (
     <>
-      <SubNav
-        title={t("nav.bench")}
-        action={
-          panes.length > 0 ? (
-            <div className="bench-bar" data-testid="bench-bar">
-              <Button onClick={startAll} disabled={sending} data-testid="bench-start-all">
-                {t("bench.start_all")}
-              </Button>
-              <Button variant="secondary" onClick={stopAll} disabled={!anyBusy} data-testid="bench-stop-all">
-                {t("bench.stop_all")}
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
+      <SubNav title={t("nav.bench")} />
       <Tile tone="light">
         {panes.length === 0 && (
           <Empty
@@ -165,6 +151,7 @@ export function BenchScreen() {
           </Empty>
         )}
         {panes.length > 0 && (
+          <div className="bench-strip" data-testid="bench-bar">
           <div className="bench-tabs" role="tablist" aria-label={t("bench.tabs")} data-testid="bench-tabs">
             {/* 책갈피: 전체 보기 + 장비마다 하나. 페이지 위에 붙어 있고, 받는 중인 장비는 점이 켜진다 */}
             {panes.length > 1 && (
@@ -189,6 +176,16 @@ export function BenchScreen() {
                 <span className="sr-only">{busy[p.device] ? t("bench.busy") : t("bench.idle")}</span>
               </button>
             ))}
+          </div>
+            {/* 모든 장비를 한 번에: 책갈피와 같은 줄의 오른쪽 끝 */}
+            <div className="bench-all">
+              <Button onClick={startAll} disabled={sending} data-testid="bench-start-all">
+                {t("bench.start_all")}
+              </Button>
+              <Button variant="secondary" onClick={stopAll} disabled={!anyBusy} data-testid="bench-stop-all">
+                {t("bench.stop_all")}
+              </Button>
+            </div>
           </div>
         )}
         <div className="bench" data-testid="bench" data-turn={turn} data-count={panes.length} data-layout={shown === "all" ? "overview" : "tabs"}>
