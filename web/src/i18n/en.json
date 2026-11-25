@@ -736,7 +736,7 @@
   "home.what.many": "Each picked device gets its own pane side by side. Each pane can be switched between receive and transmit, so one device can send while another receives.",
   "home.scenarios": "Scenarios",
   "home.task.rx": "Receive",
-  "home.task.rx.desc": "Pick a frequency and receive. Spectrogram, live receive, Wi-Fi and Bluetooth decoding, save to file",
+  "home.task.rx.desc": "SDRs receive a chosen frequency (spectrogram, live receive, Wi-Fi and Bluetooth decoding, recording). The computer's Wi-Fi and Bluetooth show nearby networks and devices.",
   "bench.empty": "No panes yet. Pick devices on the home screen and press Receive or Transmit.",
   "bench.to_home": "Go to home",
   "bench.mode": "What this pane does",
@@ -759,5 +759,8 @@
   "bench.together.row": "sent {s} s, {u} underruns",
   "bench.together.stopped": "stopped early",
   "live.record.stop": "Stop recording",
-  "live.record.going": "Recording · {s} s ({mb} MB, {gaps} discontinuities)"
+  "live.record.going": "Recording · {s} s ({mb} MB, {gaps} discontinuities)",
+  "home.pick.on": "In use",
+  "home.pick.off": "Not used",
+  "home.devices.lead": "Turn devices on or off. SDRs and this computer's Wi-Fi and Bluetooth appear together."
 }

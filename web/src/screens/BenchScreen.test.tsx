@@ -80,3 +80,15 @@ test("작업판: 송신 칸이 둘이면 함께 시작할 수 있고, 경고에�
   ]);
   expect(await screen.findByTestId("together-done")).toHaveTextContent("끊김 3번");
 });
+
+test("작업판: 컴퓨터의 어댑터 칸에는 주변 보기가 들어가고, 송신으로는 바꿀 수 없다", async () => {
+  sessionStorage.setItem("nrtrail.bench", JSON.stringify([{ device: "wifi:en0", mode: "rx", kind: "adapter" }]));
+  const x = api();
+  x.adapters = async () => [{ id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: {} }];
+  x.adapterWifiScan = async () => ({ adapter: "wifi:en0", networks: [], connected: null }) as never;
+  renderWithStore(<BenchScreen />, x);
+  const pane = await screen.findByTestId("pane-wifi:en0");
+  expect(await within(pane).findByTestId("nearby-toggle")).toBeInTheDocument();
+  expect(within(pane).getByTestId("pane-mode-tx")).toBeDisabled();
+  expect(pane).toHaveAccessibleName("Wi-Fi · 내장");
+});

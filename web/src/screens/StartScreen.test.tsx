@@ -21,7 +21,7 @@ test("첫 화면은 내 장비와 수신·송신·시나리오만 보여 주고,
   const card = await screen.findByTestId("home-device-usrp:B200:S1");
   expect(within(card).getByText("USRP B200")).toBeInTheDocument();
   expect(within(card).getByText("S1")).toBeInTheDocument();
-  expect(within(card).getByTestId("home-pick-usrp:B200:S1")).toBeChecked();
+  expect(within(card).getByTestId("home-pick-usrp:B200:S1")).toHaveAttribute("aria-pressed", "true");
   for (const id of ["rx", "nr"]) expect(screen.getByTestId(`task-${id}`)).toBeEnabled();
   expect(screen.getByTestId("task-tx")).toBeDisabled(); // 송신 기능이 없는 설치에서는 꺼져 있다
   expect(within(card).queryByText(/모의 장비/)).toBeNull();
@@ -80,9 +80,9 @@ test("장비가 없으면 연결하라고 안내하고, 시뮬레이션으로 �
   expect(screen.getByTestId("home-sim")).toBeEnabled(); // 시뮬레이션 화면으로 가는 길은 남아 있다
 });
 
-test("컴퓨터의 Wi-Fi·블루투스 어댑터는 내장/외장 표시와 함께 따로 나오고, 누르면 주변 보기로 간다", async () => {
+test("SDR 이 없을 때: 컴퓨터의 Wi-Fi·블루투스 어댑터가 쓸 장비로 나오고, 수신을 누르면 주변 보기 칸이 놓인다", async () => {
   const api = fakeApi();
-  api.devices = async () => [usrp];
+  api.devices = async () => [];
   const found: Adapter[] = [
     { id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: { interface: "en0" }, abilities: [{ id: "monitor", state: "yes" }] },
     { id: "bt:usb", kind: "bluetooth", attach: "external", label: "Bluetooth", detail: {} },
@@ -93,16 +93,30 @@ test("컴퓨터의 Wi-Fi·블루투스 어댑터는 내장/외장 표시와 함�
   expect(within(wifi).getByText("내장")).toBeInTheDocument();
   const bt = screen.getByTestId("home-adapter-bt:usb");
   expect(within(bt).getByText("외장")).toBeInTheDocument();
-  expect(within(bt).getByTestId("task-near-bt")).toBeEnabled();
-  // SDR 장비의 할 일(스펙트럼·송신)은 어댑터 카드에 없다
-  // 모니터 모드를 지원하는 어댑터에는 그 칸이 "준비 중"으로 보인다(아직 누를 수 없다)
-  expect(within(wifi).getByTestId("task-monitor")).toBeDisabled();
-  expect(within(bt).queryByTestId("task-monitor")).toBeNull();
-  expect(within(wifi).queryByTestId("task-view")).toBeNull();
-  expect(within(wifi).queryByTestId("task-tx")).toBeNull();
-  await userEvent.click(within(wifi).getByTestId("task-near-wifi"));
-  expect(window.location.hash).toBe("#/nearby");
-  expect(sessionStorage.getItem("nrtrail.nearbyAdapter")).toBe("wifi:en0");
+  // SDR 이 없으면 어댑터가 처음부터 "사용"이다. 수신을 누르면 어댑터마다 칸이 놓인다(어댑터는 받기만 한다)
+  expect(within(wifi).getByTestId("home-pick-wifi:en0")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("task-tx")).toBeDisabled();
+  await userEvent.click(within(bt).getByTestId("home-pick-bt:usb"));
+  await userEvent.click(screen.getByTestId("task-rx"));
+  expect(window.location.hash).toBe("#/bench");
+  expect(JSON.parse(sessionStorage.getItem("nrtrail.bench")!)).toEqual([{ device: "wifi:en0", mode: "rx", kind: "adapter" }]);
+});
+
+test("SDR 이 있으면 컴퓨터의 어댑터는 같은 목록에 나오되 처음에는 꺼져 있고, 켜면 수신 칸에 함께 놓인다", async () => {
+  const api = fakeApi();
+  api.devices = async () => [usrp];
+  api.adapters = async () => [{ id: "wifi:en0", kind: "wifi", attach: "builtin", label: "Wi-Fi", detail: {} }];
+  renderWithStore(<StartScreen />, api);
+  const pick = await screen.findByTestId("home-pick-wifi:en0");
+  expect(pick).toHaveAttribute("aria-pressed", "false");
+  expect(pick).toHaveTextContent("사용 안 함");
+  await userEvent.click(pick);
+  expect(pick).toHaveTextContent("사용");
+  await userEvent.click(screen.getByTestId("task-rx"));
+  expect(JSON.parse(sessionStorage.getItem("nrtrail.bench")!)).toEqual([
+    { device: "usrp:B200:S1", mode: "rx" },
+    { device: "wifi:en0", mode: "rx", kind: "adapter" },
+  ]);
 });
 
 test("알아봤지만 쓸 수 없는 장비는 'Pro 필요' 카드로 보이고, 할 일은 전부 꺼져 있다", async () => {

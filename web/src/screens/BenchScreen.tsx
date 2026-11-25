@@ -7,6 +7,7 @@ import { loadBench, saveBench, type Pane } from "../devices/intent";
 import { t } from "../i18n";
 import { go } from "../router";
 import { useStore } from "../state/store";
+import { NearbyScreen } from "./NearbyScreen";
 import { SpectrumScreen } from "./SpectrumScreen";
 import { TxScreen } from "./TxScreen";
 
@@ -90,9 +91,11 @@ export function BenchScreen() {
     setPanes(next);
     saveBench(next);
   };
-  const label = (id: string) => devices.find((d) => d.id === id)?.label ?? id;
+  const adapterOf = (id: string) => hub.adapters.find((a) => a.id === id);
+  const label = (id: string) => devices.find((d) => d.id === id)?.label ?? (adapterOf(id) ? `${adapterOf(id)!.label} · ${t(`hub.attach.${adapterOf(id)!.attach}`)}` : id);
   const canSend = (id: string) => txReady && devices.some((d) => d.id === id && !isSim(d));
   const free = devices.filter((d) => !isSim(d) && !panes.some((p) => p.device === d.id));
+  const freeAdapters = hub.adapters.filter((a) => !panes.some((p) => p.device === a.id));
 
   return (
     <>
@@ -133,7 +136,13 @@ export function BenchScreen() {
                   {t("bench.close")}
                 </Button>
               </header>
-              {hub.devices !== null && !devices.some((d) => d.id === p.device) ? (
+              {p.kind === "adapter" ? (
+                hub.adaptersReady && !adapterOf(p.device) ? (
+                  <Empty>{t("bench.gone")}</Empty>
+                ) : (
+                  <NearbyScreen adapter={p.device} embedded />
+                )
+              ) : hub.devices !== null && !devices.some((d) => d.id === p.device) ? (
                 <Empty>{t("bench.gone")}</Empty>
               ) : p.mode === "rx" ? (
                 <SpectrumScreen key="rx" device={p.device} embedded />
@@ -143,13 +152,18 @@ export function BenchScreen() {
             </section>
           ))}
         </div>
-        {free.length > 0 && (
+        {free.length + freeAdapters.length > 0 && (
           <div className="bench-add" data-testid="bench-add">
             <span className="t-caption muted">{t("bench.add")}</span>
             <div className="chips">
               {free.map((d) => (
                 <Chip key={d.id} selected={false} onSelect={() => keep([...panes, { device: d.id, mode: "rx" }])}>
                   + {d.label}
+                </Chip>
+              ))}
+              {freeAdapters.map((a) => (
+                <Chip key={a.id} selected={false} onSelect={() => keep([...panes, { device: a.id, mode: "rx", kind: "adapter" }])}>
+                  + {a.label} · {t(`hub.attach.${a.attach}`)}
                 </Chip>
               ))}
             </div>

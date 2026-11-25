@@ -1305,12 +1305,49 @@ details.fold > .fold-body {
 .task-soon {
   color: var(--fg-muted);
 }
-.home-pick {
-  display: block;
-  margin-top: var(--space-xs);
+/* 쓸 장비 고르기: 카드 오른쪽 위의 단추로 켜고 끈다. 켠 카드는 테두리가 진하다 */
+.pick-list {
+  display: grid;
+  gap: var(--space-sm);
+  margin: var(--space-sm) 0 var(--space-lg);
 }
-.home-device[data-picked="false"] {
-  opacity: 0.6;
+.pick-list .home-device {
+  position: relative;
+  margin-bottom: 0;
+  padding-right: calc(var(--space-md) + 112px);
+  border: 1px solid var(--line);
+}
+.pick-list .home-device[data-picked="true"] {
+  border-color: var(--link);
+  box-shadow: inset 0 0 0 1px var(--link);
+}
+.pick-list .home-device[data-picked="false"] .device-card {
+  opacity: 0.55;
+}
+.pick {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  min-width: 104px;
+  min-height: var(--size-touch-min);
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.pick[aria-pressed="true"] {
+  border-color: var(--link);
+  background: var(--link);
+  color: var(--card);
+  font-weight: 600;
+}
+@media (max-width: 734px) {
+  .pick-list .home-device {
+    padding-right: var(--space-md);
+    padding-top: calc(var(--space-md) + var(--size-touch-min) + var(--space-xs));
+  }
 }
 /* ---------- 작업판: 장비마다 칸 하나 ---------- */
 .bench {

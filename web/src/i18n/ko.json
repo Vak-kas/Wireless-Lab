@@ -736,7 +736,7 @@
   "home.what.many": "고른 장비마다 칸이 하나씩 나란히 놓입니다. 작업판에서 칸마다 수신·송신을 따로 바꿀 수 있어, 한 대로 보내면서 다른 대로 받을 수 있습니다.",
   "home.scenarios": "시나리오",
   "home.task.rx": "수신",
-  "home.task.rx.desc": "주파수를 골라 받습니다. 스펙트로그램, 실시간 받기, Wi-Fi·블루투스 풀이, 파일로 저장",
+  "home.task.rx.desc": "SDR 은 주파수를 골라 받습니다(스펙트로그램, 실시간 받기, Wi-Fi·블루투스 풀이, 녹화). 컴퓨터의 Wi-Fi·블루투스는 주변 망과 기기를 봅니다.",
   "bench.empty": "놓인 칸이 없습니다. 첫 화면에서 장비를 고르고 수신이나 송신을 누르세요.",
   "bench.to_home": "첫 화면으로",
   "bench.mode": "이 칸에서 할 일",
@@ -759,5 +759,8 @@
   "bench.together.row": "{s}초 보냄, 끊김 {u}번",
   "bench.together.stopped": "중간에 멈춤",
   "live.record.stop": "녹화 멈추기",
-  "live.record.going": "녹화 중 · {s}초 ({mb} MB, 이어지지 않은 곳 {gaps}군데)"
+  "live.record.going": "녹화 중 · {s}초 ({mb} MB, 이어지지 않은 곳 {gaps}군데)",
+  "home.pick.on": "사용",
+  "home.pick.off": "사용 안 함",
+  "home.devices.lead": "쓸 장비를 켜고 끕니다. SDR 과 이 컴퓨터의 Wi-Fi·블루투스가 함께 나옵니다."
 }

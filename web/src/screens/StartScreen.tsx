@@ -6,7 +6,7 @@ import { t } from "../i18n";
 import { go, href } from "../router";
 import { useStore } from "../state/store";
 import { AdapterCard, DeviceCard, ModeSwitch, ReferenceSwitch, SearchNote, useUsableDevices } from "../devices/DeviceHub";
-import { saveBench, saveNearby } from "../devices/intent";
+import { saveBench, type Pane } from "../devices/intent";
 import { PhoneTile } from "./PhoneTile";
 
 const DOCTOR_LEVEL = { ok: "ok", warn: "warn", missing: "error" } as const;
@@ -73,7 +73,7 @@ function Task({ id, onClick, disabled, soon, note }: { id: string; onClick?: () 
       <span className="t-body-strong">{t(`home.task.${id}`)}</span>
       <span className="t-caption muted">{t(`home.task.${id}.desc`)}</span>
       {soon && <span className="t-caption task-soon">{t("home.soon")}</span>}
-      {note && <span className="t-fine-print muted">{note}</span>}
+      {note && <span className="t-caption muted">{note}</span>}
     </button>
   );
 }
@@ -86,8 +86,8 @@ export function StartScreen() {
   const [recent, setRecent] = useState<Session[]>([]);
   const [busy, setBusy] = useState(false);
   const [txReady, setTxReady] = useState(false);
-  /** 쓰지 않겠다고 표시를 끈 장비. 처음에는 연결된 장비를 모두 쓴다 */
-  const [off, setOff] = useState<string[]>([]);
+  /** 처음 정해진 것에서 사용자가 뒤집은 장비. 처음에는 SDR 은 쓰고, 컴퓨터의 어댑터는 SDR 이 없을 때만 쓴다 */
+  const [flipped, setFlipped] = useState<string[]>([]);
 
   useEffect(() => {
     void api.doctor(true).then(setDoctor);
@@ -98,13 +98,26 @@ export function StartScreen() {
   const real = devices.filter((d) => d.driver !== "simulated");
   const locked = hub.locked;
 
-  const chosen = real.filter((d) => !off.includes(d.id));
+  const isPicked = (id: string, adapter: boolean) => (adapter ? real.length === 0 : true) !== flipped.includes(id);
+  const flip = (id: string) => setFlipped((old) => (old.includes(id) ? old.filter((x) => x !== id) : [...old, id]));
+  const chosen = real.filter((d) => isPicked(d.id, false));
+  const chosenAdapters = hub.adapters.filter((a) => isPicked(a.id, true));
+  const total = chosen.length + chosenAdapters.length;
 
-  /** 고른 장비마다 칸 하나씩 놓고 작업판을 연다. 칸마다 수신·송신은 작업판에서 바꿀 수 있다. */
+  /** 고른 장비마다 칸 하나씩 놓고 작업판을 연다. SDR 칸의 수신·송신은 작업판에서 바꿀 수 있다. 어댑터는 받기(주변 보기)만 한다. */
   const openBench = (mode: "rx" | "tx") => {
-    saveBench(chosen.map((d) => ({ device: d.id, mode })));
+    const panes: Pane[] = chosen.map((d) => ({ device: d.id, mode }));
+    if (mode === "rx") panes.push(...chosenAdapters.map((a) => ({ device: a.id, mode: "rx" as const, kind: "adapter" as const })));
+    saveBench(panes);
     go("bench");
   };
+
+  /** 장비 카드의 "쓰기" 단추 */
+  const pick = (id: string, adapter: boolean) => (
+    <button type="button" className="pick t-caption" aria-pressed={isPicked(id, adapter)} onClick={() => flip(id)} data-testid={`home-pick-${id}`}>
+      {isPicked(id, adapter) ? `✓ ${t("home.pick.on")}` : t("home.pick.off")}
+    </button>
+  );
 
   const begin = async (fn: () => Promise<Session>) => {
     setBusy(true);
@@ -148,69 +161,50 @@ export function StartScreen() {
             )}
             <p className="t-caption muted">{t("home.empty_hint")}</p>
           </div>
-        ) : (
+        ) : null}
+        {real.length + hub.adapters.length > 0 && (
           <>
             <h3 className="t-tagline home-group">{t("home.devices")}</h3>
-            {real.map((d) => (
-              <div className="card home-device" key={d.id} data-testid={`home-device-${d.id}`} data-picked={!off.includes(d.id)}>
-                <DeviceCard device={d} action={<ReferenceSwitch device={d} />} />
-                <label className="t-caption home-pick">
-                  <input
-                    type="checkbox"
-                    checked={!off.includes(d.id)}
-                    onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== d.id) : [...off, d.id])}
-                    data-testid={`home-pick-${d.id}`}
-                  />{" "}
-                  {t("home.pick")}
-                </label>
-              </div>
-            ))}
-            <h3 className="t-tagline home-group">{t("home.what", { n: chosen.length })}</h3>
+            <p className="t-caption muted">{t("home.devices.lead")}</p>
+            <div className="pick-list">
+              {real.map((d) => (
+                <div className="card home-device" key={d.id} data-testid={`home-device-${d.id}`} data-picked={isPicked(d.id, false)}>
+                  <DeviceCard device={d} action={<ReferenceSwitch device={d} />} />
+                  {pick(d.id, false)}
+                </div>
+              ))}
+              {hub.adapters.map((a) => (
+                <div className="card home-device" key={a.id} data-testid={`home-adapter-${a.id}`} data-picked={isPicked(a.id, true)}>
+                  <AdapterCard adapter={a} action={<ModeSwitch adapter={a} />} />
+                  {pick(a.id, true)}
+                </div>
+              ))}
+            </div>
+            <h3 className="t-tagline home-group">{t("home.what", { n: total })}</h3>
             <div className="tasks" data-testid="home-tasks">
-              <Task id="rx" disabled={busy || chosen.length === 0} onClick={() => openBench("rx")} />
+              <Task id="rx" disabled={busy || total === 0} onClick={() => openBench("rx")} />
               <Task id="tx" soon={!txReady} disabled={busy || chosen.length === 0} onClick={() => openBench("tx")} />
             </div>
-            <p className="t-caption muted">{chosen.length > 1 ? t("home.what.many") : t("home.what.hint")}</p>
-            <h3 className="t-tagline home-group">{t("home.scenarios")}</h3>
-            <div className="tasks">
-              <Task
-                id="nr"
-                disabled={busy || chosen.length === 0}
-                onClick={() => void begin(() => start({ kind: "device", device: chosen[0]!.id, device_label: chosen[0]!.label }))}
-                note={chosen[0] && Object.values(chosen[0].stages ?? {}).some((v) => v !== "ok") ? chosen[0].note : undefined}
-              />
-            </div>
+            <p className="t-caption muted">{total > 1 ? t("home.what.many") : t("home.what.hint")}</p>
+            {real.length > 0 && (
+              <>
+                <h3 className="t-tagline home-group">{t("home.scenarios")}</h3>
+                <div className="tasks">
+                  <Task
+                    id="nr"
+                    disabled={busy || chosen.length === 0}
+                    onClick={() => void begin(() => start({ kind: "device", device: chosen[0]!.id, device_label: chosen[0]!.label }))}
+                    note={chosen[0] && Object.values(chosen[0].stages ?? {}).some((v) => v !== "ok") ? chosen[0].note : undefined}
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
         {!hub.adaptersReady && (
           <p className="searching t-caption" data-testid="home-adapters-loading">
             <span className="spinner" aria-hidden="true" /> {t("home.adapters.loading")}
           </p>
-        )}
-        {hub.adapters.length > 0 && (
-          <>
-            <h3 className="t-tagline home-group" data-testid="home-adapters">
-              {t("home.adapters.title")}
-            </h3>
-            <p className="t-caption muted">{t("home.adapters.lead")}</p>
-            {hub.adapters.map((a) => (
-              <div className="card home-device" key={a.id} data-testid={`home-adapter-${a.id}`}>
-                <AdapterCard adapter={a} action={<ModeSwitch adapter={a} />} />
-                <h3 className="t-tagline">{t("home.tasks")}</h3>
-                <div className="tasks">
-                  <Task
-                    id={a.kind === "wifi" ? "near-wifi" : "near-bt"}
-                    disabled={busy}
-                    onClick={() => {
-                      saveNearby(a.id);
-                      go("nearby");
-                    }}
-                  />
-                  {a.abilities?.some((x) => x.id === "monitor" && x.state === "yes") && <Task id="monitor" soon />}
-                </div>
-              </div>
-            ))}
-          </>
         )}
       </Tile>
 

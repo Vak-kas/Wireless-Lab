@@ -126,7 +126,7 @@ export function AdapterCard({ adapter, action }: { adapter: Adapter; action?: Re
             ))}
           </ul>
         )}
-        {adapter.abilities?.some((a) => a.id === "monitor" && a.state === "yes") && <p className="t-fine-print muted">{t("hub.ability.monitor.note")}</p>}
+        {adapter.abilities?.some((a) => a.id === "monitor" && a.state === "yes") && <p className="t-caption muted">{t("hub.ability.monitor.note")}</p>}
         {action}
       </div>
     </div>
@@ -194,7 +194,7 @@ export function ReferenceSwitch({ device }: { device: DeviceInfo }) {
           </Button>
         )}
       </div>
-      {ref.clock !== "internal" && <p className="t-fine-print muted">{t(`hub.ref.hint.${ref.clock}`)}</p>}
+      {ref.clock !== "internal" && <p className="t-caption muted">{t(`hub.ref.hint.${ref.clock}`)}</p>}
       {note && (
         <p className="t-caption" role="status" data-testid="reference-note">
           {note}
@@ -404,7 +404,7 @@ export function DeviceCard({ device, action }: { device: DeviceInfo; action?: Re
           </ul>
         )}
         {device.abilities?.some((a) => a.id === "gpsdo") && (
-          <p className="t-fine-print muted">{t(device.abilities.some((a) => a.id === "gpsdo" && a.state === "yes") ? "hub.ability.gpsdo.yes" : "hub.ability.gpsdo.no")}</p>
+          <p className="t-caption muted">{t(device.abilities.some((a) => a.id === "gpsdo" && a.state === "yes") ? "hub.ability.gpsdo.yes" : "hub.ability.gpsdo.no")}</p>
         )}
         {device.needs === "pro" && (
           <p className="t-caption" data-testid={`needs-pro-${device.id}`}>

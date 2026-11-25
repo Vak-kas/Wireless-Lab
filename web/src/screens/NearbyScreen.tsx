@@ -198,14 +198,15 @@ function BleResult({ data }: { data: BleNearby }) {
 }
 
 /** 컴퓨터의 Wi-Fi·블루투스 어댑터로 주변을 본다(방송 정보만. 연결하지 않는다). */
-export function NearbyScreen() {
+/** adapter 를 주면 그 어댑터로 고정하고, embedded 면 작업판의 칸 안이라 화면 머리와 어댑터 고르기를 그리지 않는다. */
+export function NearbyScreen({ adapter: fixed, embedded }: { adapter?: string; embedded?: boolean } = {}) {
   const { api } = useStore();
   const { adapters } = useUsableDevices();
   const [wanted] = useState(takeNearby);
   const [picked, setPicked] = useState("");
   const adapter: Adapter | undefined = useMemo(
-    () => adapters.find((a) => a.id === picked) ?? adapters.find((a) => a.id === wanted) ?? adapters[0],
-    [adapters, picked, wanted],
+    () => (fixed !== undefined ? adapters.find((a) => a.id === fixed) : (adapters.find((a) => a.id === picked) ?? adapters.find((a) => a.id === wanted) ?? adapters[0])),
+    [adapters, picked, wanted, fixed],
   );
   const [wifi, setWifi] = useState<WifiNearby | null>(null);
   const [ble, setBle] = useState<BleNearby | null>(null);
@@ -258,9 +259,9 @@ export function NearbyScreen() {
 
   return (
     <>
-      <SubNav title={t("nearby.title")} />
+      {!embedded && <SubNav title={t("nearby.title")} />}
       <Tile tone="light">
-        <TileHead title={t("nearby.title")} lead={t("nearby.lead")} />
+        {!embedded && <TileHead title={t("nearby.title")} lead={t("nearby.lead")} />}
         {!adapter ? (
           <div className="card home-empty" data-testid="nearby-none">
             <p className="t-body">{t("nearby.no_adapter")}</p>
@@ -270,7 +271,7 @@ export function NearbyScreen() {
           </div>
         ) : (
           <div className="card home-device">
-            {adapters.length > 1 && (
+            {!embedded && adapters.length > 1 && (
               <div className="chips" role="group" aria-label={t("nearby.pick")}>
                 {adapters.map((a) => (
                   <Chip key={a.id} selected={a.id === adapter.id} onSelect={() => setPicked(a.id)}>
@@ -279,7 +280,7 @@ export function NearbyScreen() {
                 ))}
               </div>
             )}
-            <AdapterCard adapter={adapter} />
+            {!embedded && <AdapterCard adapter={adapter} />}
             <div className="row">
               <Button onClick={() => (repeat ? setRepeat(false) : setRepeat(true))} data-testid="nearby-toggle">
                 {repeat ? t("nearby.pause") : t("nearby.resume")}

@@ -74,6 +74,8 @@ export function takeTxDevice(): string {
 export interface Pane {
   device: string;
   mode: "rx" | "tx";
+  /** "adapter" 면 컴퓨터의 Wi-Fi·블루투스 어댑터(주변 보기만 한다). 없으면 SDR */
+  kind?: "adapter";
 }
 
 const BENCH_KEY = "nrtrail.bench";
