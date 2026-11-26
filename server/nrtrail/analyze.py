@@ -747,6 +747,63 @@ def merge_slivers(fields: list[dict[str, Any]], rows: list[str]) -> list[dict[st
     return out
 
 
+def marker_spans(symbols: str) -> list[tuple[int, int]]:
+    """맨체스터 규칙으로는 나올 수 없는 구간들: 같은 심볼이 세 개 넘게 이어진 곳(가까이 붙은 것끼리는 한 구간으로 묶는다).
+    맨체스터 부호에서는 같은 심볼이 많아야 둘 이어진다. 그보다 길면 일부러 넣은 표시다(패킷의 시작을 알리는 싱크 등)."""
+    spans: list[list[int]] = []
+    k = 0
+    while k < len(symbols):
+        j = k
+        while j < len(symbols) and symbols[j] == symbols[k]:
+            j += 1
+        if j - k >= 3:
+            if spans and k - spans[-1][1] <= 2:
+                spans[-1][1] = j
+            else:
+                spans.append([k, j])
+        k = j
+    return [(a, b) for a, b in spans]
+
+
+def frames_of(payloads: list[str]) -> list[dict[str, Any]] | None:
+    """내용을 표시(marker_spans)에서 끊어 프레임으로 나누고, 프레임마다 따로 줄을 맞춰 견준다.
+
+    왜 나누는가: 줄 전체를 앞머리 끝 한 곳에만 맞추면, 앞 프레임의 길이가 버스트마다 다를 때 그 뒤가 전부 어긋난다
+    (같은 값인데 자리가 밀려 "다르다"고 나온다). 프레임마다 그 시작(앞머리 끝, 또는 표시의 끝)에 맞추면 그렇지 않다.
+    모든 버스트에서 표시의 수가 같을 때만 나눈다. 하나도 없거나 수가 다르면 None(나누지 않고 통째로 견준다).
+    """
+    marks = [marker_spans(p) for p in payloads]
+    count = len(marks[0]) if marks else 0
+    if count == 0 or any(len(m) != count for m in marks):
+        return None
+    out = []
+    for f in range(count + 1):
+        rows = [p[(m[f - 1][1] if f else 0): (m[f][0] if f < count else len(p))] for p, m in zip(payloads, marks, strict=True)]
+        if min(len(r) for r in rows) < 8:
+            continue                                                     # 표시 뒤에 남은 자투리
+        decoded = [manchester_from(r) for r in rows]
+        clean = all(d["bits"] and d["errors"] <= 0.05 * len(d["bits"]) for d in decoded)
+        before = sorted({p[m[f - 1][0]: m[f - 1][1]] for p, m in zip(payloads, marks, strict=True)}) if f else []
+        out.append({"index": len(out), "marker_before": before, "lengths": [len(r) for r in rows],
+                    "rows": {"symbols": rows, "manchester": [d["bits"] for d in decoded] if clean else None},
+                    "symbols": columns(rows), "manchester": columns([d["bits"] for d in decoded]) if clean else None})
+    return out or None
+
+
+def repeats_within(frames: list[dict[str, Any]] | None) -> dict[str, int] | None:
+    """한 버스트 안의 프레임들이 같은 내용을 되풀이하는가. 프레임의 끝을 맞춰(앞쪽의 머리 길이는 프레임마다 다를 수 있다)
+    첫 프레임과 나머지를 견준다. same 은 "모든 프레임의 끝부분이 같은" 버스트의 수, of 는 버스트 수, length 는 견준 길이."""
+    if not frames or len(frames) < 2:
+        return None
+    layer = "manchester" if all(f["rows"]["manchester"] for f in frames) else "symbols"
+    rows = len(frames[0]["rows"][layer])
+    length = min(min(len(r) for r in f["rows"][layer]) for f in frames)
+    if length < 16:
+        return None
+    same = sum(1 for k in range(rows) if len({f["rows"][layer][k][-length:] for f in frames}) == 1)
+    return {"same": same, "of": rows, "length": length, "frames": len(frames)}
+
+
 def spread(values: list[float]) -> dict[str, float] | None:
     """값들의 평균, 가장 작은 것, 가장 큰 것, 표준편차."""
     if not values:
@@ -864,7 +921,8 @@ def compare(cap: sigmf.Capture, offset_hz: float = 0.0, bandwidth_hz: float = 0.
     coded = columns([it["manchester"]["bits"] for it in clean]) | {"rows": [it["index"] for it in clean]} if len(clean) == len(good) else None
     return {"kind": use, "offset_hz": offset_hz, "bandwidth_hz": bandwidth_hz, "center_hz": cap.center_freq_hz,
             "bursts": items, "decoded": [it["index"] for it in good], "total_bursts": len(found),
-            "symbols": symbols, "manchester": coded,
+            "symbols": symbols, "manchester": coded, "frames": (frames := frames_of([it["payload"] for it in good])),
+            "repeats_within": repeats_within(frames),
             "signal": {"carrier_offset_hz": spread([it["carrier_offset_hz"] for it in good if "carrier_offset_hz" in it]),
                        "deviation_hz": spread([it["deviation_hz"] for it in good if "deviation_hz" in it]),
                        "symbol_rate_hz": spread([it["symbol_rate_hz"] for it in good]),

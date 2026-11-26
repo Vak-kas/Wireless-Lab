@@ -583,6 +583,13 @@ export interface AnalyzeCompare {
   symbols: AnalyzeColumns;
   /** 모든 버스트가 맨체스터 부호로 풀릴 때만 */
   manchester: (AnalyzeColumns & { rows: number[] }) | null;
+  /**
+   * 내용을 표시(맨체스터 규칙으로는 나올 수 없는 무늬)에서 끊은 프레임들. 프레임마다 따로 줄을 맞춰 견준 것.
+   * 표시가 없거나 버스트마다 수가 다르면 null(통째로 견준 symbols·manchester 를 쓴다)
+   */
+  frames: { index: number; marker_before: string[]; lengths: number[]; rows: { symbols: string[]; manchester: string[] | null }; symbols: AnalyzeColumns; manchester: AnalyzeColumns | null }[] | null;
+  /** 한 버스트 안의 프레임들이 같은 내용을 되풀이하는가(끝을 맞춰 견준 것) */
+  repeats_within: { same: number; of: number; length: number; frames: number } | null;
   signal: Record<"carrier_offset_hz" | "deviation_hz" | "symbol_rate_hz" | "power_db" | "seconds", AnalyzeSpread | null>;
   traces: { per_symbol: number; before: number; after: number; lines: ((number | null)[] | null)[] };
 }

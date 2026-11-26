@@ -117,6 +117,7 @@ test("버스트 전체 비교: 신호(반송파·편이·심볼 속도)와 데�
     signal: { carrier_offset_hz: { mean: -99406, min: -99415, max: -99397, std: 9 }, deviation_hz: { mean: 37119, min: 37113, max: 37126, std: 4 }, symbol_rate_hz: { mean: 4004.85, min: 4003.35, max: 4006.84, std: 0.8 },
       power_db: { mean: -16.4, min: -17.5, max: -15, std: 0.6 }, seconds: { mean: 0.27, min: 0.267, max: 0.274, std: 0.002 } },
     traces: { per_symbol: 8, before: 24, after: 104, lines: [[0, 1, -1], [0, 1, 1]] },
+    frames: null, repeats_within: null,
   };
   const a = fakeApi();
   a.analyzeFiles = vi.fn(async () => ({ folder: "/d", files: [FILE], can_choose: true }));
@@ -143,4 +144,24 @@ test("버스트 전체 비교: 신호(반송파·편이·심볼 속도)와 데�
   expect(grid).toHaveTextContent("10010101");
   expect(screen.getByTestId("compare-fields")).toHaveTextContent("서로 다른 값 2가지 (버스트 2개) · 누를 때마다 1씩 달라짐 · 매번 다름");
   expect(screen.getByTestId("compare-distance")).toHaveTextContent("3");
+  expect(screen.queryByTestId("compare-frames")).toBeNull();
+  // 표시로 프레임이 나뉘는 신호: 프레임마다 따로 견주고, 한 번 누를 때 같은 패킷을 되풀이하는지 알려 준다
+  const same = { length: 4, mask: "====", same: 4, varies: 0, groups: [[0, 1]], distance: [[0, 0], [0, 0]], fields: [{ start: 0, length: 4, kind: "same" as const, bits: "0110", hex: "6" }] };
+  a.analyzeCompare = vi.fn(async () => ({
+    ...result,
+    frames: [
+      { index: 0, marker_before: [], lengths: [8, 12], rows: { symbols: ["10010101", "10010110"], manchester: null }, symbols: cols, manchester: null },
+      { index: 1, marker_before: ["111110000001"], lengths: [4, 4], rows: { symbols: ["0110", "0110"], manchester: null }, symbols: same, manchester: null },
+    ],
+    repeats_within: { same: 2, of: 2, length: 70, frames: 2 },
+  }));
+  await userEvent.click(screen.getByTestId("compare-go"));
+  const frames = await screen.findByTestId("compare-frames");
+  expect(frames).toHaveTextContent("2개의 프레임으로 나뉩니다");
+  expect(frames).toHaveTextContent("같은 패킷을 되풀이해 보냅니다");
+  expect(frames).toHaveTextContent("길이가 버스트마다 다릅니다(8 ~ 12심볼)");
+  await userEvent.click(screen.getByTestId("compare-frame-1"));
+  expect(frames).toHaveTextContent("앞의 표시: 111110000001 · 길이는 모두 4심볼");
+  expect(screen.getByTestId("compare-grid").querySelectorAll(".an-vary")).toHaveLength(0); // 둘째 프레임은 두 줄이 같다
+  expect(screen.getByTestId("compare-grid")).toHaveTextContent("0110");
 });

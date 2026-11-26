@@ -1015,5 +1015,14 @@
   "compare.overlay.before": "앞머리 끝 {n}심볼 전",
   "compare.overlay.zero": "0 번 자리(앞머리 끝) 둘레",
   "compare.overlay.after": "{n}심볼 뒤",
-  "compare.overlay.note": "모든 버스트의 파형(FSK 는 순간 주파수, 켜고 끄는 신호는 크기)을 앞머리 끝에 맞춰 겹쳤습니다. 세로는 -1 ~ +1 로 맞췄습니다. 선이 하나로 포개진 곳은 모든 버스트가 같은 비트를 보낸 곳이고, 위아래로 갈라진 곳이 내용이 다른 곳입니다. 포개진 곳에서 선의 굵기가 곧 박자와 주파수의 흔들림입니다."
+  "compare.overlay.note": "모든 버스트의 파형(FSK 는 순간 주파수, 켜고 끄는 신호는 크기)을 앞머리 끝에 맞춰 겹쳤습니다. 세로는 -1 ~ +1 로 맞췄습니다. 선이 하나로 포개진 곳은 모든 버스트가 같은 비트를 보낸 곳이고, 위아래로 갈라진 곳이 내용이 다른 곳입니다. 포개진 곳에서 선의 굵기가 곧 박자와 주파수의 흔들림입니다.",
+  "compare.frames.found": "한 버스트가 표시(맨체스터 규칙으로는 나올 수 없는 무늬)로 {n}개의 프레임으로 나뉩니다. 프레임마다 그 시작에 줄을 맞춰 견줍니다.",
+  "compare.frames.repeat_all": "모든 버스트({of}개)에서 프레임들의 끝 {length}자리가 서로 같습니다: 한 번 누를 때 같은 패킷을 되풀이해 보냅니다(하나가 깨져도 받게 하려는 것).",
+  "compare.frames.repeat_none": "한 버스트 안의 프레임들은 서로 다른 내용입니다(끝 {length}자리를 견줌).",
+  "compare.frames.repeat_some": "버스트 {of}개 가운데 {same}개에서 프레임들의 끝 {length}자리가 서로 같습니다.",
+  "compare.frames.pick": "견줄 프레임",
+  "compare.frames.no": "프레임 {n}",
+  "compare.frames.marker": "앞의 표시: {bits}",
+  "compare.frames.length_same": "길이는 모두 {lo}심볼",
+  "compare.frames.length_varies": "길이가 버스트마다 다릅니다({lo} ~ {hi}심볼). 줄은 앞쪽에 맞췄으므로, 길이가 다른 줄은 뒤쪽 자리가 밀려 있을 수 있습니다."
 }

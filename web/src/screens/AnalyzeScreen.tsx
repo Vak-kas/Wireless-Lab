@@ -651,12 +651,15 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
   const [res, setRes] = useState<AnalyzeCompare | null>(null);
   const [busy, setBusy] = useState(false);
   const [layer, setLayer] = useState<"symbols" | "manchester">("symbols");
+  /** 견줄 프레임(표시에서 끊은 구간). 프레임이 없는 신호는 늘 통째로 견준다 */
+  const [frameNo, setFrameNo] = useState(0);
   const run = async () => {
     setBusy(true);
     try {
       const got = await api.analyzeCompare({ ...src, offset_hz: pick.offset, bandwidth_hz: pick.width, kind, symbol_rate_hz: Number(baud) > 0 ? Number(baud) : undefined });
       setRes(got);
-      setLayer(got.manchester ? "manchester" : "symbols");
+      setFrameNo(0);
+      setLayer((got.frames ? got.frames[0]?.manchester : got.manchester) ? "manchester" : "symbols");
     } catch (e) {
       fail(String(e instanceof Error ? e.message : e));
     } finally {
@@ -665,8 +668,16 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
   };
   const traces = useMemo(() => (res?.traces.lines ?? []).filter((l): l is (number | null)[] => l !== null).map((values) => ({ values, faint: true })), [res]);
   const good = res ? res.bursts.filter((b) => b.bits !== undefined) : [];
-  const cols = res ? (layer === "manchester" && res.manchester ? res.manchester : res.symbols) : null;
-  const rowOf = (b: AnalyzeCompare["bursts"][number]) => (layer === "manchester" && res?.manchester ? (b.manchester?.bits ?? "") : (b.payload ?? ""));
+  // 프레임이 있으면 고른 프레임을, 없으면 내용 전체를 견준다. 맨체스터 층은 풀린 경우에만 있다
+  const frame = res?.frames?.[frameNo] ?? null;
+  const decoded = frame ? frame.manchester : (res?.manchester ?? null);
+  const useDecoded = layer === "manchester" && decoded !== null;
+  const cols = res ? (useDecoded ? decoded : frame ? frame.symbols : res.symbols) : null;
+  const rowOf = (b: AnalyzeCompare["bursts"][number]) => {
+    const row = good.indexOf(b);
+    if (frame) return (useDecoded ? frame.rows.manchester?.[row] : frame.rows.symbols[row]) ?? "";
+    return useDecoded ? (b.manchester?.bits ?? "") : (b.payload ?? "");
+  };
   const carrier = res?.signal.carrier_offset_hz;
   const rate = res?.signal.symbol_rate_hz;
   const absolute = res && carrier ? res.center_hz + carrier.mean : 0;
@@ -772,12 +783,35 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
 
           <h4 className="t-caption-strong">{t("compare.data.title")}</h4>
           <p className="t-caption muted">{t("compare.data.lead", { pre: good[0]?.preamble?.length ?? 0, ms: num(((good[0]?.preamble?.length ?? 0) / (rate?.mean ?? 1)) * 1e3, 0) })}</p>
+          {res.frames && (
+            <div data-testid="compare-frames">
+              <p className="t-caption">
+                {t("compare.frames.found", { n: res.frames.length })}{" "}
+                {res.repeats_within && t(res.repeats_within.same === res.repeats_within.of ? "compare.frames.repeat_all" : res.repeats_within.same === 0 ? "compare.frames.repeat_none" : "compare.frames.repeat_some", { same: res.repeats_within.same, of: res.repeats_within.of, length: res.repeats_within.length })}
+              </p>
+              <div className="row an-buttons">
+                <div className="segments" role="group" aria-label={t("compare.frames.pick")}>
+                  {res.frames.map((f) => (
+                    <button key={f.index} type="button" className="segment t-caption" aria-pressed={frameNo === f.index} onClick={() => setFrameNo(f.index)} data-testid={`compare-frame-${f.index}`}>
+                      {t("compare.frames.no", { n: f.index + 1 })}
+                    </button>
+                  ))}
+                </div>
+                {frame && (
+                  <span className="t-caption muted">
+                    {frame.marker_before.length > 0 ? `${t("compare.frames.marker", { bits: frame.marker_before.join(" / ") })} · ` : ""}
+                    {t(Math.min(...frame.lengths) === Math.max(...frame.lengths) ? "compare.frames.length_same" : "compare.frames.length_varies", { lo: Math.min(...frame.lengths), hi: Math.max(...frame.lengths) })}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           <div className="row an-buttons">
             <div className="segments" role="group" aria-label={t("compare.layer")}>
-              <button type="button" className="segment t-caption" aria-pressed={layer === "symbols"} onClick={() => setLayer("symbols")} data-testid="compare-layer-symbols">
+              <button type="button" className="segment t-caption" aria-pressed={!useDecoded} onClick={() => setLayer("symbols")} data-testid="compare-layer-symbols">
                 {t("compare.layer.symbols")}
               </button>
-              <button type="button" className="segment t-caption" aria-pressed={layer === "manchester"} disabled={!res.manchester} onClick={() => setLayer("manchester")} data-testid="compare-layer-manchester">
+              <button type="button" className="segment t-caption" aria-pressed={useDecoded} disabled={!decoded} onClick={() => setLayer("manchester")} data-testid="compare-layer-manchester">
                 {t("compare.layer.manchester")}
               </button>
             </div>
@@ -785,7 +819,7 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
               {t("compare.data.counts", { length: cols.length, same: cols.same, varies: cols.varies })} <span className="an-same">{t("compare.legend.same")}</span> <span className="an-vary">{t("compare.legend.varies")}</span>
             </span>
           </div>
-          <p className="t-caption muted">{t(res.manchester ? (layer === "manchester" ? "compare.layer.manchester.note" : "compare.layer.symbols.note") : "compare.layer.no_manchester")}</p>
+          <p className="t-caption muted">{t(decoded ? (useDecoded ? "compare.layer.manchester.note" : "compare.layer.symbols.note") : "compare.layer.no_manchester")}</p>
           <pre className="an-grid t-caption" data-testid="compare-grid">
             <span className="muted">{"    "}{ruler(cols.length)}</span>
             {"\n"}
@@ -838,7 +872,7 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
             </table>
           </div>
           <p className="t-caption muted">{t("compare.fields.note")}</p>
-          {layer === "manchester" && good[0]?.manchester && good[0].manchester.errors > 0 && (
+          {!res.frames && useDecoded && good[0]?.manchester && good[0].manchester.errors > 0 && (
             <p className="t-caption muted" data-testid="compare-broken">
               {t("compare.broken", { at: good[0].manchester.broken_at.join(", ") })}
             </p>

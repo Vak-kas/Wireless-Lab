@@ -225,3 +225,25 @@ def test_compare_needs_bursts(tmp_path):
     cap = analyze.source(str(write(tmp_path, np.zeros(200_000) + 1e-4)))
     with pytest.raises(analyze.AnalyzeError):
         analyze.compare(cap)
+
+
+def test_frames_are_split_at_markers_and_aligned_one_by_one():
+    """앞 프레임의 길이가 줄마다 달라도, 표시 뒤의 프레임은 그 시작에 맞춰 견준다(밀려서 "다르다"고 나오지 않는다)."""
+    mark = "111110000001"
+    tail = "0101" * 3 + "1001011010011001"
+    rows = ["1001" * 5 + mark + tail, "1001" * 6 + mark + tail, "0110" * 4 + mark + tail]     # 앞 프레임 길이 20, 24, 16
+    assert analyze.marker_spans(rows[0]) == [(19, 31)]              # 표시 바로 앞의 같은 심볼 하나는 표시에 붙어 잡힌다
+    whole = analyze.columns(rows)
+    frames = analyze.frames_of(rows)
+    assert whole["varies"] > 10                                                          # 통째로 맞추면 뒤가 밀려 다르게 나온다
+    assert [f["lengths"] for f in frames] == [[19, 23, 16], [29, 29, 29]]
+    assert frames[1]["symbols"]["varies"] == 0 and frames[1]["symbols"]["groups"] == [[0, 1, 2]]   # 표시 뒤는 셋이 같다
+    assert frames[1]["marker_before"] == ["11111000000", "111111000000"] and frames[1]["manchester"]["varies"] == 0
+    assert frames[0]["symbols"]["varies"] > 0
+    assert analyze.frames_of(["1001" * 6, "0110" * 6]) is None                            # 표시가 없으면 나누지 않는다
+    # 한 번 누를 때 같은 패킷을 두 번 보내는 기기: 프레임의 끝부분이 서로 같다
+    body = tail + "0110" * 6
+    twice = analyze.frames_of(["1001" * 2 + body + mark + body + mark, "0110" * 2 + body + mark + body + mark])
+    again = analyze.repeats_within(twice)
+    assert again["same"] == 2 and again["of"] == 2 and again["frames"] == 2 and again["length"] >= 16
+    assert analyze.repeats_within(frames) is None                                       # 견줄 만큼 길지 않으면 말하지 않는다

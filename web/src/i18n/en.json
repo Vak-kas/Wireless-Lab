@@ -1015,5 +1015,14 @@
   "compare.overlay.before": "{n} symbols before the end of the preamble",
   "compare.overlay.zero": "around position 0 (end of the preamble)",
   "compare.overlay.after": "{n} symbols after",
-  "compare.overlay.note": "The waveform of every burst (instantaneous frequency for FSK, magnitude for on-off signals) aligned on the end of the preamble and scaled to -1 … +1. Where the lines lie on top of each other every burst sent the same bit; where they split apart the content differs. The thickness of the bundle where they overlap is the wander in timing and frequency."
+  "compare.overlay.note": "The waveform of every burst (instantaneous frequency for FSK, magnitude for on-off signals) aligned on the end of the preamble and scaled to -1 … +1. Where the lines lie on top of each other every burst sent the same bit; where they split apart the content differs. The thickness of the bundle where they overlap is the wander in timing and frequency.",
+  "compare.frames.found": "Each burst splits into {n} frames at markers (patterns the Manchester rule cannot produce). Each frame is aligned on its own start and compared.",
+  "compare.frames.repeat_all": "In all {of} bursts the last {length} positions of the frames match: the same packet is sent repeatedly per press (so one can be lost).",
+  "compare.frames.repeat_none": "The frames within a burst carry different content (last {length} positions compared).",
+  "compare.frames.repeat_some": "In {same} of {of} bursts the last {length} positions of the frames match.",
+  "compare.frames.pick": "Frame to compare",
+  "compare.frames.no": "Frame {n}",
+  "compare.frames.marker": "marker before it: {bits}",
+  "compare.frames.length_same": "all {lo} symbols long",
+  "compare.frames.length_varies": "length differs between bursts ({lo} to {hi} symbols). Rows are aligned at the front, so later positions of rows with a different length may be shifted."
 }
