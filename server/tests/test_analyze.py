@@ -247,3 +247,27 @@ def test_frames_are_split_at_markers_and_aligned_one_by_one():
     again = analyze.repeats_within(twice)
     assert again["same"] == 2 and again["of"] == 2 and again["frames"] == 2 and again["length"] >= 16
     assert analyze.repeats_within(frames) is None                                       # 견줄 만큼 길지 않으면 말하지 않는다
+
+
+def test_a_second_layer_is_found_when_decoded_bits_never_hold_two_ones_in_a_row():
+    encode = lambda bits: "".join("10" if b == "1" else "0" for b in bits)  # noqa: E731 — 1 을 "10" 으로, 0 을 "0" 으로
+    data = ["011001" + "0101011011" * 3, "011010" + "0101011011" * 3, "011011" + "0101011011" * 3]
+    rows = [encode(d) for d in data]
+    assert len({len(r) for r in rows}) > 1                                # 1 이 많을수록 길다: 줄마다 길이가 다르다
+    out = analyze.second_layer(rows)
+    assert out["rows"] == data and not out["flipped"] and len(set(out["lengths"])) == 1
+    cols = analyze.columns(out["rows"])
+    assert cols["fields"][-1]["kind"] == "same" and any(f.get("step") == 1 for f in cols["fields"])   # 세는 값이 드러난다
+    swapped = [r.translate(str.maketrans("01", "10")) for r in rows]
+    assert analyze.second_layer(swapped)["flipped"] and analyze.second_layer(swapped)["rows"] == data
+    assert analyze.second_layer(["0110" * 8, "1001" * 8]) is None           # "11" 도 "00" 도 나오는 보통 데이터
+
+
+def test_advice_puts_the_signal_off_centre_in_a_narrower_recording(recording):
+    cap, *_ = recording
+    good = [{"symbol_rate_hz": 4000.0, "deviation_hz": 37e3, "carrier_offset_hz": -100e3, "peak_db": -14.0}]
+    out = analyze.advice(cap, good)
+    assert out["occupied_hz"] == 78000 and out["bandwidth_hz"] == 1e6       # 78 kHz 의 열 배 → 1 MHz
+    assert out["carrier_hz"] == 433.92e6 - 100e3 and out["center_hz"] == 433.92e6 - 100e3 + 250e3
+    assert out["gain"] == "ok" and out["mb_per_s"] == 4.0 and out["now_mb_per_s"] == 8.0
+    assert analyze.advice(cap, [{"symbol_rate_hz": 1000.0, "peak_db": -1.0}])["gain"] == "lower"

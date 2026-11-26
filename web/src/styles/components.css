@@ -2041,3 +2041,47 @@ canvas[data-tunable] {
   text-align: center;
   border: 1px solid var(--line);
 }
+/* 섹션 접기: 제목 줄을 누르면 그 섹션의 나머지를 숨긴다(숨긴 것은 그대로 살아 있다) */
+.an-fold-title {
+  margin: 0;
+}
+.an-fold {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.an-fold:hover {
+  color: var(--link);
+}
+.an-card[data-folded="true"] > :not(.an-fold-title),
+.an-part[data-folded="true"] > :not(.an-fold-title) {
+  display: none;
+}
+.an-part {
+  display: grid;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.an-advice {
+  display: grid;
+  gap: var(--space-xxs);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--link);
+  border-radius: var(--radius-sm);
+}
+.an-advice p {
+  margin: 0;
+}
+.an-bursts th,
+.an-bursts td {
+  white-space: nowrap;
+}

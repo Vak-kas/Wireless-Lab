@@ -765,6 +765,38 @@ def marker_spans(symbols: str) -> list[tuple[int, int]]:
     return [(a, b) for a, b in spans]
 
 
+def second_layer(rows: list[str]) -> dict[str, Any] | None:
+    """맨체스터를 푼 것에 부호가 한 겹 더 있는지 보고, 있으면 푼다.
+
+    알아보는 법: 푼 비트에 "11" 이 한 번도 안 나온다(모든 줄에서). 아무 데이터나 실으면 "11" 은 네 번에 한 번꼴로 나오므로,
+    수십 비트에 하나도 없으면 우연이 아니라 그렇게 만든 부호다. 이런 부호는 1 을 "10" 으로, 0 을 "0" 으로 적는다
+    (1 뒤에 늘 0 이 붙는다). 그래서 1 이 많은 내용일수록 길어진다 — 프레임 길이가 버스트마다 다른 까닭이 이것이다.
+    "00" 이 한 번도 없으면 0 과 1 이 뒤바뀐 같은 부호로 보고 뒤집어서 푼다.
+    """
+    if not rows or any("?" in r for r in rows) or min(len(r) for r in rows) < 24:
+        return None
+    if not any("11" in r for r in rows):
+        flipped = False
+    elif not any("00" in r for r in rows):
+        flipped = True
+    else:
+        return None
+    out = []
+    for r in rows:
+        text = r.translate(str.maketrans("01", "10")) if flipped else r
+        bits: list[str] = []
+        k = 0
+        while k < len(text):
+            if text[k] == "1":
+                bits.append("1")
+                k += 2                                                   # "10" 한 쌍이 1 하나
+            else:
+                bits.append("0")
+                k += 1
+        out.append("".join(bits))
+    return {"rows": out, "flipped": flipped, "lengths_before": [len(r) for r in rows], "lengths": [len(r) for r in out]}
+
+
 def frames_of(payloads: list[str]) -> list[dict[str, Any]] | None:
     """내용을 표시(marker_spans)에서 끊어 프레임으로 나누고, 프레임마다 따로 줄을 맞춰 견준다.
 
@@ -784,9 +816,12 @@ def frames_of(payloads: list[str]) -> list[dict[str, Any]] | None:
         decoded = [manchester_from(r) for r in rows]
         clean = all(d["bits"] and d["errors"] <= 0.05 * len(d["bits"]) for d in decoded)
         before = sorted({p[m[f - 1][0]: m[f - 1][1]] for p, m in zip(payloads, marks, strict=True)}) if f else []
+        second = second_layer([d["bits"] for d in decoded]) if clean else None
         out.append({"index": len(out), "marker_before": before, "lengths": [len(r) for r in rows],
-                    "rows": {"symbols": rows, "manchester": [d["bits"] for d in decoded] if clean else None},
-                    "symbols": columns(rows), "manchester": columns([d["bits"] for d in decoded]) if clean else None})
+                    "rows": {"symbols": rows, "manchester": [d["bits"] for d in decoded] if clean else None,
+                             "second": second["rows"] if second else None},
+                    "symbols": columns(rows), "manchester": columns([d["bits"] for d in decoded]) if clean else None,
+                    "second": columns(second["rows"]) | {"flipped": second["flipped"], "lengths": second["lengths"]} if second else None})
     return out or None
 
 
@@ -795,13 +830,48 @@ def repeats_within(frames: list[dict[str, Any]] | None) -> dict[str, int] | None
     첫 프레임과 나머지를 견준다. same 은 "모든 프레임의 끝부분이 같은" 버스트의 수, of 는 버스트 수, length 는 견준 길이."""
     if not frames or len(frames) < 2:
         return None
-    layer = "manchester" if all(f["rows"]["manchester"] for f in frames) else "symbols"
+    layer = next((name for name in ("second", "manchester") if all(f["rows"][name] for f in frames)), "symbols")
     rows = len(frames[0]["rows"][layer])
     length = min(min(len(r) for r in f["rows"][layer]) for f in frames)
     if length < 16:
         return None
-    same = sum(1 for k in range(rows) if len({f["rows"][layer][k][-length:] for f in frames}) == 1)
-    return {"same": same, "of": rows, "length": length, "frames": len(frames)}
+    # 끝의 한 자리는 버스트가 끝나는 자리라 잘릴 수 있어, 한 자리까지는 달라도 같은 것으로 본다
+    def alike(k: int) -> bool:
+        tails = [f["rows"][layer][k][-length:] for f in frames]
+        return all(sum(a != b for a, b in zip(tails[0], t, strict=True)) <= 1 for t in tails[1:])
+    return {"same": sum(1 for k in range(rows) if alike(k)), "of": rows, "length": length, "frames": len(frames)}
+
+
+NICE_WIDTHS_HZ = (0.25e6, 0.5e6, 1e6, 2e6, 4e6, 5e6, 8e6, 10e6, 20e6)
+
+
+def advice(cap: sigmf.Capture, good: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """이 신호를 다음에 더 잘 녹화하려면 가운데 주파수와 폭을 어떻게 둘지.
+
+    신호가 차지하는 폭  FSK: 2 × (주파수 편이 + 심볼 속도/2) — 카슨의 어림. 켜고 끄는 신호: 심볼 속도의 네 배쯤.
+    녹화할 폭          그 열 배쯤(양옆에 여유가 있어야 걸러 내기 쉽고, 심볼 하나에 샘플이 넉넉해야 박자를 잘 잰다)에서
+                       가장 가까운 딱 떨어지는 값.
+    가운데 주파수       신호의 반송파에서 폭의 1/4 만큼 비켜 둔다. 받는 장비는 맞춘 주파수 한가운데에 자기 누설(뾰족한 선)이
+                       생기는데, 신호가 그 위에 있으면 섞인다.
+    세기               가장 셀 때가 -20 ~ -6 dBFS 면 알맞다. 0 에 가까우면 잘린 것이니 수신 이득을 낮추고, 너무 낮으면 올린다.
+    """
+    rates = [it["symbol_rate_hz"] for it in good if it.get("symbol_rate_hz")]
+    if not rates:
+        return None
+    rate = float(np.mean(rates))
+    deviations = [it["deviation_hz"] for it in good if "deviation_hz" in it]
+    carriers = [it["carrier_offset_hz"] for it in good if "carrier_offset_hz" in it]
+    occupied = 2 * (float(np.mean(deviations)) + rate / 2) if deviations else 4 * rate
+    want = max(10 * occupied, 40 * rate)
+    width = next((w for w in NICE_WIDTHS_HZ if w >= want), NICE_WIDTHS_HZ[-1])
+    carrier = cap.center_freq_hz + (float(np.mean(carriers)) if carriers else 0.0)
+    peak = max(it["peak_db"] for it in good)
+    size = sigmf.DTYPES[cap.datatype][1]
+    return {"carrier_hz": round(carrier, 1), "occupied_hz": round(occupied, 1),
+            "center_hz": round((carrier + width / 4) / 1e3) * 1e3, "bandwidth_hz": width,
+            "samples_per_symbol": round(width / rate, 1), "mb_per_s": round(width * size / 1e6, 2),
+            "now_bandwidth_hz": cap.sample_rate_hz, "now_mb_per_s": round(cap.sample_rate_hz * size / 1e6, 2),
+            "peak_db": peak, "gain": "lower" if peak > -3 else "raise" if peak < -30 else "ok"}
 
 
 def spread(values: list[float]) -> dict[str, float] | None:
@@ -919,7 +989,10 @@ def compare(cap: sigmf.Capture, offset_hz: float = 0.0, bandwidth_hz: float = 0.
     symbols = columns([it["payload"] for it in good])
     clean = [it for it in good if it["manchester"]["bits"] and it["manchester"]["errors"] <= 0.05 * len(it["manchester"]["bits"])]
     coded = columns([it["manchester"]["bits"] for it in clean]) | {"rows": [it["index"] for it in clean]} if len(clean) == len(good) else None
+    whole_second = second_layer([it["manchester"]["bits"] for it in good]) if coded else None
     return {"kind": use, "offset_hz": offset_hz, "bandwidth_hz": bandwidth_hz, "center_hz": cap.center_freq_hz,
+            "second": columns(whole_second["rows"]) | {"flipped": whole_second["flipped"], "rows": whole_second["rows"]} if whole_second else None,
+            "advice": advice(cap, good),
             "bursts": items, "decoded": [it["index"] for it in good], "total_bursts": len(found),
             "symbols": symbols, "manchester": coded, "frames": (frames := frames_of([it["payload"] for it in good])),
             "repeats_within": repeats_within(frames),

@@ -1024,5 +1024,19 @@
   "compare.frames.no": "Frame {n}",
   "compare.frames.marker": "marker before it: {bits}",
   "compare.frames.length_same": "all {lo} symbols long",
-  "compare.frames.length_varies": "length differs between bursts ({lo} to {hi} symbols). Rows are aligned at the front, so later positions of rows with a different length may be shifted."
+  "compare.frames.length_varies": "length differs between bursts ({lo} to {hi} symbols). Rows are aligned at the front, so later positions of rows with a different length may be shifted.",
+  "compare.layer.second": "Second layer decoded",
+  "compare.layer.manchester.note_more": "Two symbols (10 or 01) decoded into one bit. But \"11\" never appears here. Arbitrary data would show it one time in four, so there is another layer of coding. 'Second layer decoded' is the real data.",
+  "compare.layer.second.note": "The Manchester-decoded bits decoded once more: \"10\" is 1 and \"0\" is 0 (a code where a 1 is always followed by a 0). Content with more 1s is longer on air, which is why the frame length differed between bursts; once decoded the lengths match and the rows line up.",
+  "compare.layer.second.note_flipped": "The Manchester-decoded bits are inverted and then decoded once more: \"10\" is 1 and \"0\" is 0. Once decoded the row lengths match and the positions line up.",
+  "compare.advice.title": "Next time you record this signal",
+  "compare.advice.set": "Set the centre frequency to {center} MHz and the bandwidth to {width} MHz.",
+  "compare.advice.keep": "Save this as a place",
+  "compare.advice.kept": "Saved as '{name}' (it appears under 'Where to look' on the receive screen).",
+  "compare.advice.name": "{mhz} for analysis",
+  "compare.advice.why": "The measured carrier is {carrier} MHz and the signal occupies about {occupied} kHz. Ten times that is plenty of width ({sps} samples per symbol), and the centre is placed {off} kHz away from the carrier: a receiver leaks a spike exactly at its tuned frequency, and a signal sitting on it gets mixed with it. The file then grows about {mb} MB per second (this recording used {now} MHz, about {nowmb} MB per second). A narrower width also avoids lost samples.",
+  "compare.advice.gain.ok": "The level is right (peak {peak} dBFS). Leave the receive gain as it is.",
+  "compare.advice.gain.lower": "The peak reached {peak} dBFS, the limit. The signal may be clipped: lower the receive gain by about 10 dB or move the device away.",
+  "compare.advice.gain.raise": "The peak is only {peak} dBFS. Raise the receive gain or bring the device closer.",
+  "compare.frames.length_second": "On air the length differs between bursts ({lo} to {hi} symbols), but with the second layer decoded it is {slo} to {shi} bits (the last bit can be cut off where the burst ends)."
 }

@@ -587,7 +587,33 @@ export interface AnalyzeCompare {
    * 내용을 표시(맨체스터 규칙으로는 나올 수 없는 무늬)에서 끊은 프레임들. 프레임마다 따로 줄을 맞춰 견준 것.
    * 표시가 없거나 버스트마다 수가 다르면 null(통째로 견준 symbols·manchester 를 쓴다)
    */
-  frames: { index: number; marker_before: string[]; lengths: number[]; rows: { symbols: string[]; manchester: string[] | null }; symbols: AnalyzeColumns; manchester: AnalyzeColumns | null }[] | null;
+  frames:
+    | {
+        index: number;
+        marker_before: string[];
+        lengths: number[];
+        rows: { symbols: string[]; manchester: string[] | null; second: string[] | null };
+        symbols: AnalyzeColumns;
+        manchester: AnalyzeColumns | null;
+        /** 맨체스터를 푼 것에 부호가 한 겹 더 있을 때("10" → 1, "0" → 0) 그것까지 푼 것 */
+        second: (AnalyzeColumns & { flipped: boolean; lengths: number[] }) | null;
+      }[]
+    | null;
+  /** 프레임으로 나뉘지 않는 신호에서의 둘째 층 */
+  second: (AnalyzeColumns & { flipped: boolean; rows: string[] }) | null;
+  /** 이 신호를 다음에 더 잘 녹화하려면: 가운데 주파수와 폭, 그때의 파일 크기, 세기가 알맞은지 */
+  advice: {
+    carrier_hz: number;
+    occupied_hz: number;
+    center_hz: number;
+    bandwidth_hz: number;
+    samples_per_symbol: number;
+    mb_per_s: number;
+    now_bandwidth_hz: number;
+    now_mb_per_s: number;
+    peak_db: number;
+    gain: "ok" | "lower" | "raise";
+  } | null;
   /** 한 버스트 안의 프레임들이 같은 내용을 되풀이하는가(끝을 맞춰 견준 것) */
   repeats_within: { same: number; of: number; length: number; frames: number } | null;
   signal: Record<"carrier_offset_hz" | "deviation_hz" | "symbol_rate_hz" | "power_db" | "seconds", AnalyzeSpread | null>;

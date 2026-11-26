@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import type { AnalyzeBits, AnalyzeColumns, AnalyzeCompare, AnalyzeDetail, AnalyzeFile, AnalyzeGrid, AnalyzeOverview, AnalyzeSource } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Field } from "../components/ui";
@@ -30,6 +30,41 @@ const khz = (hz: number) => `${num(hz / 1e3, 1)} kHz`;
 
 /** 캔버스의 글자색(토큰의 계산된 값). 그릴 때는 이 색에 투명도(globalAlpha)만 바꿔 쓴다 */
 const inkCss = (el: HTMLElement) => getComputedStyle(el).color;
+/** 접어 둔 섹션들을 기억한다(이 브라우저에). 이름 → 접혔는가 */
+const FOLDS = "nrtrail.analyze.folds";
+function useFolds(): [Record<string, boolean>, (id: string) => void] {
+  const [folds, setFolds] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(FOLDS) ?? "{}") as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
+  const flip = (id: string) =>
+    setFolds((old) => {
+      const next = { ...old, [id]: !old[id] };
+      try {
+        localStorage.setItem(FOLDS, JSON.stringify(next));
+      } catch {
+        /* 저장소를 못 쓰면 이번 화면에서만 기억한다 */
+      }
+      return next;
+    });
+  return [folds, flip];
+}
+
+/** 섹션의 제목 줄: 누르면 그 섹션을 접거나 편다. 접힌 동안에는 제목만 보인다(안의 것은 그대로 살아 있다) */
+function FoldTitle({ id, folded, onFlip, children, small }: { id: string; folded: boolean; onFlip: (id: string) => void; children: ReactNode; small?: boolean }) {
+  const Tag = small ? "h4" : "h3";
+  return (
+    <Tag className={small ? "t-caption-strong an-fold-title" : "t-tagline an-fold-title"}>
+      <button type="button" className="an-fold" aria-expanded={!folded} onClick={() => onFlip(id)} data-testid={`fold-${id}`}>
+        <span aria-hidden="true">{folded ? "▸" : "▾"}</span> {children}
+      </button>
+    </Tag>
+  );
+}
+
 const noCanvas = () => navigator.userAgent.includes("jsdom"); // 테스트 환경에는 캔버스 그리기가 없다
 
 /** 그림 위에서 가로로 끌어 구간을 고른다. 0 ~ 1 의 비율로 알려 준다. 끌지 않고 누르기만 하면 onPick */
@@ -217,6 +252,7 @@ export function AnalyzeScreen() {
   const [baud, setBaud] = useState("");
   const [bits, setBits] = useState<AnalyzeBits | null>(null);
   const [demodding, setDemodding] = useState(false);
+  const [folds, flip] = useFolds();
 
   const reload = useCallback(() => {
     void api.analyzeFiles().then(setFiles, () => setFiles({ folder: "", files: [], can_choose: false }));
@@ -337,8 +373,10 @@ export function AnalyzeScreen() {
       <Tile tone="light" wide>
         <TileHead title={t("analyze.title")} lead={t("analyze.lead")} />
 
-        <div className="card an-card" data-testid="analyze-files">
-          <h3 className="t-tagline">{t("analyze.files.title")}</h3>
+        <div className="card an-card" data-testid="analyze-files" data-folded={folds.files ? "true" : undefined}>
+          <FoldTitle id="files" folded={Boolean(folds.files)} onFlip={flip}>
+            {t("analyze.files.title")}
+          </FoldTitle>
           {files && files.files.length > 0 ? (
             <div className="table-wrap">
               <table className="data t-caption">
@@ -381,8 +419,10 @@ export function AnalyzeScreen() {
         </div>
 
         {over && (
-          <div className="card an-card" data-testid="analyze-overview">
-            <h3 className="t-tagline">{t("analyze.over.title", { name: over.file.name })}</h3>
+          <div className="card an-card" data-testid="analyze-overview" data-folded={folds.overview ? "true" : undefined}>
+            <FoldTitle id="overview" folded={Boolean(folds.overview)} onFlip={flip}>
+              {t("analyze.over.title", { name: over.file.name })}
+            </FoldTitle>
             <p className="t-caption muted">
               {t("analyze.over.facts", { s: span(over.file.seconds), center: mhz(over.file.center_hz), rate: num(over.file.sample_rate_hz / 1e6, 3), type: over.file.datatype, scan: over.scan_s })}
             </p>
@@ -438,11 +478,13 @@ export function AnalyzeScreen() {
           </div>
         )}
 
-        {over && src && over.bursts.length > 0 && <BurstCompare key={src.path} src={src} pick={pick} kind={demodKind} baud={baud} onLook={(s, len) => setWin(around(s, len, total))} />}
+        {over && src && over.bursts.length > 0 && <BurstCompare key={src.path} src={src} pick={pick} kind={demodKind} baud={baud} folds={folds} flip={flip} onLook={(s, len) => setWin(around(s, len, total))} />}
 
         {over && win && (
-          <div className="card an-card" data-testid="analyze-detail">
-            <h3 className="t-tagline">{t("analyze.detail.title")}</h3>
+          <div className="card an-card" data-testid="analyze-detail" data-folded={folds.detail ? "true" : undefined}>
+            <FoldTitle id="detail" folded={Boolean(folds.detail)} onFlip={flip}>
+              {t("analyze.detail.title")}
+            </FoldTitle>
             <div className="row an-controls">
               <Field label={t("analyze.detail.start")}>
                 {(f) => <input {...f} inputMode="decimal" value={num(win.start, 6)} onChange={(e) => move({ ...win, start: Number(e.target.value) || 0 })} data-testid="analyze-start" />}
@@ -646,11 +688,28 @@ const ruler = (length: number) =>
  *   데이터 앞머리가 끝나는 자리를 0 번으로 줄을 맞춘 비트, 모든 줄이 같은 자리와 다른 자리, 그것을 묶은 칸,
  *          두 줄 사이에 다른 자리의 수, 파형 겹쳐 보기
  */
-function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; pick: { offset: number; width: number }; kind: string; baud: string; onLook: (startS: number, seconds: number) => void }) {
+function BurstCompare({
+  src,
+  pick,
+  kind,
+  baud,
+  onLook,
+  folds,
+  flip,
+}: {
+  src: AnalyzeSource;
+  pick: { offset: number; width: number };
+  kind: string;
+  baud: string;
+  onLook: (startS: number, seconds: number) => void;
+  folds: Record<string, boolean>;
+  flip: (id: string) => void;
+}) {
   const { api, fail } = useStore();
   const [res, setRes] = useState<AnalyzeCompare | null>(null);
   const [busy, setBusy] = useState(false);
-  const [layer, setLayer] = useState<"symbols" | "manchester">("symbols");
+  const [layer, setLayer] = useState<"symbols" | "manchester" | "second">("symbols");
+  const [kept, setKept] = useState("");
   /** 견줄 프레임(표시에서 끊은 구간). 프레임이 없는 신호는 늘 통째로 견준다 */
   const [frameNo, setFrameNo] = useState(0);
   const run = async () => {
@@ -659,7 +718,9 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
       const got = await api.analyzeCompare({ ...src, offset_hz: pick.offset, bandwidth_hz: pick.width, kind, symbol_rate_hz: Number(baud) > 0 ? Number(baud) : undefined });
       setRes(got);
       setFrameNo(0);
-      setLayer((got.frames ? got.frames[0]?.manchester : got.manchester) ? "manchester" : "symbols");
+      // 가장 깊이 풀린 층부터 보여 준다
+      const first = got.frames?.[0];
+      setLayer((first ? first.second : got.second) ? "second" : (first ? first.manchester : got.manchester) ? "manchester" : "symbols");
     } catch (e) {
       fail(String(e instanceof Error ? e.message : e));
     } finally {
@@ -671,12 +732,28 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
   // 프레임이 있으면 고른 프레임을, 없으면 내용 전체를 견준다. 맨체스터 층은 풀린 경우에만 있다
   const frame = res?.frames?.[frameNo] ?? null;
   const decoded = frame ? frame.manchester : (res?.manchester ?? null);
-  const useDecoded = layer === "manchester" && decoded !== null;
-  const cols = res ? (useDecoded ? decoded : frame ? frame.symbols : res.symbols) : null;
+  const second = frame ? frame.second : (res?.second ?? null);
+  const useSecond = layer === "second" && second !== null;
+  const useDecoded = !useSecond && layer !== "symbols" && decoded !== null;
+  const cols = res ? (useSecond ? second : useDecoded ? decoded : frame ? frame.symbols : res.symbols) : null;
   const rowOf = (b: AnalyzeCompare["bursts"][number]) => {
     const row = good.indexOf(b);
+    if (useSecond) return (frame ? frame.rows.second?.[row] : res?.second?.rows[row]) ?? "";
     if (frame) return (useDecoded ? frame.rows.manchester?.[row] : frame.rows.symbols[row]) ?? "";
     return useDecoded ? (b.manchester?.bits ?? "") : (b.payload ?? "");
+  };
+  /** 권장값을 "볼 곳"으로 저장한다(수신 화면의 단추로 나온다) */
+  const keepAdvice = async () => {
+    const a = res?.advice;
+    if (!a) return;
+    try {
+      const name = t("compare.advice.name", { mhz: num(a.carrier_hz / 1e6, 3) });
+      const old = (await api.bandsLoad()).bands;
+      await api.bandsSave([...old.filter((x) => x.name !== name), { id: String(Date.now()), name, center_mhz: a.center_hz / 1e6, width_mhz: a.bandwidth_hz / 1e6 }]);
+      setKept(name);
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    }
   };
   const carrier = res?.signal.carrier_offset_hz;
   const rate = res?.signal.symbol_rate_hz;
@@ -685,8 +762,10 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
   const groupOf = (row: number) => (cols ? cols.groups.findIndex((g) => g.includes(row)) + 1 : 0);
   const farthest = cols ? Math.max(1, ...cols.distance.flat()) : 1;
   return (
-    <div className="card an-card" data-testid="analyze-compare">
-      <h3 className="t-tagline">{t("compare.title")}</h3>
+    <div className="card an-card" data-testid="analyze-compare" data-folded={folds.compare ? "true" : undefined}>
+      <FoldTitle id="compare" folded={Boolean(folds.compare)} onFlip={flip}>
+        {t("compare.title")}
+      </FoldTitle>
       <p className="t-caption muted">{t("compare.lead")}</p>
       <div className="row an-buttons">
         <Button onClick={() => void run()} disabled={busy} data-testid="compare-go">
@@ -700,8 +779,35 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
             {t("compare.summary", { n: good.length, total: res.bursts.length, kind: t(`analyze.mod.${res.kind}`), groups: cols.groups.length })}{" "}
             {t(cols.groups.length === good.length ? "compare.summary.all_differ" : cols.groups.length === 1 ? "compare.summary.all_same" : "compare.summary.some_same")}
           </p>
+          {res.advice && (
+            <div className="an-advice t-caption" data-testid="compare-advice">
+              <strong>{t("compare.advice.title")}</strong>
+              <p>
+                {t("compare.advice.set", { center: num(res.advice.center_hz / 1e6, 3), width: num(res.advice.bandwidth_hz / 1e6, 2) })}{" "}
+                <Button variant="link" onClick={() => void keepAdvice()} data-testid="compare-advice-keep">
+                  {t("compare.advice.keep")}
+                </Button>
+                {kept && <span className="muted"> {t("compare.advice.kept", { name: kept })}</span>}
+              </p>
+              <p className="muted">
+                {t("compare.advice.why", {
+                  carrier: num(res.advice.carrier_hz / 1e6, 4),
+                  occupied: num(res.advice.occupied_hz / 1e3, 0),
+                  off: num(res.advice.bandwidth_hz / 4e3, 0),
+                  sps: num(res.advice.samples_per_symbol, 0),
+                  mb: num(res.advice.mb_per_s, 1),
+                  now: num(res.advice.now_bandwidth_hz / 1e6, 2),
+                  nowmb: num(res.advice.now_mb_per_s, 0),
+                })}
+              </p>
+              <p className="muted">{t(`compare.advice.gain.${res.advice.gain}`, { peak: num(res.advice.peak_db, 1) })}</p>
+            </div>
+          )}
 
-          <h4 className="t-caption-strong">{t("compare.signal.title")}</h4>
+          <section className="an-part" data-folded={folds["c-signal"] ? "true" : undefined} data-testid="part-c-signal">
+            <FoldTitle id="c-signal" folded={Boolean(folds["c-signal"])} onFlip={flip} small>
+              {t("compare.signal.title")}
+            </FoldTitle>
           <p className="t-caption muted">{t("compare.signal.lead")}</p>
           <dl className="facts t-caption an-facts" data-testid="compare-spread">
             {carrier && (
@@ -781,7 +887,11 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
           </div>
           <p className="t-caption muted">{t("compare.signal.note")}</p>
 
-          <h4 className="t-caption-strong">{t("compare.data.title")}</h4>
+          </section>
+          <section className="an-part" data-folded={folds["c-data"] ? "true" : undefined} data-testid="part-c-data">
+            <FoldTitle id="c-data" folded={Boolean(folds["c-data"])} onFlip={flip} small>
+              {t("compare.data.title")}
+            </FoldTitle>
           <p className="t-caption muted">{t("compare.data.lead", { pre: good[0]?.preamble?.length ?? 0, ms: num(((good[0]?.preamble?.length ?? 0) / (rate?.mean ?? 1)) * 1e3, 0) })}</p>
           {res.frames && (
             <div data-testid="compare-frames">
@@ -800,7 +910,9 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
                 {frame && (
                   <span className="t-caption muted">
                     {frame.marker_before.length > 0 ? `${t("compare.frames.marker", { bits: frame.marker_before.join(" / ") })} · ` : ""}
-                    {t(Math.min(...frame.lengths) === Math.max(...frame.lengths) ? "compare.frames.length_same" : "compare.frames.length_varies", { lo: Math.min(...frame.lengths), hi: Math.max(...frame.lengths) })}
+                    {useSecond && frame.second
+                      ? t("compare.frames.length_second", { lo: Math.min(...frame.lengths), hi: Math.max(...frame.lengths), slo: Math.min(...frame.second.lengths), shi: Math.max(...frame.second.lengths) })
+                      : t(Math.min(...frame.lengths) === Math.max(...frame.lengths) ? "compare.frames.length_same" : "compare.frames.length_varies", { lo: Math.min(...frame.lengths), hi: Math.max(...frame.lengths) })}
                   </span>
                 )}
               </div>
@@ -808,18 +920,23 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
           )}
           <div className="row an-buttons">
             <div className="segments" role="group" aria-label={t("compare.layer")}>
-              <button type="button" className="segment t-caption" aria-pressed={!useDecoded} onClick={() => setLayer("symbols")} data-testid="compare-layer-symbols">
+              <button type="button" className="segment t-caption" aria-pressed={!useDecoded && !useSecond} onClick={() => setLayer("symbols")} data-testid="compare-layer-symbols">
                 {t("compare.layer.symbols")}
               </button>
               <button type="button" className="segment t-caption" aria-pressed={useDecoded} disabled={!decoded} onClick={() => setLayer("manchester")} data-testid="compare-layer-manchester">
                 {t("compare.layer.manchester")}
+              </button>
+              <button type="button" className="segment t-caption" aria-pressed={useSecond} disabled={!second} onClick={() => setLayer("second")} data-testid="compare-layer-second">
+                {t("compare.layer.second")}
               </button>
             </div>
             <span className="t-caption muted">
               {t("compare.data.counts", { length: cols.length, same: cols.same, varies: cols.varies })} <span className="an-same">{t("compare.legend.same")}</span> <span className="an-vary">{t("compare.legend.varies")}</span>
             </span>
           </div>
-          <p className="t-caption muted">{t(decoded ? (useDecoded ? "compare.layer.manchester.note" : "compare.layer.symbols.note") : "compare.layer.no_manchester")}</p>
+          <p className="t-caption muted">
+            {t(useSecond ? (second?.flipped ? "compare.layer.second.note_flipped" : "compare.layer.second.note") : decoded ? (useDecoded ? (second ? "compare.layer.manchester.note_more" : "compare.layer.manchester.note") : "compare.layer.symbols.note") : "compare.layer.no_manchester")}
+          </p>
           <pre className="an-grid t-caption" data-testid="compare-grid">
             <span className="muted">{"    "}{ruler(cols.length)}</span>
             {"\n"}
@@ -832,7 +949,11 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
             ))}
           </pre>
 
-          <h4 className="t-caption-strong">{t("compare.fields.title", { n: cols.fields.length })}</h4>
+          </section>
+          <section className="an-part" data-folded={folds["c-fields"] ? "true" : undefined} data-testid="part-c-fields">
+            <FoldTitle id="c-fields" folded={Boolean(folds["c-fields"])} onFlip={flip} small>
+              {t("compare.fields.title", { n: cols.fields.length })}
+            </FoldTitle>
           <div className="table-wrap">
             <table className="data t-caption" data-testid="compare-fields">
               <caption className="sr-only">{t("compare.fields.title", { n: cols.fields.length })}</caption>
@@ -878,7 +999,11 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
             </p>
           )}
 
-          <h4 className="t-caption-strong">{t("compare.distance.title")}</h4>
+          </section>
+          <section className="an-part" data-folded={folds["c-distance"] ? "true" : undefined} data-testid="part-c-distance">
+            <FoldTitle id="c-distance" folded={Boolean(folds["c-distance"])} onFlip={flip} small>
+              {t("compare.distance.title")}
+            </FoldTitle>
           <div className="table-wrap an-bursts">
             <table className="an-distance t-caption" data-testid="compare-distance">
               <caption className="sr-only">{t("compare.distance.title")}</caption>
@@ -908,7 +1033,11 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
           </div>
           <p className="t-caption muted">{t("compare.distance.note", { length: cols.length })}</p>
 
-          <h4 className="t-caption-strong">{t("compare.overlay.title")}</h4>
+          </section>
+          <section className="an-part" data-folded={folds["c-overlay"] ? "true" : undefined} data-testid="part-c-overlay">
+            <FoldTitle id="c-overlay" folded={Boolean(folds["c-overlay"])} onFlip={flip} small>
+              {t("compare.overlay.title")}
+            </FoldTitle>
           <Trace lines={traces} label={t("compare.overlay.title")} testid="compare-overlay" />
           <div className="an-axis t-caption muted">
             <span>{t("compare.overlay.before", { n: res.traces.before })}</span>
@@ -916,6 +1045,7 @@ function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; p
             <span>{t("compare.overlay.after", { n: res.traces.after })}</span>
           </div>
           <p className="t-caption muted">{t("compare.overlay.note")}</p>
+          </section>
         </>
       )}
     </div>

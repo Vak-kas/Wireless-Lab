@@ -1024,5 +1024,19 @@
   "compare.frames.no": "프레임 {n}",
   "compare.frames.marker": "앞의 표시: {bits}",
   "compare.frames.length_same": "길이는 모두 {lo}심볼",
-  "compare.frames.length_varies": "길이가 버스트마다 다릅니다({lo} ~ {hi}심볼). 줄은 앞쪽에 맞췄으므로, 길이가 다른 줄은 뒤쪽 자리가 밀려 있을 수 있습니다."
+  "compare.frames.length_varies": "길이가 버스트마다 다릅니다({lo} ~ {hi}심볼). 줄은 앞쪽에 맞췄으므로, 길이가 다른 줄은 뒤쪽 자리가 밀려 있을 수 있습니다.",
+  "compare.layer.second": "둘째 층까지 푼 것",
+  "compare.layer.manchester.note_more": "심볼 두 개(10 또는 01)를 비트 하나로 푼 것입니다. 그런데 여기에는 \"11\" 이 한 번도 나오지 않습니다. 아무 데이터나 실으면 네 번에 한 번은 나와야 하므로, 부호가 한 겹 더 있다는 뜻입니다. '둘째 층까지 푼 것'이 진짜 데이터입니다.",
+  "compare.layer.second.note": "맨체스터를 푼 것에서 \"10\" 을 1, \"0\" 을 0 으로 한 번 더 푼 것입니다(1 뒤에는 늘 0 이 붙는 부호). 1 이 많은 내용일수록 보낼 때 길어지므로 프레임 길이가 버스트마다 달랐던 것이고, 풀고 나면 길이가 같아져 줄이 맞습니다.",
+  "compare.layer.second.note_flipped": "맨체스터를 푼 것의 0 과 1 을 뒤집은 뒤 \"10\" 을 1, \"0\" 을 0 으로 한 번 더 푼 것입니다. 풀고 나면 줄의 길이가 같아져 자리가 맞습니다.",
+  "compare.advice.title": "다음에 이 신호를 녹화할 때",
+  "compare.advice.set": "가운데 주파수 {center} MHz, 대역폭 {width} MHz 로 두세요.",
+  "compare.advice.keep": "이 값을 볼 곳으로 저장",
+  "compare.advice.kept": "'{name}' 으로 저장했습니다(수신 화면의 '어디를 볼까요'에 나옵니다).",
+  "compare.advice.name": "{mhz} 분석용",
+  "compare.advice.why": "잰 반송파는 {carrier} MHz, 신호가 차지하는 폭은 약 {occupied} kHz 입니다. 폭은 그 열 배쯤이면 넉넉하고(심볼 하나에 샘플 {sps}개), 가운데는 반송파에서 {off} kHz 비켜 두었습니다: 받는 장비는 맞춘 주파수 한가운데에 자기 누설(뾰족한 선)이 생겨서, 신호가 그 위에 있으면 섞입니다. 이렇게 하면 파일이 1초에 약 {mb} MB 입니다(지금 녹화는 폭 {now} MHz, 1초에 약 {nowmb} MB). 폭이 좁으면 샘플을 놓칠 일도 없습니다.",
+  "compare.advice.gain.ok": "세기는 알맞습니다(가장 셀 때 {peak} dBFS). 수신 이득은 그대로 두세요.",
+  "compare.advice.gain.lower": "가장 셀 때가 {peak} dBFS 로 한계에 닿았습니다. 신호가 잘렸을 수 있으니 수신 이득을 10 dB 쯤 낮추거나 기기를 조금 떨어뜨리세요.",
+  "compare.advice.gain.raise": "가장 셀 때가 {peak} dBFS 로 약합니다. 수신 이득을 올리거나 기기를 가까이 대세요.",
+  "compare.frames.length_second": "보낼 때의 길이는 {lo} ~ {hi}심볼로 버스트마다 다르지만, 둘째 층까지 풀면 {slo} ~ {shi}비트로 맞습니다(끝의 한 비트는 버스트가 끝나는 자리라 잘릴 수 있습니다)."
 }
