@@ -478,10 +478,43 @@ export interface RelayJob extends RelayLink {
   to: string;
 }
 
+/** 방에서 받아 남긴 파일 하나 */
+export interface RelayRecvFile {
+  meta_path: string;
+  data_path: string;
+  bytes: number;
+  seconds: number;
+  gaps: number;
+  full: boolean;
+  /** 다 썼다(열어서 분석할 수 있다) */
+  done: boolean;
+}
+
+/** 방에서 받는 일의 상태 */
+export interface RelayRecv {
+  running: boolean;
+  error: string;
+  note: string;
+  to: string;
+  record: boolean;
+  /** 지금 보내는 쪽이 있는가 */
+  sending: boolean;
+  /** 보내는 쪽이 알린 신호의 조건 */
+  signal: { format: string; sample_rate_hz: number; center_hz?: number; gain_db?: number; source?: string; name?: string } | null;
+  bytes: number;
+  seconds: number;
+  gaps: number;
+  lost_samples: number;
+  files: RelayRecvFile[];
+  view: Omit<SpectrumView, "device" | "fixed_tuning"> | null;
+}
+
 export interface RelayState {
   available: boolean;
   target: RelayTarget | null;
   job: RelayJob | null;
+  recv_target?: RelayTarget | null;
+  recv?: RelayRecv | null;
 }
 
 export interface RelayCheck {
@@ -948,6 +981,11 @@ export interface Api {
   relayCheck(): Promise<RelayCheck>;
   relayFile(metaPath: string, loop: boolean): Promise<RelayState>;
   relayFileStop(): Promise<RelayState>;
+  /** 중계 서버에서 받기: 받을 곳을 정하고, 받기 시작(record 면 파일로도 남긴다)·멈춤 */
+  relayRecvTarget(body: RelayTargetBody): Promise<RelayState>;
+  relayRecvForget(): Promise<RelayState>;
+  relayRecvStart(record: boolean): Promise<RelayState>;
+  relayRecvStop(): Promise<RelayState>;
   savedFolder(path: string | null): Promise<SavedState>;
   savedChoose(): Promise<SavedState>;
   savedReveal(path: string): Promise<{ ok: boolean }>;

@@ -6,6 +6,7 @@ import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { heatTable } from "./heat";
 import { RelayBox } from "./RelayBox";
+import { RelayReceive } from "./RelayReceive";
 
 /** 화면이 열리자마자 열 파일(수신 화면이 녹화하고 넘어올 때 적어 둔다) */
 const ANALYZE_NEXT = "nrtrail.analyze.next";
@@ -417,6 +418,13 @@ export function AnalyzeScreen() {
             </Button>
           </div>
           <p className="t-caption muted">{t("analyze.formats")}</p>
+          {/* 중계 서버의 방에서 받아 파일로 남기고 바로 연다(서버에 이 기능이 있을 때만 보인다) */}
+          <RelayReceive
+            onOpen={(p) => {
+              reload();
+              void open({ path: p });
+            }}
+          />
         </div>
 
         {over && (
