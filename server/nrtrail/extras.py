@@ -293,6 +293,9 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
         from . import saved  # 녹화 파일: 저장 위치, 폴더에서 보기, 다른 형식으로 내보내기
 
         saved.register(app)
+        from . import relay  # 실시간 중계: 받고 있는 것이나 저장한 파일을 중계 서버의 방으로 보낸다
+
+        relay.register(app)
 
     try:
         from . import tx

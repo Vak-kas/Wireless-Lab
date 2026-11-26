@@ -27,7 +27,7 @@ def _file() -> Path:
 
 def clean(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """받은 목록에서 쓸 수 있는 것만: 이름은 글자, 가운데와 폭은 0 보다 큰 수(MHz)."""
-    out = []
+    out: list[dict[str, Any]] = []
     for it in items[:MAX_PLACES]:
         try:
             center, width = float(it["center_mhz"]), float(it["width_mhz"])

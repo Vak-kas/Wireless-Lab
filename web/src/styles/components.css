@@ -2099,3 +2099,53 @@ canvas[data-tunable] {
   padding-top: var(--space-sm);
   border-top: 1px solid var(--line);
 }
+
+/* 실시간 중계: 보낼 곳 한 줄, 고치는 칸, 보내는 단추와 상태 */
+.relay-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  text-align: left;
+}
+.relay-box p {
+  margin: 0;
+}
+.relay-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+.relay-line code {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.relay-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-sm);
+  align-items: end;
+  padding: var(--space-sm) 0;
+}
+.relay-form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxs, var(--space-xs));
+  min-width: 0;
+}
+.relay-form input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+}
+.relay-form .relay-wide {
+  grid-column: 1 / -1;
+}
+.relay-form label.relay-tick,
+.relay-tick {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-xs);
+}

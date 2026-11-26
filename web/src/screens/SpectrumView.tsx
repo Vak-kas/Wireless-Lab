@@ -6,6 +6,7 @@ import { LinePlot } from "../components/plots/LinePlot";
 import { Badge, Button, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { RelayBox } from "./RelayBox";
 import { SaveFolder } from "./SavedFiles";
 import { LiveResults, useLiveStream } from "./LiveStream";
 
@@ -191,8 +192,10 @@ export function SpectrumView({
     setCenter(String(c));
     setWidth(String(w));
     onEdit?.(c, w);
+    const relayTap = live.state?.taps.relay;
+    const also = relayTap !== undefined && !relayTap.ended ? ["relay"] : []; // 중계하던 중이면 옮긴 뒤에도 이어서 보낸다(받는 쪽에는 새 연결로 보인다)
     await live.stop();
-    void live.start({ device: info.device.id, center_hz: c * 1e6, bandwidth_hz: w * 1e6, gain_db: gain.trim() ? Number(gain) : undefined }, false);
+    void live.start({ device: info.device.id, center_hz: c * 1e6, bandwidth_hz: w * 1e6, gain_db: gain.trim() ? Number(gain) : undefined }, false, also);
   };
   const recordTap = live.state?.taps.record;
   const recording = live.running && recordTap !== undefined && !recordTap.ended;
@@ -293,6 +296,7 @@ export function SpectrumView({
         </Button>
       </div>
       {live.can && <SaveFolder disabled={recording} />}
+      {live.can && <RelayBox live={{ running: live.running, tap: live.state?.taps.relay, onToggle: (on) => void live.tap("relay", on) }} />}
       {live.can && <p className="t-caption muted">{t("live.hint")}</p>}
         </>
       )}

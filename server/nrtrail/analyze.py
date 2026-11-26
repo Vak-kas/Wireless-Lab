@@ -815,7 +815,7 @@ def frames_of(payloads: list[str]) -> list[dict[str, Any]] | None:
     count = len(marks[0]) if marks else 0
     if count == 0 or any(len(m) != count for m in marks):
         return None
-    out = []
+    out: list[Any] = []
     for f in range(count + 1):
         rows = [p[(m[f - 1][1] if f else 0): (m[f][0] if f < count else len(p))] for p, m in zip(payloads, marks, strict=True)]
         if min(len(r) for r in rows) < 8:
@@ -918,7 +918,7 @@ def compare(cap: sigmf.Capture, offset_hz: float = 0.0, bandwidth_hz: float = 0.
         bandwidth_hz = max(occupied["bandwidth_hz"] * 2, 8 * cap.sample_rate_hz / FFT_BINS)
 
     items: list[dict[str, Any]] = []
-    traces: list[list[float] | None] = []
+    traces: list[list[float | None] | None] = []
     use = kind
     if use == "auto":
         # 방식은 가장 센 버스트에서 정한다(약하거나 짧은 조각에서 정하면 틀리기 쉽다). 다섯 개까지 해 본다

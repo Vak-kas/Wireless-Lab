@@ -58,12 +58,16 @@ export function useLiveStream(device: string) {
     [api, id],
   );
 
-  /** 이 조건에 맞는 풀이를 모두 꽂아 시작한다. record=true 면 파일로도 남긴다. */
-  const start = async (req: StartRequest, record: boolean) => {
+  /**
+   * 이 조건에 맞는 풀이를 모두 꽂아 시작한다. 손으로 켜는 풀이(녹화, 중계)는 저절로 꽂지 않는다:
+   * record=true 면 파일로도 남기고, also 에 적은 것(예: 중계하던 중에 가운데를 옮겼다)도 함께 꽂는다.
+   */
+  const start = async (req: StartRequest, record: boolean, also: string[] = []) => {
     setStarting(true);
     try {
       const { taps } = await api.streamTaps(req);
-      const names = taps.filter((x) => x.ok && (x.name !== "record" || record)).map((x) => x.name);
+      const wanted = (x: { name: string; manual?: boolean }) => (x.manual ?? x.name === "record" ? (x.name === "record" && record) || also.includes(x.name) : true);
+      const names = taps.filter((x) => x.ok && wanted(x)).map((x) => x.name);
       setState(await api.streamStart({ ...req, taps: names }));
     } catch (e) {
       fail(String(e instanceof Error ? e.message : e));

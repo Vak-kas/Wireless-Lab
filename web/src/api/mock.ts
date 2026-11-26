@@ -294,6 +294,24 @@ export const mockApi: Api = {
   savedState: async () => {
     throw new Error("mock");
   },
+  relayState: async () => {
+    throw new Error("mock");
+  },
+  relayTarget: async () => {
+    throw new Error("mock");
+  },
+  relayForget: async () => {
+    throw new Error("mock");
+  },
+  relayCheck: async () => {
+    throw new Error("mock");
+  },
+  relayFile: async () => {
+    throw new Error("mock");
+  },
+  relayFileStop: async () => {
+    throw new Error("mock");
+  },
   savedFolder: async () => {
     throw new Error("mock");
   },

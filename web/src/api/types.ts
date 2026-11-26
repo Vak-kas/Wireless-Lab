@@ -434,6 +434,71 @@ export interface StreamTapInfo {
   name: string;
   ok: boolean;
   reason: string;
+  /** 받기를 시작할 때 저절로 꽂지 않는 것(녹화, 중계). 사람이 켤 때만 꽂는다 */
+  manual?: boolean;
+}
+
+/** 실시간 중계: 중계 서버의 방 하나. 토큰은 서버만 알고 화면에는 "있다"만 온다 */
+export interface RelayTarget {
+  host: string;
+  port: number;
+  tls: boolean;
+  room: string;
+  prefix: string;
+  token_set: boolean;
+  /** 토큰을 뺀 주소 */
+  url: string;
+}
+
+/** 중계 연결 하나의 상태 */
+export interface RelayLink {
+  connected: boolean;
+  error?: string;
+  sent_bytes: number;
+  /** 올리는 속도가 모자라 보내는 쪽이 버린 양 */
+  dropped_bytes: number;
+  /** 방의 속도 상한을 넘어 서버가 버린 양 */
+  relay_dropped_bytes?: number;
+  receivers?: number;
+  expires_in?: number | null;
+  /** 끊김 없이 보내려면 초당 올려야 하는 바이트 */
+  need_bps?: number;
+  rate_limit?: number | null;
+}
+
+/** 저장한 파일을 중계로 보내는 일 */
+export interface RelayJob extends RelayLink {
+  running: boolean;
+  meta_path: string;
+  name: string;
+  loop: boolean;
+  seconds: number;
+  total_s: number;
+  rounds: number;
+  to: string;
+}
+
+export interface RelayState {
+  available: boolean;
+  target: RelayTarget | null;
+  job: RelayJob | null;
+}
+
+export interface RelayCheck {
+  ok: boolean;
+  rate_limit: number | null;
+  total_limit: number | null;
+  expires_in: number | null;
+  receivers: number;
+}
+
+export interface RelayTargetBody {
+  link?: string;
+  host?: string;
+  port?: number;
+  tls?: boolean;
+  room?: string;
+  token?: string;
 }
 
 /** 풀이 하나의 상태와 결과. 풀이마다 채우는 칸이 다르다 */
@@ -463,6 +528,16 @@ export interface StreamTapState {
   seconds?: number;
   gaps?: number;
   full?: boolean;
+  /** relay */
+  to?: string;
+  connected?: boolean;
+  sent_bytes?: number;
+  dropped_bytes?: number;
+  relay_dropped_bytes?: number;
+  receivers?: number;
+  expires_in?: number | null;
+  need_bps?: number;
+  rate_limit?: number | null;
   /** 도중에 뺀 풀이(녹화를 멈춘 뒤). 마지막 결과가 남아 있다 */
   ended?: boolean;
 }
@@ -866,6 +941,13 @@ export interface Api {
   bandsSave(bands: { id: string; name: string; center_mhz: number; width_mhz: number }[]): Promise<{ bands: { id: string; name: string; center_mhz: number; width_mhz: number }[] }>;
   /** 녹화 파일: 저장 위치 보기·바꾸기(null 이면 기본 위치), 폴더 고르는 창, 파일 관리자에서 보기, 다른 형식으로 내보내기 */
   savedState(): Promise<SavedState>;
+  /** 실시간 중계: 보낼 곳(서버·방)을 보고 정하고, 연결을 확인하고, 저장한 파일을 보낸다 */
+  relayState(): Promise<RelayState>;
+  relayTarget(body: RelayTargetBody): Promise<RelayState>;
+  relayForget(): Promise<RelayState>;
+  relayCheck(): Promise<RelayCheck>;
+  relayFile(metaPath: string, loop: boolean): Promise<RelayState>;
+  relayFileStop(): Promise<RelayState>;
   savedFolder(path: string | null): Promise<SavedState>;
   savedChoose(): Promise<SavedState>;
   savedReveal(path: string): Promise<{ ok: boolean }>;

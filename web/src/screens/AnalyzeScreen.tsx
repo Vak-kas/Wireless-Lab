@@ -5,6 +5,7 @@ import { Badge, Button, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { heatTable } from "./heat";
+import { RelayBox } from "./RelayBox";
 
 /** 화면이 열리자마자 열 파일(수신 화면이 녹화하고 넘어올 때 적어 둔다) */
 const ANALYZE_NEXT = "nrtrail.analyze.next";
@@ -426,6 +427,7 @@ export function AnalyzeScreen() {
             <p className="t-caption muted">
               {t("analyze.over.facts", { s: span(over.file.seconds), center: mhz(over.file.center_hz), rate: num(over.file.sample_rate_hz / 1e6, 3), type: over.file.datatype, scan: over.scan_s })}
             </p>
+            {/\.sigmf-(meta|data)$/.test(over.file.path) && <RelayBox file={over.file.path} />}
             <Heat grid={over.spectrogram} sel={overSel} onSelect={(a, b) => move({ start: a * total, seconds: (b - a) * total })} label={t("analyze.plot.spectrogram")} testid="analyze-over-heat" />
             <div className="an-axis t-caption muted">
               <span>0 s</span>
