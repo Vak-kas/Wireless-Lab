@@ -261,7 +261,7 @@ export function SpectrumScreen({
       on = false;
     };
   }, [api]);
-  const [adding, setAdding] = useState<{ name: string; center: string; width: string } | null>(null);
+  const [adding, setAdding] = useState<{ name: string } | null>(null);
   /** 볼 대역을 사용자가 칸에 직접 적는 중인가. 그동안에는 위에서 고른 것으로 칸을 덮어쓰지 않는다 */
   const [typed, setTyped] = useState(false);
   /**
@@ -557,11 +557,15 @@ export function SpectrumScreen({
     saveBands(next);
     void api.bandsSave(next).catch(() => undefined); // 서버에 못 두어도 이 브라우저에는 남는다
   };
-  /** + 칸에 적은 것을 "볼 곳"으로 추가하고 바로 고른다. 대역폭을 비우면 DEFAULT_WIDTH_MHZ, 이름을 비우면 주파수가 이름이 된다 */
+  // + 로 저장할 값: 주파수를 적는 칸은 아래의 한 곳뿐이다. 거기 적은 값(또는 고른 채널의 범위)을 이름만 붙여 저장한다.
+  // 대역폭을 비웠으면 DEFAULT_WIDTH_MHZ.
+  const keepCenter = target ? target.center_hz / 1e6 : typed && entered.center > 0 ? entered.center : 0;
+  const keepWidth = target ? target.width_hz / 1e6 : entered.width > 0 ? entered.width : DEFAULT_WIDTH_MHZ;
+  /** 지금 칸의 값을 "볼 곳"으로 저장하고 바로 고른다. 이름을 비우면 주파수가 이름이 된다 */
   const addBand = () => {
-    if (!adding || !(Number(adding.center) > 0)) return;
-    const center = Number(adding.center);
-    const width = Number(adding.width) > 0 ? Number(adding.width) : DEFAULT_WIDTH_MHZ;
+    if (!adding || !(keepCenter > 0)) return;
+    const center = Number(keepCenter.toFixed(3));
+    const width = Number(keepWidth.toFixed(3));
     const made: Band = { id: String(Date.now()), name: adding.name.trim() || `${center} MHz`, center_mhz: center, width_mhz: width };
     keepBands([...bands, made]);
     setAdding(null);
@@ -992,7 +996,7 @@ export function SpectrumScreen({
                       .map((p) => (
                         <Chip
                           key={p.id}
-                          selected={p.id === plan && adding === null}
+                          selected={p.id === plan}
                           onSelect={() => {
                             setAdding(null);
                             choosePlan(p);
@@ -1006,7 +1010,7 @@ export function SpectrumScreen({
                       bands.map((x) => (
                         <span key={x.id} className="chip-pair">
                           <Chip
-                            selected={plan === `band:${x.id}` && adding === null}
+                            selected={plan === `band:${x.id}`}
                             onSelect={() => {
                               setAdding(null);
                               setTyped(false);
@@ -1030,7 +1034,7 @@ export function SpectrumScreen({
                         aria-pressed={adding !== null}
                         aria-label={t("view.band.add")}
                         title={t("view.band.add")}
-                        onClick={() => setAdding(adding === null ? { name: "", center: "", width: "" } : null)}
+                        onClick={() => setAdding(adding === null ? { name: "" } : null)}
                         data-testid="band-add"
                       >
                         +
@@ -1039,19 +1043,14 @@ export function SpectrumScreen({
                   </div>
                   {adding !== null && (
                     <div className="card add-band" data-testid="band-form">
+                      <p className="t-caption" data-testid="band-what">
+                        {keepCenter > 0 ? t("view.band.what", { center: Number(keepCenter.toFixed(3)), width: Number(keepWidth.toFixed(3)) }) : t("view.band.need")}
+                      </p>
                       <div className="row">
-                        <Field label={t("view.center")}>
-                          {(f) => <input {...f} inputMode="decimal" autoFocus value={adding.center} onChange={(e) => setAdding({ ...adding, center: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="band-center" />}
-                        </Field>
-                        <Field label={t("view.band.width", { n: DEFAULT_WIDTH_MHZ })}>
-                          {(f) => <input {...f} inputMode="decimal" value={adding.width} onChange={(e) => setAdding({ ...adding, width: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="band-width" />}
-                        </Field>
                         <Field label={t("view.band.name")}>
-                          {(f) => <input {...f} value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="band-name" />}
+                          {(f) => <input {...f} autoFocus value={adding.name} onChange={(e) => setAdding({ name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addBand()} data-testid="band-name" />}
                         </Field>
-                      </div>
-                      <div className="row">
-                        <Button onClick={addBand} disabled={!(Number(adding.center) > 0)} data-testid="band-save">
+                        <Button onClick={addBand} disabled={!(keepCenter > 0)} data-testid="band-save">
                           {t("view.band.save")}
                         </Button>
                         <Button variant="link" onClick={() => setAdding(null)}>
@@ -1060,9 +1059,8 @@ export function SpectrumScreen({
                       </div>
                     </div>
                   )}
-                  {/* + 로 볼 곳을 추가하는 동안에는 그 칸만 보인다(채널 맵과 안내는 대역을 골랐을 때의 것이다) */}
-                  {!band && adding === null && <p className="t-caption muted">{t(real ? "spectrum.plan.hint_real" : "spectrum.plan.hint_sim")}</p>}
-                  {current && !band && adding === null && (
+                  {!band && <p className="t-caption muted">{t(real ? "spectrum.plan.hint_real" : "spectrum.plan.hint_sim")}</p>}
+                  {current && !band && (
                     <ChannelMap
                       key={plan}
                       plan={current}

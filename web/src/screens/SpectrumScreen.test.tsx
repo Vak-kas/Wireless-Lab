@@ -340,14 +340,17 @@ test("수신이 한두 번 실패해도 모니터링은 멈추지 않고, 잇달
   expect(calls).toBe(6);
 });
 
-test("+ 로 볼 곳을 추가하면 단추로 남고 바로 골라진다. 대역폭을 비우면 기본 폭, 이름을 비우면 주파수가 이름이 된다", async () => {
+test("+ 는 아래 칸에 적은 값을 이름 붙여 저장한다(주파수를 적는 칸은 한 곳뿐). 대역폭을 비우면 기본 폭, 이름을 비우면 주파수가 이름이 된다", async () => {
   localStorage.clear();
   const a = api();
   a.surveySpectrum = vi.fn(async () => VIEW);
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("band-add"));
   expect(screen.getByTestId("band-save")).toBeDisabled(); // 가운데 주파수는 있어야 한다
-  await userEvent.type(screen.getByTestId("band-center"), "433.92");
+  expect(screen.getByTestId("band-what")).toHaveTextContent("먼저 아래 칸에");
+  expect(screen.queryByTestId("band-center")).toBeNull(); // 주파수 칸이 둘로 겹치지 않는다
+  await userEvent.type(screen.getByTestId("view-center"), "433.92");
+  expect(screen.getByTestId("band-what")).toHaveTextContent("가운데 433.92 MHz · 폭 2 MHz");
   await userEvent.click(screen.getByTestId("band-save"));
   expect(screen.queryByTestId("band-form")).toBeNull();
   expect(screen.getByRole("button", { name: "433.92 MHz" })).toHaveAttribute("aria-pressed", "true");
@@ -360,11 +363,11 @@ test("+ 로 볼 곳을 추가하면 단추로 남고 바로 골라진다. 대역
   // 장비가 받을 수 있는 것보다 넓게 추가하면 가운데 부분만 본다
   await userEvent.click(screen.getByRole("button", { name: "Wi-Fi 5 GHz" }));
   expect(screen.getByTestId("channel-map")).toBeInTheDocument();
+  await userEvent.clear(screen.getByTestId("view-center"));
+  await userEvent.type(screen.getByTestId("view-center"), "3550");
+  await userEvent.clear(screen.getByTestId("view-width"));
+  await userEvent.type(screen.getByTestId("view-width"), "100");
   await userEvent.click(screen.getByTestId("band-add"));
-  expect(screen.queryByTestId("channel-map")).toBeNull(); // 추가하는 동안에는 채널 맵을 숨기고, 대역 단추도 고른 표시를 뗀다
-  expect(screen.getByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "false");
-  await userEvent.type(screen.getByTestId("band-center"), "3550");
-  await userEvent.type(screen.getByTestId("band-width"), "100");
   await userEvent.type(screen.getByTestId("band-name"), "5G");
   await userEvent.click(screen.getByTestId("band-save"));
   expect(screen.getByTestId("view-center")).toHaveValue("3550");
@@ -375,9 +378,9 @@ test("추가한 곳은 다시 열어도 남아 있고, 지우면 다른 대역�
   localStorage.clear();
   const a = api();
   const first = renderWithStore(<SpectrumScreen />, a);
-  await userEvent.click(await screen.findByTestId("band-add"));
-  await userEvent.type(screen.getByTestId("band-center"), "447.5");
-  await userEvent.type(screen.getByTestId("band-width"), "1");
+  await userEvent.type(await screen.findByTestId("view-center"), "447.5");
+  await userEvent.type(screen.getByTestId("view-width"), "1");
+  await userEvent.click(screen.getByTestId("band-add"));
   await userEvent.type(screen.getByTestId("band-name"), "우리 집 차 키");
   await userEvent.click(screen.getByTestId("band-save"));
   first.unmount();
@@ -582,8 +585,9 @@ test("추가해 둔 곳은 서버에서 읽어 오고(앱을 다시 켜도 남�
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByRole("button", { name: "KEYLESS" }));
   expect(screen.getByTestId("view-center")).toHaveValue("433.92");
+  await userEvent.clear(screen.getByTestId("view-center"));
+  await userEvent.type(screen.getByTestId("view-center"), "315");
   await userEvent.click(screen.getByTestId("band-add"));
-  await userEvent.type(screen.getByTestId("band-center"), "315");
   await userEvent.click(screen.getByTestId("band-save"));
   expect(a.bandsSave).toHaveBeenLastCalledWith([
     { id: "k", name: "KEYLESS", center_mhz: 433.92, width_mhz: 2 },
