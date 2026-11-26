@@ -850,5 +850,11 @@
   "decode.none": "There is no decoder for this band yet.",
   "decode.need": "Pick a band, or enter a centre frequency and bandwidth, to look for a matching decoder.",
   "decode.tap.ok": "fits this band (runs while you receive in the live view)",
-  "decode.none.hint": "For signals without a decoder (remotes, car keys and so on) the live view labels the kind by width and position, and you can record them to decode with another tool."
+  "decode.none.hint": "For signals without a decoder (remotes, car keys and so on) the live view labels the kind by width and position, and you can record them to decode with another tool.",
+  "tune.hint": "Click the picture to receive again with that frequency in the centre.",
+  "tune.cursor": "{mhz} MHz · click to centre here",
+  "tune.narrow": "Half width",
+  "tune.wide": "Double width",
+  "tune.here": "Centre",
+  "signal.col.tune": "Tune"
 }

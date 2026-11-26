@@ -24,7 +24,7 @@ import numpy as np
 from . import survey
 
 RISE_DB = 12.0             # 바닥보다 이만큼 솟아야 신호로 본다
-FLOOR_PERCENT = 10         # 줄 하나의 바닥: 평균 줄에서 아래쪽 10% 자리의 값(신호가 폭의 대부분을 채워도 빈 가장자리가 잡힌다)
+FLOOR_PERCENT = 10         # 줄 하나의 바닥: 아래쪽 10% 자리의 값(신호가 폭의 대부분을 채워도 빈 가장자리가 잡힌다)
 MERGE_HZ = 400e3           # 이보다 좁은 틈은 한 신호로 잇는다(OFDM 신호 가운데의 빈 부반송파 등)
 WINDOW_ROWS = 100          # 최근 이만큼의 줄을 본다(줄 하나가 50 ms 면 5 초)
 MAX_SIGNALS = 6            # 화면에 내놓는 신호 수(자주·세게 보인 것부터)
@@ -35,9 +35,13 @@ WIFI_BANDS = ((2400e6, 2500e6), (5150e6, 5900e6), (5925e6, 7125e6))
 ISM_2G4 = (2400e6, 2483.5e6)
 
 
-def row_floor(mean: list[float]) -> float:
-    """줄 하나에서 본 바닥(잡음 수준)."""
-    return float(np.percentile(np.asarray(mean, dtype=np.float64), FLOOR_PERCENT)) if len(mean) else 0.0
+def row_floor(line: list[float]) -> float:
+    """줄 하나에서 본 바닥(잡음 수준).
+
+    솟았는지는 "가장 셌던 값의 줄(peak)"로 보므로 바닥도 같은 줄에서 잡는다. 잡음만 있어도 peak 줄은 평균 줄보다
+    10 dB 쯤 높다(한 줄 동안의 여러 번 가운데 최대값이라서). 바닥을 평균 줄에서 잡으면 그 차이만으로 잡음이 신호처럼 보인다.
+    """
+    return float(np.percentile(np.asarray(line, dtype=np.float64), FLOOR_PERCENT)) if len(line) else 0.0
 
 
 def spans(mean: list[float], peak: list[float], center_hz: float, rate_hz: float, floor: float | None = None) -> list[dict[str, float]]:
@@ -48,7 +52,7 @@ def spans(mean: list[float], peak: list[float], center_hz: float, rate_hz: float
     if bins == 0:
         return []
     if floor is None:
-        floor = row_floor(mean)
+        floor = row_floor(peak)
     step = rate_hz / bins
     over = top > floor + RISE_DB
     edges = np.diff(np.concatenate([[0], over.astype(np.int8), [0]]))
@@ -121,7 +125,7 @@ class Tracker:
     def add(self, mean: list[float], peak: list[float]) -> None:
         # 바닥은 최근 줄들 가운데 가장 조용했던 때의 것을 쓴다: 신호가 받는 폭을 다 채운 줄에서도 "솟았다"고 볼 수 있게.
         # (끊이지 않고 폭 전체를 채우는 신호는 조용한 때가 없어서 찾지 못한다 — 그것이 이 방법의 한계다.)
-        self._floors.append(row_floor(mean))
+        self._floors.append(row_floor(peak))
         self._rows.append(spans(mean, peak, self.center_hz, self.rate_hz, min(self._floors)))
 
     def snapshot(self) -> list[dict[str, Any]]:

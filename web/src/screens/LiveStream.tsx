@@ -95,7 +95,7 @@ export function useLiveStream(device: string) {
 }
 
 /** 계속 받기의 상태 줄과, 꽂힌 풀이들의 결과. */
-export function LiveResults({ state }: { state: StreamState }) {
+export function LiveResults({ state, onTune }: { state: StreamState; onTune?: (centerHz: number, widthHz?: number) => void }) {
   const taps = state.taps;
   const view = taps.spectrum?.view;
   const p = view ? plots(view as View) : null;
@@ -159,7 +159,7 @@ export function LiveResults({ state }: { state: StreamState }) {
         </div>
       )}
       {state.scope ? (
-        <LiveScope id={state.id} running={state.running} centerHz={state.center_hz} rateHz={state.sample_rate_hz} rowMs={state.scope.row_ms || 50} taps={state.taps} />
+        <LiveScope id={state.id} running={state.running} centerHz={state.center_hz} rateHz={state.sample_rate_hz} rowMs={state.scope.row_ms || 50} taps={state.taps} onTune={state.running ? onTune : undefined} />
       ) : p && (
         <>
           <div className="card">

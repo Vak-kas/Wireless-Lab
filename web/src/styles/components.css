@@ -1845,3 +1845,19 @@ details.fold > .fold-body {
   padding-left: var(--space-lg);
   text-align: left;
 }
+/* 세부 조정: 누를 수 있는 그림과, 커서 주파수·폭 단추 줄 */
+canvas[data-tunable] {
+  cursor: crosshair;
+}
+.scope-tune {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+}
+.scope-tune-zoom {
+  display: inline-flex;
+  gap: var(--space-md);
+}

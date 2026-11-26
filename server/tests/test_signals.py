@@ -70,3 +70,26 @@ def test_edge_specks_brief_glimpses_and_duplicates_are_tidied_away():
         t.add(*row(rate, center, bumps))
     out = t.snapshot()
     assert [(s["kind"], s["channel"], s["seen"]) for s in out] == [("bt", 37, 0.4)]
+
+
+def test_noise_alone_is_not_a_signal_even_though_its_peak_line_sits_well_above_its_mean_line():
+    """잡음만 받아도 "가장 셌던 값"의 줄은 평균 줄보다 10 dB 쯤 높고, 장비의 응답이 고르지 않아 몇 dB 씩 출렁인다.
+    그것을 신호로 잡지 않는다. 그 위로 뚜렷이 솟은 좁은 신호(리모컨의 짧은 버스트 등)는 잡는다."""
+    rng = np.random.default_rng(1)
+    rate, center, bins = 20e6, 433e6, 256
+    ripple = 3 * np.sin(np.arange(bins) / bins * 6 * np.pi)                    # 장비 필터의 출렁임
+    quiet = signals.Tracker(center, rate)
+    for _ in range(40):
+        mean = -85 + ripple + rng.normal(0, 0.3, bins)
+        quiet.add(list(mean), list(mean + 10 + rng.normal(0, 1.5, bins)))
+    assert quiet.snapshot() == []
+
+    keyed = signals.Tracker(center, rate)
+    for k in range(40):
+        mean = -85 + ripple + rng.normal(0, 0.3, bins)
+        peak = mean + 10 + rng.normal(0, 1.5, bins)
+        if k % 4 == 0:                                                          # 0.2 초마다 짧게 켜지는 좁은 신호
+            peak[139:142] = -45
+        keyed.add(list(mean), list(peak))
+    found = keyed.snapshot()
+    assert len(found) == 1 and found[0]["kind"] == "narrow" and abs(found[0]["center_hz"] - 433.94e6) < 0.1e6

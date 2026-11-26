@@ -11,6 +11,9 @@ import { LiveResults, useLiveStream } from "./LiveStream";
 
 const mhz = (hz: number, digits = 3) => Number((hz / 1e6).toFixed(digits)).toString();
 
+/** 세부 조정으로 좁힐 수 있는 가장 좁은 폭 */
+const MIN_TUNE_WIDTH_HZ = 0.25e6;
+
 export interface SpectrumViewHandle {
   /** 다른 곳(채널 표)에서 "이 채널 들여다보기"를 눌렀을 때: 칸을 채우고 바로 본다 */
   look(centerHz: number, bandwidthHz: number): void;
@@ -172,6 +175,22 @@ export function SpectrumView({
     setView(null);
     void live.start({ device: info.device.id, center_hz: sim ? 0 : Number(center) * 1e6, bandwidth_hz: sim ? 0 : Number(width) * 1e6, gain_db: gain.trim() ? Number(gain) : undefined }, record);
   };
+  /**
+   * 세부 조정: 받는 도중에 가운데 주파수(와 폭)를 바꿔 다시 받는다. 장비의 주파수를 옮기는 일이라 받던 것을 멈추고 새로 시작한다
+   * (녹화 중이었다면 파일이 거기서 끝난다). 폭은 장비가 한 번에 볼 수 있는 폭을 넘지 않게 한다.
+   */
+  const retune = async (centerHz: number, widthHz?: number) => {
+    if (sim || paused) return;
+    const cap = max ?? Number.POSITIVE_INFINITY;
+    const nextWidth = Math.min(cap, Math.max(MIN_TUNE_WIDTH_HZ, widthHz ?? Number(width) * 1e6));
+    const c = Number((centerHz / 1e6).toFixed(3));
+    const w = Number((nextWidth / 1e6).toFixed(3));
+    setCenter(String(c));
+    setWidth(String(w));
+    onEdit?.(c, w);
+    await live.stop();
+    void live.start({ device: info.device.id, center_hz: c * 1e6, bandwidth_hz: w * 1e6, gain_db: gain.trim() ? Number(gain) : undefined }, false);
+  };
   const recordTap = live.state?.taps.record;
   const recording = live.running && recordTap !== undefined && !recordTap.ended;
   /** 녹화 단추: 받는 중이면 그때부터 저장을 시작하거나 멈추고, 받는 중이 아니면 받기와 저장을 함께 시작한다 */
@@ -278,7 +297,7 @@ export function SpectrumView({
   );
   const results = (
     <>
-      {live.state && <LiveResults state={live.state} />}
+      {live.state && <LiveResults state={live.state} onTune={sim ? undefined : (c, w) => void retune(c, w)} />}
         {view && p && (
           <>
             <dl className="facts t-caption view-facts" data-testid="view-facts">

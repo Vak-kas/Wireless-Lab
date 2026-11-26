@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { SeenSignal, StreamTapState } from "../api";
+import { Button } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 
@@ -26,6 +27,7 @@ export function LiveScope({
   rateHz,
   rowMs,
   taps,
+  onTune,
 }: {
   id: string;
   running: boolean;
@@ -34,6 +36,11 @@ export function LiveScope({
   rowMs: number;
   /** 풀이들의 결과: 추정한 신호가 실제로 풀렸는지("확인")를 보여 주는 데 쓴다 */
   taps?: Record<string, StreamTapState>;
+  /**
+   * 세부 조정: 그림을 누른 자리나 표의 신호를 새 가운데 주파수로 삼아 다시 받게 한다(폭을 주면 폭도 바꾼다).
+   * 없으면 그림은 보기만 한다.
+   */
+  onTune?: (centerHz: number, widthHz?: number) => void;
 }) {
   const { api } = useStore();
   const lineRef = useRef<HTMLCanvasElement>(null);
@@ -42,6 +49,26 @@ export function LiveScope({
   const range = useRef<{ lo: number; hi: number } | null>(null);
   const [shown, setShown] = useState<{ rows: number; lo: number; hi: number } | null>(null);
   const [signals, setSignals] = useState<SeenSignal[]>([]);
+  /** 마우스가 가리키는 주파수(Hz). 그림 밖이면 null */
+  const [cursor, setCursor] = useState<number | null>(null);
+  /** 그림 위의 가로 위치를 주파수로: 두 그림 모두 왼쪽 끝이 (가운데 - 폭/2), 오른쪽 끝이 (가운데 + 폭/2) 다 */
+  const freqAt = (e: MouseEvent<HTMLCanvasElement>): number | null => {
+    const box = e.currentTarget.getBoundingClientRect();
+    if (box.width <= 0) return null;
+    const part = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width));
+    return centerHz - rateHz / 2 + part * rateHz;
+  };
+  const pointer = onTune
+    ? {
+        onMouseMove: (e: MouseEvent<HTMLCanvasElement>) => setCursor(freqAt(e)),
+        onMouseLeave: () => setCursor(null),
+        onClick: (e: MouseEvent<HTMLCanvasElement>) => {
+          const f = freqAt(e);
+          if (f !== null) onTune(Math.round(f / 1e3) * 1e3); // 1 kHz 단위로
+        },
+        "data-tunable": true,
+      }
+    : {};
 
   useEffect(() => {
     if (!running) return;
@@ -113,15 +140,16 @@ export function LiveScope({
         const left = centerHz - rateHz / 2;
         l.fillStyle = inkCss;
         l.font = "600 20px sans-serif";
-        found.forEach((sig, k) => {
-          if (sig.kind === "dc") return;
+        found
+          .filter((sig) => sig.kind !== "dc")
+          .forEach((sig, k) => {
           const x0 = ((sig.lo_hz - left) / rateHz) * w;
           const x1 = ((sig.hi_hz - left) / rateHz) * w;
           l.globalAlpha = sig.now ? 0.14 : 0.06;
           l.fillRect(x0, 0, Math.max(2, x1 - x0), h);
           l.globalAlpha = 0.9;
           l.fillText(String(k + 1), Math.min(w - 14, x0 + 4), 22);
-        });
+          });
         l.strokeStyle = inkCss;
         l.lineWidth = 2;
         l.globalAlpha = 0.3;
@@ -156,21 +184,34 @@ export function LiveScope({
 
   return (
     <div className="card scope" data-testid="live-scope">
-      <canvas ref={lineRef} width={768} height={LINE_H} className="scope-line" role="img" aria-label={t("view.plot.spectrum")} />
+      <canvas ref={lineRef} width={768} height={LINE_H} className="scope-line" role="img" aria-label={t("view.plot.spectrum")} {...pointer} />
       <div className="scope-axis t-caption muted">
         <span>{mhz(centerHz - rateHz / 2)} MHz</span>
         <span>{mhz(centerHz)} MHz</span>
         <span>{mhz(centerHz + rateHz / 2)} MHz</span>
       </div>
       <div className="scope-fall-wrap">
-        <canvas ref={fallRef} width={256} height={HISTORY} className="scope-fall" role="img" aria-label={t("view.plot.waterfall")} />
+        <canvas ref={fallRef} width={256} height={HISTORY} className="scope-fall" role="img" aria-label={t("view.plot.waterfall")} {...pointer} />
         <span className="scope-when scope-now t-caption">{t("live.scope.now")}</span>
         <span className="scope-when scope-then t-caption">{t("live.scope.ago", { s: ((HISTORY * rowMs) / 1e3).toFixed(0) })}</span>
       </div>
       <p className="t-caption muted center" data-testid="live-scope-note">
         {shown ? t("live.scope.caption", { s: ((HISTORY * rowMs) / 1e3).toFixed(0), lo: shown.lo.toFixed(0), hi: shown.hi.toFixed(0), n: Math.round(1e3 / Math.max(rowMs, 1)) }) : t("live.scope.waiting")}
       </p>
-      <SignalTable signals={signals} taps={taps ?? {}} />
+      {onTune && (
+        <div className="scope-tune t-caption" data-testid="scope-tune">
+          <span className="muted">{cursor === null ? t("tune.hint") : t("tune.cursor", { mhz: mhz(cursor) })}</span>
+          <span className="scope-tune-zoom">
+            <Button variant="link" onClick={() => onTune(centerHz, rateHz / 2)} data-testid="tune-narrow">
+              {t("tune.narrow")}
+            </Button>
+            <Button variant="link" onClick={() => onTune(centerHz, rateHz * 2)} data-testid="tune-wide">
+              {t("tune.wide")}
+            </Button>
+          </span>
+        </div>
+      )}
+      <SignalTable signals={signals} taps={taps ?? {}} onTune={onTune} />
     </div>
   );
 }
@@ -196,7 +237,7 @@ function confirmed(sig: SeenSignal, taps: Record<string, StreamTapState>): strin
 }
 
 /** 지금 보이는 신호들의 표. 번호는 위 그림의 띠에 적힌 번호와 같다. */
-function SignalTable({ signals, taps }: { signals: SeenSignal[]; taps: Record<string, StreamTapState> }) {
+function SignalTable({ signals, taps, onTune }: { signals: SeenSignal[]; taps: Record<string, StreamTapState>; onTune?: (centerHz: number, widthHz?: number) => void }) {
   const rows = signals.filter((s) => s.kind !== "dc");
   const dc = signals.some((s) => s.kind === "dc");
   return (
@@ -210,7 +251,7 @@ function SignalTable({ signals, taps }: { signals: SeenSignal[]; taps: Record<st
             <caption className="sr-only">{t("signal.title")}</caption>
             <thead>
               <tr>
-                {["no", "kind", "center", "width", "level", "seen", "confirm"].map((c) => (
+                {["no", "kind", "center", "width", "level", "seen", "confirm", ...(onTune ? ["tune"] : [])].map((c) => (
                   <th key={c} scope="col" className={`t-caption-strong ${c === "kind" || c === "confirm" ? "" : "right"}`}>
                     {t(`signal.col.${c}`)}
                   </th>
@@ -221,8 +262,9 @@ function SignalTable({ signals, taps }: { signals: SeenSignal[]; taps: Record<st
               {rows.map((sig, k) => {
                 const ok = confirmed(sig, taps);
                 return (
-                  <tr key={`${sig.kind}-${sig.center_hz}`} data-now={sig.now}>
-                    <td className="right">{signals.indexOf(sig) + 1}</td>
+                  // 줄의 열쇠는 순서다: 같은 종류·같은 주파수의 신호가 둘 잡히면 열쇠가 겹쳐 지난 줄이 남는다
+                  <tr key={k} data-now={sig.now}>
+                    <td className="right">{k + 1}</td>
                     <td>
                       {nameOf(sig)} <span className="muted">{ok ? "" : t("signal.guess")}</span>
                     </td>
@@ -231,6 +273,13 @@ function SignalTable({ signals, taps }: { signals: SeenSignal[]; taps: Record<st
                     <td className="right">+{sig.above_floor_db.toFixed(0)} dB</td>
                     <td className="right">{Math.round(sig.seen * 100)}%</td>
                     <td data-testid={`signal-confirm-${k}`}>{ok || "—"}</td>
+                    {onTune && (
+                      <td>
+                        <Button variant="link" onClick={() => onTune(sig.center_hz)} data-testid={`signal-tune-${k}`}>
+                          {t("tune.here")}
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

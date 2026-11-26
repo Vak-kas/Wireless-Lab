@@ -465,6 +465,15 @@ test("실시간 그림: 받는 쪽이 줄을 계산해 주는 장비에서는 �
   expect(table.getByText("100 kHz")).toBeInTheDocument();
   expect(table.getAllByText("(추정)")).toHaveLength(2);
   expect(screen.getByTestId("signal-confirm-0")).toHaveTextContent("—");
+  // 세부 조정: 표의 신호를 "가운데로" 하면 받던 것을 멈추고 그 주파수를 가운데로 다시 받는다. 칸의 값도 바뀐다
+  await userEvent.click(screen.getByTestId("signal-tune-1"));
+  await waitFor(() => expect(a.streamStart).toHaveBeenLastCalledWith({ device: "driver=uhd", center_hz: 5175.05e6, bandwidth_hz: 20e6, gain_db: undefined, taps: ["spectrum"] }));
+  expect(a.streamStop).toHaveBeenCalledWith("s2");
+  expect(screen.getByTestId("view-center")).toHaveValue("5175.05");
+  // 폭 절반으로: 같은 가운데에서 폭만 줄여 다시 받는다
+  await userEvent.click(await screen.findByTestId("tune-narrow"));
+  await waitFor(() => expect(a.streamStart).toHaveBeenLastCalledWith({ device: "driver=uhd", center_hz: 5180e6, bandwidth_hz: 10e6, gain_db: undefined, taps: ["spectrum"] }));
+  expect(screen.getByTestId("view-width")).toHaveValue("10");
   await userEvent.click(screen.getByTestId("live-toggle"));
 });
 
