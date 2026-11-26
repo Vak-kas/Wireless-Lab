@@ -574,3 +574,19 @@ test("신호 해석(블루투스 대역): 광고 채널 셋을 받아 주변 기
   expect(a.bleScan).toHaveBeenCalledTimes(3);
   expect(within(panel).getByText("tag")).toBeInTheDocument(); // 세 채널에서 본 같은 기기는 하나로 합친다
 });
+
+test("추가해 둔 곳은 서버에서 읽어 오고(앱을 다시 켜도 남는다), 새로 추가하면 서버에 저장한다", async () => {
+  const a = api();
+  a.bandsLoad = vi.fn(async () => ({ bands: [{ id: "k", name: "KEYLESS", center_mhz: 433.92, width_mhz: 2 }] }));
+  a.bandsSave = vi.fn(async (bands) => ({ bands }));
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByRole("button", { name: "KEYLESS" }));
+  expect(screen.getByTestId("view-center")).toHaveValue("433.92");
+  await userEvent.click(screen.getByTestId("band-add"));
+  await userEvent.type(screen.getByTestId("band-center"), "315");
+  await userEvent.click(screen.getByTestId("band-save"));
+  expect(a.bandsSave).toHaveBeenLastCalledWith([
+    { id: "k", name: "KEYLESS", center_mhz: 433.92, width_mhz: 2 },
+    expect.objectContaining({ name: "315 MHz", center_mhz: 315, width_mhz: 2 }),
+  ]);
+});

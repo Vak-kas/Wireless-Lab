@@ -241,6 +241,26 @@ export function SpectrumScreen({
   const [picked, setPicked] = useState<string[]>([]);
   /** 사용자가 추가한 "볼 곳"들과, + 를 눌러 여는 추가 칸(닫혀 있으면 null) */
   const [bands, setBands] = useState(loadBands);
+  // 추가해 둔 곳은 서버에 있다. 서버가 비어 있고 이 브라우저에만 있으면(전에 추가한 것) 서버로 올린다
+  useEffect(() => {
+    let on = true;
+    void api.bandsLoad().then(
+      (r) => {
+        if (!on) return;
+        if (r.bands.length > 0) {
+          setBands(r.bands);
+          saveBands(r.bands);
+        } else {
+          const mine = loadBands();
+          if (mine.length > 0) void api.bandsSave(mine).catch(() => undefined);
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      on = false;
+    };
+  }, [api]);
   const [adding, setAdding] = useState<{ name: string; center: string; width: string } | null>(null);
   /** 볼 대역을 사용자가 칸에 직접 적는 중인가. 그동안에는 위에서 고른 것으로 칸을 덮어쓰지 않는다 */
   const [typed, setTyped] = useState(false);
@@ -535,6 +555,7 @@ export function SpectrumScreen({
   const keepBands = (next: Band[]) => {
     setBands(next);
     saveBands(next);
+    void api.bandsSave(next).catch(() => undefined); // 서버에 못 두어도 이 브라우저에는 남는다
   };
   /** + 칸에 적은 것을 "볼 곳"으로 추가하고 바로 고른다. 대역폭을 비우면 DEFAULT_WIDTH_MHZ, 이름을 비우면 주파수가 이름이 된다 */
   const addBand = () => {

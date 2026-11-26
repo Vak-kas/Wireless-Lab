@@ -664,6 +664,9 @@ export interface Api {
   streamRows(id: string, after: number): Promise<{ next: number; mean: number[][]; max: number[][]; signals?: SeenSignal[] }>;
   /** 받는 도중에 풀이를 꽂거나 뺀다 (녹화 단추: name = "record") */
   streamTap(id: string, name: string, on: boolean): Promise<StreamState>;
+  /** + 로 추가한 "볼 곳"을 서버에 둔다(브라우저 저장소는 주소가 바뀌면 사라진다) */
+  bandsLoad(): Promise<{ bands: { id: string; name: string; center_mhz: number; width_mhz: number }[] }>;
+  bandsSave(bands: { id: string; name: string; center_mhz: number; width_mhz: number }[]): Promise<{ bands: { id: string; name: string; center_mhz: number; width_mhz: number }[] }>;
   /** 녹화 파일: 저장 위치 보기·바꾸기(null 이면 기본 위치), 폴더 고르는 창, 파일 관리자에서 보기, 다른 형식으로 내보내기 */
   savedState(): Promise<SavedState>;
   savedFolder(path: string | null): Promise<SavedState>;

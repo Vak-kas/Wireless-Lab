@@ -267,6 +267,8 @@ export const mockApi: Api = {
   streamStop: async () => {
     throw new Error("mock");
   },
+  bandsLoad: async () => ({ bands: [] }),
+  bandsSave: async (bands) => ({ bands }),
   savedState: async () => {
     throw new Error("mock");
   },

@@ -1,6 +1,7 @@
 /**
  * 사용자가 추가한 "볼 곳": 이름, 가운데 주파수, 폭(MHz). 수신 화면의 "어디를 볼까요"에 단추로 나온다.
- * 이 브라우저의 localStorage 에 둔다(서버에 보내지 않는다).
+ * 서버(sessions/view-bands.json)에 두고, 이 브라우저의 localStorage 에도 한 벌 둔다(서버에 못 닿을 때 쓴다).
+ * 브라우저에만 두면 앱이 다른 포트로 떴을 때 사라진 것처럼 보인다(저장소가 주소마다 따로라서).
  */
 export interface Band {
   id: string;

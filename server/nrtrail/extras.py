@@ -161,6 +161,10 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
             except survey.SurveyError as e:
                 raise HTTPException(400, str(e)) from e
 
+    from . import places  # + 로 추가한 "볼 곳"
+
+    places.register(app)
+
     from . import monitor as monitor_mod
     monitors = monitor_mod.Registry()
 

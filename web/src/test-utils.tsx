@@ -106,6 +106,8 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     wifiLive: no,
     surveySpectrum: no,
     surveySave: no,
+    bandsLoad: async () => ({ bands: [] }),
+    bandsSave: async (bands) => ({ bands }),
     savedState: no,
     savedFolder: no,
     savedChoose: no,

@@ -55,6 +55,9 @@ def log(msg: str) -> None:
 def free_port(preferred: int = 8765) -> int:
     for port in (preferred, 0):
         with socket.socket() as s:
+            # 방금 끈 서버가 쓰던 포트를 바로 다시 쓸 수 있게 한다. 이것이 없으면 다시 켤 때마다 다른 포트로 떠서
+            # 브라우저가 다른 사이트로 본다(브라우저에 둔 설정이 사라진 것처럼 보인다).
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind((HOST, port))
                 return int(s.getsockname()[1])
