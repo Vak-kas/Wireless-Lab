@@ -1038,5 +1038,7 @@
   "compare.advice.gain.ok": "세기는 알맞습니다(가장 셀 때 {peak} dBFS). 수신 이득은 그대로 두세요.",
   "compare.advice.gain.lower": "가장 셀 때가 {peak} dBFS 로 한계에 닿았습니다. 신호가 잘렸을 수 있으니 수신 이득을 10 dB 쯤 낮추거나 기기를 조금 떨어뜨리세요.",
   "compare.advice.gain.raise": "가장 셀 때가 {peak} dBFS 로 약합니다. 수신 이득을 올리거나 기기를 가까이 대세요.",
-  "compare.frames.length_second": "보낼 때의 길이는 {lo} ~ {hi}심볼로 버스트마다 다르지만, 둘째 층까지 풀면 {slo} ~ {shi}비트로 맞습니다(끝의 한 비트는 버스트가 끝나는 자리라 잘릴 수 있습니다)."
+  "compare.frames.length_second": "보낼 때의 길이는 {lo} ~ {hi}심볼로 버스트마다 다르지만, 둘째 층까지 풀면 {slo} ~ {shi}비트로 맞습니다(끝의 한 비트는 버스트가 끝나는 자리라 잘릴 수 있습니다).",
+  "compare.frames.all": "전체",
+  "compare.frames.all.note": "프레임들을 옆으로 이어 붙인 것입니다(┃ 가 프레임의 경계). 프레임마다 그 시작에 맞췄고, 자리 번호도 프레임마다 0 부터 다시 셉니다. 앞머리와 표시는 내용이 아니라 뺐습니다."
 }

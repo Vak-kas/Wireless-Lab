@@ -664,11 +664,56 @@ export function AnalyzeScreen() {
 }
 
 /** 줄 맞춘 비트 한 줄을 칸(고정·바뀜)마다 나눠 그린다 */
-function BitRow({ bits, fields }: { bits: string; fields: AnalyzeColumns["fields"] }) {
+/** 견준 칸 하나. "gap" 은 전체 보기에서 프레임 사이의 틈이나 길이가 모자란 줄의 빈자리다(견주지 않는다) */
+type Cell = { start: number; length: number; kind: "same" | "varies" | "gap"; bits?: string; hex?: string; distinct?: number; step?: number; frame?: number; at?: number };
+type Cols = Omit<AnalyzeColumns, "fields"> & { fields: Cell[] };
+type Layer = "symbols" | "manchester" | "second";
+
+/**
+ * 전체 보기: 프레임들을 옆으로 이어 붙여 한 줄로 만든다. 프레임마다 그 시작에 맞춘 것을 그대로 쓰므로
+ * 앞 프레임의 길이가 줄마다 달라도 뒤 프레임이 밀리지 않는다(짧은 줄은 빈자리로 채운다).
+ * 다른 자리의 수는 프레임별 값을 더한 것이다.
+ */
+function joinFrames(frames: NonNullable<AnalyzeCompare["frames"]>, layer: Layer): { cols: Cols; rows: string[]; ruler: string } | null {
+  const parts = frames.map((f) => ({ cols: layer === "symbols" ? f.symbols : f[layer], rows: layer === "symbols" ? f.rows.symbols : f.rows[layer] }));
+  if (parts.some((x) => !x.cols || !x.rows)) return null;
+  const count = parts[0]!.rows!.length;
+  let rows: string[] = Array.from({ length: count }, () => "");
+  const fields: Cell[] = [];
+  const distance = Array.from({ length: count }, () => Array.from({ length: count }, () => 0));
+  let offset = 0;
+  let same = 0;
+  let varies = 0;
+  let line = "";
+  parts.forEach((part, index) => {
+    const cols = part.cols!;
+    const own = part.rows!;
+    const width = Math.max(...own.map((r) => r.length));
+    if (index > 0) {
+      rows = rows.map((r) => `${r} ┃ `);
+      line += "   ";
+      fields.push({ start: offset, length: 3, kind: "gap" });
+      offset += 3;
+    }
+    cols.fields.forEach((x) => fields.push({ ...x, start: x.start + offset, frame: index, at: x.start }));
+    if (width > cols.length) fields.push({ start: offset + cols.length, length: width - cols.length, kind: "gap" });
+    rows = rows.map((r, k) => r + own[k]!.padEnd(width, " "));
+    line += ruler(width);
+    offset += width;
+    same += cols.same;
+    varies += cols.varies;
+    cols.distance.forEach((d, a) => d.forEach((v, b) => (distance[a]![b]! += v)));
+  });
+  const groups = new Map<string, number[]>();
+  rows.forEach((r, k) => groups.set(r, [...(groups.get(r) ?? []), k]));
+  return { cols: { length: offset, mask: "", same, varies, fields, distance, groups: [...groups.values()] }, rows, ruler: line };
+}
+
+function BitRow({ bits, fields }: { bits: string; fields: Cell[] }) {
   return (
     <>
       {fields.map((f) => (
-        <span key={f.start} className={f.kind === "same" ? "an-same" : "an-vary"}>
+        <span key={f.start} className={f.kind === "same" ? "an-same" : f.kind === "gap" ? "an-gap" : "an-vary"}>
           {bits.slice(f.start, f.start + f.length)}
         </span>
       ))}
@@ -711,13 +756,13 @@ function BurstCompare({
   const [layer, setLayer] = useState<"symbols" | "manchester" | "second">("symbols");
   const [kept, setKept] = useState("");
   /** 견줄 프레임(표시에서 끊은 구간). 프레임이 없는 신호는 늘 통째로 견준다 */
-  const [frameNo, setFrameNo] = useState(0);
+  const [frameNo, setFrameNo] = useState<number | "all">("all");
   const run = async () => {
     setBusy(true);
     try {
       const got = await api.analyzeCompare({ ...src, offset_hz: pick.offset, bandwidth_hz: pick.width, kind, symbol_rate_hz: Number(baud) > 0 ? Number(baud) : undefined });
       setRes(got);
-      setFrameNo(0);
+      setFrameNo("all");
       // 가장 깊이 풀린 층부터 보여 준다
       const first = got.frames?.[0];
       setLayer((first ? first.second : got.second) ? "second" : (first ? first.manchester : got.manchester) ? "manchester" : "symbols");
@@ -730,18 +775,27 @@ function BurstCompare({
   const traces = useMemo(() => (res?.traces.lines ?? []).filter((l): l is (number | null)[] => l !== null).map((values) => ({ values, faint: true })), [res]);
   const good = res ? res.bursts.filter((b) => b.bits !== undefined) : [];
   // 프레임이 있으면 고른 프레임을, 없으면 내용 전체를 견준다. 맨체스터 층은 풀린 경우에만 있다
-  const frame = res?.frames?.[frameNo] ?? null;
-  const decoded = frame ? frame.manchester : (res?.manchester ?? null);
-  const second = frame ? frame.second : (res?.second ?? null);
+  const frames = res?.frames ?? null;
+  const frame = frames && frameNo !== "all" ? (frames[frameNo] ?? null) : null;
+  /** 전체 보기: 프레임들을 옆으로 이어 붙인 것(층마다) */
+  const whole = useMemo(
+    () => (frames && frameNo === "all" ? { symbols: joinFrames(frames, "symbols"), manchester: joinFrames(frames, "manchester"), second: joinFrames(frames, "second") } : null),
+    [frames, frameNo],
+  );
+  const decoded: Cols | null = whole ? (whole.manchester?.cols ?? null) : frame ? frame.manchester : (res?.manchester ?? null);
+  const second: (Cols & { flipped?: boolean }) | null = whole ? (whole.second ? { ...whole.second.cols, flipped: frames?.[0]?.second?.flipped } : null) : frame ? frame.second : (res?.second ?? null);
   const useSecond = layer === "second" && second !== null;
   const useDecoded = !useSecond && layer !== "symbols" && decoded !== null;
-  const cols = res ? (useSecond ? second : useDecoded ? decoded : frame ? frame.symbols : res.symbols) : null;
+  const shownLayer: Layer = useSecond ? "second" : useDecoded ? "manchester" : "symbols";
+  const cols: Cols | null = res ? (whole ? (whole[shownLayer]?.cols ?? null) : useSecond ? second : useDecoded ? decoded : frame ? frame.symbols : res.symbols) : null;
   const rowOf = (b: AnalyzeCompare["bursts"][number]) => {
     const row = good.indexOf(b);
+    if (whole) return whole[shownLayer]?.rows[row] ?? "";
     if (useSecond) return (frame ? frame.rows.second?.[row] : res?.second?.rows[row]) ?? "";
     if (frame) return (useDecoded ? frame.rows.manchester?.[row] : frame.rows.symbols[row]) ?? "";
     return useDecoded ? (b.manchester?.bits ?? "") : (b.payload ?? "");
   };
+  const rulerLine = whole ? (whole[shownLayer]?.ruler ?? "") : ruler(cols?.length ?? 0);
   /** 권장값을 "볼 곳"으로 저장한다(수신 화면의 단추로 나온다) */
   const keepAdvice = async () => {
     const a = res?.advice;
@@ -901,12 +955,16 @@ function BurstCompare({
               </p>
               <div className="row an-buttons">
                 <div className="segments" role="group" aria-label={t("compare.frames.pick")}>
+                  <button type="button" className="segment t-caption" aria-pressed={frameNo === "all"} onClick={() => setFrameNo("all")} data-testid="compare-frame-all">
+                    {t("compare.frames.all")}
+                  </button>
                   {res.frames.map((f) => (
                     <button key={f.index} type="button" className="segment t-caption" aria-pressed={frameNo === f.index} onClick={() => setFrameNo(f.index)} data-testid={`compare-frame-${f.index}`}>
                       {t("compare.frames.no", { n: f.index + 1 })}
                     </button>
                   ))}
                 </div>
+                {whole && <span className="t-caption muted">{t("compare.frames.all.note")}</span>}
                 {frame && (
                   <span className="t-caption muted">
                     {frame.marker_before.length > 0 ? `${t("compare.frames.marker", { bits: frame.marker_before.join(" / ") })} · ` : ""}
@@ -931,14 +989,14 @@ function BurstCompare({
               </button>
             </div>
             <span className="t-caption muted">
-              {t("compare.data.counts", { length: cols.length, same: cols.same, varies: cols.varies })} <span className="an-same">{t("compare.legend.same")}</span> <span className="an-vary">{t("compare.legend.varies")}</span>
+              {t("compare.data.counts", { length: cols.same + cols.varies, same: cols.same, varies: cols.varies })} <span className="an-same">{t("compare.legend.same")}</span> <span className="an-vary">{t("compare.legend.varies")}</span>
             </span>
           </div>
           <p className="t-caption muted">
             {t(useSecond ? (second?.flipped ? "compare.layer.second.note_flipped" : "compare.layer.second.note") : decoded ? (useDecoded ? (second ? "compare.layer.manchester.note_more" : "compare.layer.manchester.note") : "compare.layer.symbols.note") : "compare.layer.no_manchester")}
           </p>
           <pre className="an-grid t-caption" data-testid="compare-grid">
-            <span className="muted">{"    "}{ruler(cols.length)}</span>
+            <span className="muted">{"    "}{rulerLine}</span>
             {"\n"}
             {good.map((b) => (
               <span key={b.index}>
@@ -952,11 +1010,11 @@ function BurstCompare({
           </section>
           <section className="an-part" data-folded={folds["c-fields"] ? "true" : undefined} data-testid="part-c-fields">
             <FoldTitle id="c-fields" folded={Boolean(folds["c-fields"])} onFlip={flip} small>
-              {t("compare.fields.title", { n: cols.fields.length })}
+              {t("compare.fields.title", { n: cols.fields.filter((f) => f.kind !== "gap").length })}
             </FoldTitle>
           <div className="table-wrap">
             <table className="data t-caption" data-testid="compare-fields">
-              <caption className="sr-only">{t("compare.fields.title", { n: cols.fields.length })}</caption>
+              <caption className="sr-only">{t("compare.fields.title", { n: cols.fields.filter((f) => f.kind !== "gap").length })}</caption>
               <thead>
                 <tr>
                   {["at", "length", "kind", "value"].map((c) => (
@@ -967,10 +1025,13 @@ function BurstCompare({
                 </tr>
               </thead>
               <tbody>
-                {cols.fields.map((f) => (
+                {cols.fields
+                  .filter((f) => f.kind !== "gap")
+                  .map((f) => (
                   <tr key={f.start}>
                     <td className="right">
-                      {f.start} ~ {f.start + f.length - 1}
+                      {f.frame !== undefined ? `${t("compare.frames.no", { n: f.frame + 1 })} · ` : ""}
+                      {f.at ?? f.start} ~ {(f.at ?? f.start) + f.length - 1}
                     </td>
                     <td className="right">{f.length}</td>
                     <td>{t(`compare.fields.${f.kind}`)}</td>

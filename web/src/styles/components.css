@@ -2085,3 +2085,7 @@ canvas[data-tunable] {
 .an-bursts td {
   white-space: nowrap;
 }
+.an-gap {
+  color: var(--fg-muted);
+  opacity: 0.6;
+}

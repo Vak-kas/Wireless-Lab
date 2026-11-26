@@ -175,6 +175,12 @@ test("버스트 전체 비교: 신호(반송파·편이·심볼 속도)와 데�
   const frames = await screen.findByTestId("compare-frames");
   expect(frames).toHaveTextContent("2개의 프레임으로 나뉩니다");
   expect(frames).toHaveTextContent("같은 패킷을 되풀이해 보냅니다");
+  // 처음에는 전체: 두 프레임을 옆으로 이어 붙여 보여 준다. 칸의 자리는 프레임마다 다시 센다
+  expect(screen.getByTestId("compare-frame-all")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("compare-grid")).toHaveTextContent("10010101 ┃ 0110");
+  expect(screen.getByTestId("compare-fields")).toHaveTextContent("프레임 2 · 0 ~ 3");
+  expect(screen.getByTestId("compare-distance")).toHaveTextContent("3"); // 프레임별 다른 자리 수를 더한 것(3 + 0)
+  await userEvent.click(screen.getByTestId("compare-frame-0"));
   expect(frames).toHaveTextContent("길이가 버스트마다 다릅니다(8 ~ 12심볼)");
   await userEvent.click(screen.getByTestId("compare-frame-1"));
   expect(frames).toHaveTextContent("앞의 표시: 111110000001 · 길이는 모두 4심볼");

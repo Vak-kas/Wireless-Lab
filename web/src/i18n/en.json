@@ -1038,5 +1038,7 @@
   "compare.advice.gain.ok": "The level is right (peak {peak} dBFS). Leave the receive gain as it is.",
   "compare.advice.gain.lower": "The peak reached {peak} dBFS, the limit. The signal may be clipped: lower the receive gain by about 10 dB or move the device away.",
   "compare.advice.gain.raise": "The peak is only {peak} dBFS. Raise the receive gain or bring the device closer.",
-  "compare.frames.length_second": "On air the length differs between bursts ({lo} to {hi} symbols), but with the second layer decoded it is {slo} to {shi} bits (the last bit can be cut off where the burst ends)."
+  "compare.frames.length_second": "On air the length differs between bursts ({lo} to {hi} symbols), but with the second layer decoded it is {slo} to {shi} bits (the last bit can be cut off where the burst ends).",
+  "compare.frames.all": "All",
+  "compare.frames.all.note": "The frames joined side by side (┃ marks a frame boundary). Each frame is aligned on its own start and its positions count from 0 again. The preamble and markers are not content and are left out."
 }
