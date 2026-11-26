@@ -271,3 +271,13 @@ def test_advice_puts_the_signal_off_centre_in_a_narrower_recording(recording):
     assert out["carrier_hz"] == 433.92e6 - 100e3 and out["center_hz"] == 433.92e6 - 100e3 + 250e3
     assert out["gain"] == "ok" and out["mb_per_s"] == 4.0 and out["now_mb_per_s"] == 8.0
     assert analyze.advice(cap, [{"symbol_rate_hz": 1000.0, "peak_db": -1.0}])["gain"] == "lower"
+
+
+def test_a_weak_burst_hovering_at_the_threshold_stays_one_burst():
+    """세기가 문턱 근처에서 오르내려도 한 버스트로 잡는다(낮은 문턱으로 이어 붙인다). 높은 문턱을 한 번도 못 넘은 것은 버스트가 아니다."""
+    peak = np.full(1000, 1e-4)
+    peak[100:300] = 1e-4 * 10 ** (8 / 10)                    # 바닥보다 8 dB: 높은 문턱(10 dB)에는 못 미친다
+    peak[150:170] = peak[230:240] = 1e-4 * 10 ** (12 / 10)   # 군데군데 12 dB 로 솟는다
+    peak[600:700] = 1e-4 * 10 ** (7 / 10)                    # 7 dB 에만 머문 구간
+    found, _ = analyze.bursts({"peak": peak, "mean": peak, "block_s": 1e-3})
+    assert [(b["start_s"], b["seconds"]) for b in found] == [(0.1, 0.2)]

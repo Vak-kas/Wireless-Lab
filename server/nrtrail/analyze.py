@@ -52,7 +52,8 @@ MAX_DETAIL_SAMPLES = 16_000_000    # 자세히 보기에서 통째로 읽는 한
 CONSTELLATION_POINTS = 1500
 OCCUPIED_DROP_DB = 15.0            # 차지한 폭: 가장 센 값에서 이만큼 안에 드는 주파수의 범위
 BURST_RISE_DB = 10.0               # 바닥보다 이만큼 세면 켜진 것으로 본다
-BURST_GAP_S = 5e-3                 # 이보다 짧게 꺼진 틈은 한 버스트로 잇는다
+BURST_STAY_DB = 4.0                # 한 번 켜진 뒤에는 바닥보다 이만큼만 세도 이어진 것으로 본다(문턱 근처에서 깜빡이며 쪼개지지 않게)
+BURST_GAP_S = 10e-3                # 이보다 짧게 꺼진 틈은 한 버스트로 잇는다
 MAX_BURSTS = 300
 RAW_TYPES = {".cfile": "cf32_le", ".cf32": "cf32_le", ".iq": "cf32_le", ".cs16": "ci16_le", ".sc16": "ci16_le"}
 
@@ -221,9 +222,15 @@ def bursts(scanned: dict[str, Any]) -> tuple[list[dict[str, float]], float]:
     if len(peak_db) == 0:
         return [], 0.0
     floor = float(np.percentile(peak_db, 20))
-    on = peak_db > floor + BURST_RISE_DB
+    # 문턱을 둘 쓴다: 높은 문턱(RISE)을 한 번이라도 넘은 구간만 버스트로 치되, 그 범위는 낮은 문턱(STAY)으로 잡는다.
+    # 약한 신호는 세기가 높은 문턱 근처에서 오르내리는데, 문턱이 하나면 그때마다 버스트가 끊겨 잘게 쪼개진다.
+    strong = peak_db > floor + BURST_RISE_DB
+    on = peak_db > floor + BURST_STAY_DB
     edges = np.diff(np.concatenate([[0], on.astype(np.int8), [0]]))
     begins, ends = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
+    lit = np.concatenate([[0], np.cumsum(strong)])
+    keep = lit[ends] - lit[begins] > 0
+    begins, ends = begins[keep], ends[keep]
     step = scanned["block_s"]
     merged: list[list[int]] = []
     for b, e in zip(begins, ends, strict=True):
@@ -913,22 +920,36 @@ def compare(cap: sigmf.Capture, offset_hz: float = 0.0, bandwidth_hz: float = 0.
     items: list[dict[str, Any]] = []
     traces: list[list[float] | None] = []
     use = kind
+    if use == "auto":
+        # 방식은 가장 센 버스트에서 정한다(약하거나 짧은 조각에서 정하면 틀리기 쉽다). 다섯 개까지 해 본다
+        for b in sorted(usable, key=lambda b: (b["above_floor_db"], b["seconds"]), reverse=True)[:5]:
+            try:
+                picked, rate, _ = pick(cap, max(0.0, b["start_s"] - 0.004), b["seconds"] + 0.008, offset_hz, bandwidth_hz)
+            except AnalyzeError:
+                continue
+            guessed = guess_modulation(picked, rate)["kind"]
+            if guessed in ("ook", "fsk"):
+                use = guessed
+                break
+        if use == "auto":
+            raise AnalyzeError("변조 방식을 알아보지 못했습니다. 신호가 약하거나 버스트가 너무 짧을 수 있습니다. "
+                               "자세히 보기에서 신호를 고른 뒤 '켜고 끄기'나 '주파수 바꾸기'를 직접 골라 보세요.")
     for number, b in enumerate(usable):
         pad = 0.004
         start = max(0.0, b["start_s"] - pad)
-        picked, rate, first = pick(cap, start, b["seconds"] + 2 * pad, offset_hz, bandwidth_hz)
-        mag = np.abs(picked)
-        top = float(mag.max())
         item: dict[str, Any] = {"index": number, "start_s": b["start_s"], "seconds": b["seconds"], "peak_db": b["peak_db"]}
         items.append(item)
         traces.append(None)
+        try:
+            picked, rate, first = pick(cap, start, b["seconds"] + 2 * pad, offset_hz, bandwidth_hz)
+        except AnalyzeError as e:
+            item["error"] = str(e)
+            continue
+        mag = np.abs(picked)
+        top = float(mag.max())
         if top <= 0:
             item["error"] = "신호가 없습니다."
             continue
-        if use == "auto":                                                # 첫 버스트에서 정한 방식을 나머지에도 쓴다
-            use = guess_modulation(picked, rate)["kind"]
-            if use not in ("ook", "fsk"):
-                raise AnalyzeError("변조 방식을 알아보지 못했습니다. '켜고 끄기'나 '주파수 바꾸기'를 직접 골라 보세요.")
         smooth = np.ones(5, dtype=np.float32) / 5
         on = mag > (0.3 if use == "fsk" else 0.15) * top
         lit = np.flatnonzero(on)
