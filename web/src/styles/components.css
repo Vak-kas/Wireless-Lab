@@ -1861,3 +1861,11 @@ canvas[data-tunable] {
   display: inline-flex;
   gap: var(--space-md);
 }
+/* 책갈피로 볼 때는 고른 책갈피가 곧 그 칸의 이름이다: 칸 머리의 이름을 또 보이지 않는다(자리는 남겨 단추가 오른쪽에 머문다) */
+.bench[data-layout="tabs"] .bench-head > :first-child {
+  visibility: hidden;
+}
+.bench[data-layout="tabs"] .bench-head {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
