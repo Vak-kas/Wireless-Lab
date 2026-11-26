@@ -1040,5 +1040,21 @@
   "compare.advice.gain.raise": "가장 셀 때가 {peak} dBFS 로 약합니다. 수신 이득을 올리거나 기기를 가까이 대세요.",
   "compare.frames.length_second": "보낼 때의 길이는 {lo} ~ {hi}심볼로 버스트마다 다르지만, 둘째 층까지 풀면 {slo} ~ {shi}비트로 맞습니다(끝의 한 비트는 버스트가 끝나는 자리라 잘릴 수 있습니다).",
   "compare.frames.all": "전체",
-  "compare.frames.all.note": "프레임들을 옆으로 이어 붙인 것입니다(┃ 가 프레임의 경계). 프레임마다 그 시작에 맞췄고, 자리 번호도 프레임마다 0 부터 다시 셉니다. 앞머리와 표시는 내용이 아니라 뺐습니다."
+  "compare.frames.all.note": "프레임들을 옆으로 이어 붙인 것입니다(┃ 가 프레임의 경계). 프레임마다 그 시작에 맞췄고, 자리 번호도 프레임마다 0 부터 다시 셉니다. 앞머리와 표시는 내용이 아니라 뺐습니다.",
+  "tx.rate.fixed": "표준 시험 신호는 샘플레이트가 그 신호에 맞게 정해져 있습니다(위 칸에 표시된 값).",
+  "tx.plugin.param": "생성기의 값: {name}",
+  "tx.warn.params": "생성기에 넘기는 값",
+  "tx.plugins.title": "내 생성기 (plugins/tx)",
+  "tx.plugins.lead": "보낼 신호를 직접 만드는 자리입니다. 이 폴더에 생성기 파일(Python 또는 MATLAB)을 두면 위 목록에 나타납니다. 지금 {n}개가 있습니다. 폴더: {folder}",
+  "tx.plugins.open": "폴더 열기",
+  "tx.plugins.new": "견본으로 새 생성기 만들기",
+  "tx.plugins.reload": "다시 읽기",
+  "tx.plugins.template": "견본",
+  "tx.plugins.template.wave": "파형 생성기 (Python: I/Q 를 직접 만든다)",
+  "tx.plugins.template.wifi-frame": "Wi-Fi 프레임 생성기 (Python: 프레임 바이트만 돌려준다)",
+  "tx.plugins.template.matlab": "파형 생성기 (MATLAB)",
+  "tx.plugins.name": "이름 (영어 소문자·숫자·-)",
+  "tx.plugins.make": "만들기",
+  "tx.plugins.made": "만들었습니다: {files}. 견본 그대로라 지금은 두 톤(또는 견본 프레임)이 나갑니다. 파일을 열어 build() 를 고친 뒤 '다시 읽기'를 누르세요. 화면에서 값을 바꾸고 싶으면 INFO 에 params 항목(이름과 기본값)을 적으면 칸이 생깁니다.",
+  "tx.plugins.show": "파일 보기"
 }

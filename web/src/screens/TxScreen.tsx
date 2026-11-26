@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import type { SurveyPlan, TxReceived, TxRequest, TxResult, TxStatus } from "../api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { SurveyPlan, TxPluginFolder, TxReceived, TxRequest, TxResult, TxStatus } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Chip, Empty, Field } from "../components/ui";
 import { isSim, useUsableDevices } from "../devices/DeviceHub";
@@ -151,9 +151,30 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
   const [rxSeconds, setRxSeconds] = useState("0.2");
   const sendingRef = useRef(false);
 
-  useEffect(() => {
+  /** 사용자 생성기 자리: 폴더와 견본, 새로 만드는 칸에 적은 것, 방금 만든 파일 */
+  const [plugFolder, setPlugFolder] = useState<TxPluginFolder | null>(null);
+  const [making, setMaking] = useState<{ template: string; name: string } | null>(null);
+  const [made, setMade] = useState<string[]>([]);
+  /** 생성기마다 화면에서 고친 값(생성기 id → 이름 → 적은 글자). 안 고친 것은 생성기의 기본값을 쓴다 */
+  const [plugValues, setPlugValues] = useState<Record<string, Record<string, string>>>({});
+  /** 신호 목록과 생성기 폴더를 다시 읽는다(생성기 파일을 고치거나 새로 넣은 뒤) */
+  const reload = useCallback(() => {
     void api.txStatus().then(setStatus, () => setStatus({ available: false }));
+    void api.txPlugins().then(setPlugFolder, () => setPlugFolder(null));
   }, [api]);
+  useEffect(reload, [reload]);
+  const makePlugin = async () => {
+    if (!making) return;
+    try {
+      const got = await api.txPluginNew(making.template, making.name.trim());
+      setPlugFolder(got);
+      setMade(got.made ?? []);
+      setMaking(null);
+      reload();
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    }
+  };
 
   // 창을 닫거나 떠나면 나가던 송신을 멈춘다
   useEffect(() => {
@@ -200,13 +221,17 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
   const rxGainDb = rxGain.trim() ? n(rxGain) : (status?.receive?.default_gain_db ?? 20);
 
   /** 지금 칸에 적힌 대로의 요청(보내면서 받기는 빼고). 값이 모자라면 null */
+  // 고른 것이 사용자 생성기이고 화면에서 고친 값이 있으면 함께 보낸다
+  const chosenParams = chosen?.source === "plugin" ? (chosen.params ?? {}) : {};
+  const edited = plugValues[standard] ?? {};
+  const sentParams = Object.keys(edited).length > 0 ? Object.fromEntries(Object.entries(edited).filter(([k]) => k in chosenParams)) : null;
   const base: TxRequest = {
     device,
     center_hz: n(center) * 1e6,
     sample_rate_hz: n(rateMhz) * 1e6,
     gain_db: gainDb,
     seconds: n(seconds),
-    waveform: kind === "tone" ? { kind, offset_hz: n(offset) * 1e3, amplitude: n(amplitude) } : kind === "standard" ? { kind, standard } : { kind, path: path.trim() },
+    waveform: kind === "tone" ? { kind, offset_hz: n(offset) * 1e3, amplitude: n(amplitude) } : kind === "standard" ? { kind, standard, ...(sentParams ? { params: sentParams } : {}) } : { kind, path: path.trim() },
   };
   const complete = Boolean(device) && base.center_hz > 0 && base.sample_rate_hz > 0 && base.seconds > 0 && Number.isFinite(base.gain_db) && !(kind === "file" && !path.trim());
   const draft = complete && status?.available ? JSON.stringify(base) : "";
@@ -335,16 +360,15 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
                 {(f) => <input {...f} inputMode="decimal" value={rateMhz} onChange={(e) => setRate(e.target.value)} disabled={sending || kind === "standard"} data-testid="tx-rate" />}
               </Field>
             </div>
-            {kind !== "standard" && (
-              <div className="chips" role="group" aria-label={t("tx.rate")}>
-                {RATES.map((r) => (
-                  <Chip key={r} selected={String(r) === rate} onSelect={() => setRate(String(r))} disabled={sending}>
-                    {r} MHz
-                  </Chip>
-                ))}
-              </div>
-            )}
-            <p className="t-caption muted">{t("tx.rate.hint")}</p>
+            {/* 표준 시험 신호는 샘플레이트가 정해져 있어 고를 수 없다. 그래도 줄은 그대로 둔다: 종류를 바꿀 때마다 화면이 들썩이지 않게 */}
+            <div className="chips" role="group" aria-label={t("tx.rate")}>
+              {RATES.map((r) => (
+                <Chip key={r} selected={String(r) === rateMhz} onSelect={() => setRate(String(r))} disabled={sending || kind === "standard"}>
+                  {r} MHz
+                </Chip>
+              ))}
+            </div>
+            <p className="t-caption muted">{t(kind === "standard" ? "tx.rate.fixed" : "tx.rate.hint")}</p>
             <div className="row">
               <Field label={t("tx.gain", { max: status.max_gain_db ?? 0 })}>
                 {(f) => (
@@ -383,6 +407,30 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
                 <p className="t-caption muted">
                   {chosen?.source === "plugin" ? chosen.description || t("tx.plugin.hint") : t(`tx.standard.hint.${STANDARD_HINT[standard] ?? "wifi"}`)}
                 </p>
+                {Object.keys(chosenParams).length > 0 && (
+                  <div className="row" data-testid="tx-plugin-params">
+                    {Object.entries(chosenParams).map(([name, preset]) => (
+                      <Field key={name} label={t("tx.plugin.param", { name })}>
+                        {(f) => (
+                          <input
+                            {...f}
+                            inputMode={typeof preset === "number" ? "decimal" : undefined}
+                            value={edited[name] ?? ""}
+                            placeholder={String(preset)}
+                            onChange={(e) => {
+                              const next = { ...edited };
+                              if (e.target.value === "") delete next[name];
+                              else next[name] = e.target.value;
+                              setPlugValues({ ...plugValues, [standard]: next });
+                            }}
+                            disabled={sending}
+                            data-testid={`tx-param-${name}`}
+                          />
+                        )}
+                      </Field>
+                    ))}
+                  </div>
+                )}
                 {chosen?.frames && (
                   <p className="t-caption muted" data-testid="tx-frames-hint">
                     {t("tx.plugin.frames.hint")}
@@ -392,6 +440,57 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
                   <p className="t-caption muted" data-testid="tx-planned-note">
                     {t("tx.planned.note")}
                   </p>
+                )}
+                {plugFolder && (
+                  <div className="tx-plugins" data-testid="tx-plugins">
+                    <div className="t-caption-strong">{t("tx.plugins.title")}</div>
+                    <p className="t-caption muted">{t("tx.plugins.lead", { folder: plugFolder.folder, n: plugFolder.files.length })}</p>
+                    <div className="row">
+                      {plugFolder.can_reveal && (
+                        <Button variant="link" onClick={() => void api.txPluginReveal().catch((e: unknown) => fail(String(e instanceof Error ? e.message : e)))} data-testid="tx-plugins-open">
+                          {t("tx.plugins.open")}
+                        </Button>
+                      )}
+                      {plugFolder.templates.length > 0 && (
+                        <Button variant="link" onClick={() => setMaking(making ? null : { template: plugFolder.templates[0]!, name: "" })} data-testid="tx-plugins-new">
+                          {t("tx.plugins.new")}
+                        </Button>
+                      )}
+                      <Button variant="link" onClick={reload} data-testid="tx-plugins-reload">
+                        {t("tx.plugins.reload")}
+                      </Button>
+                    </div>
+                    {making && (
+                      <div className="row" data-testid="tx-plugins-form">
+                        <label className="record-export t-caption">
+                          <span className="muted">{t("tx.plugins.template")}</span>
+                          <select value={making.template} onChange={(e) => setMaking({ ...making, template: e.target.value })} data-testid="tx-plugins-template">
+                            {plugFolder.templates.map((k) => (
+                              <option key={k} value={k}>
+                                {t(`tx.plugins.template.${k}`)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <Field label={t("tx.plugins.name")}>
+                          {(f) => <input {...f} value={making.name} onChange={(e) => setMaking({ ...making, name: e.target.value })} placeholder="my-remote" data-testid="tx-plugins-name" />}
+                        </Field>
+                        <Button variant="secondary" onClick={() => void makePlugin()} disabled={!making.name.trim()} data-testid="tx-plugins-make">
+                          {t("tx.plugins.make")}
+                        </Button>
+                      </div>
+                    )}
+                    {made.length > 0 && (
+                      <p className="t-caption" data-testid="tx-plugins-made">
+                        {t("tx.plugins.made", { files: made.join(", ") })}{" "}
+                        {plugFolder.can_reveal && (
+                          <Button variant="link" onClick={() => void api.txPluginReveal(made[0]).catch((e: unknown) => fail(String(e instanceof Error ? e.message : e)))}>
+                            {t("tx.plugins.show")}
+                          </Button>
+                        )}
+                      </p>
+                    )}
+                  </div>
                 )}
                 {standards
                   .filter((x) => x.error)
@@ -487,6 +586,9 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
                   ["gain", `${asking.gain_db} dB`],
                   ["seconds", `${asking.seconds} s`],
                   ["waveform", asking.waveform.kind === "tone" ? t("tx.waveform.tone") : asking.waveform.kind === "standard" ? nameOf(asking.waveform.standard) : asking.waveform.path],
+                  ...(asking.waveform.kind === "standard" && asking.waveform.params
+                    ? ([["params", Object.entries(asking.waveform.params).map(([k, v]) => `${k} = ${v}`).join(", ")]] as const)
+                    : []),
                   ...(asking.receive ? ([["receive", `${label(asking.receive.device)} · ${asking.receive.gain_db} dB`]] as const) : []),
                 ] as const
               ).map(([k, v]) => (

@@ -251,3 +251,49 @@ test("프레임 생성기를 고르면 도구가 전파 모양을 만든다는 �
   await userEvent.click(screen.getByRole("button", { name: /내 프레임/ }));
   expect(screen.getByTestId("tx-frames-hint")).toHaveTextContent("검사값(FCS)을 붙이고");
 });
+
+test("내 생성기: 화면에서 고친 값이 요청과 경고창에 실리고, 견본으로 새 생성기를 만들고 다시 읽을 수 있다", async () => {
+  const a = api();
+  const status = await a.txStatus();
+  const txStatus = vi.fn(async () => ({
+    ...status,
+    standards: [...(status.standards ?? []), { id: "my-remote", sample_rate_hz: 1e6, source: "plugin" as const, label: "내 리모컨", file: "my-remote.py", params: { tone_khz: 100, note: "a" } }],
+  }));
+  a.txStatus = txStatus;
+  const folder = { folder: "/repo/plugins/tx", files: ["my-remote.py"], templates: ["wave", "wifi-frame"], can_reveal: true };
+  a.txPlugins = vi.fn(async () => folder);
+  a.txPluginNew = vi.fn(async () => ({ ...folder, files: ["my-remote.py", "probe.py"], made: ["probe.py"] }));
+  a.txPluginReveal = vi.fn(async () => ({ ok: true }));
+  renderWithStore(<TxScreen />, a);
+  await userEvent.type(await screen.findByTestId("tx-center"), "433.92");
+  // 종류를 바꿔도 샘플레이트 단추 줄은 그대로 있다(꺼질 뿐): 화면이 들썩이지 않는다
+  expect(screen.getByRole("button", { name: "20 MHz" })).not.toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "표준 시험 신호" }));
+  expect(screen.getByRole("button", { name: "20 MHz" })).toBeDisabled();
+  // 생성기가 내놓은 값마다 칸이 생긴다. 비워 두면 생성기의 기본값을 쓴다
+  await userEvent.click(screen.getByRole("button", { name: /내 리모컨/ }));
+  expect(screen.getByTestId("tx-param-tone_khz")).toHaveAttribute("placeholder", "100");
+  await userEvent.type(screen.getByTestId("tx-param-tone_khz"), "250");
+  await userEvent.click(screen.getByTestId("tx-ask"));
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("tone_khz = 250"); // 보내기 전 확인 창에 넘기는 값이 보인다
+  await userEvent.click(screen.getByTestId("tx-agree"));
+  await userEvent.click(screen.getByTestId("tx-closed"));
+  await userEvent.click(screen.getByTestId("tx-confirm"));
+  await waitFor(() => expect(a.txStart).toHaveBeenCalled());
+  expect(a.txStart).toHaveBeenCalledWith(expect.objectContaining({ sample_rate_hz: 1e6, waveform: { kind: "standard", standard: "my-remote", params: { tone_khz: "250" } } }));
+  // 생성기 자리: 폴더 열기, 견본으로 만들기, 다시 읽기
+  const plugins = screen.getByTestId("tx-plugins");
+  expect(plugins).toHaveTextContent("지금 1개가 있습니다. 폴더: /repo/plugins/tx");
+  await userEvent.click(screen.getByTestId("tx-plugins-open"));
+  expect(a.txPluginReveal).toHaveBeenCalledWith();
+  await userEvent.click(screen.getByTestId("tx-plugins-new"));
+  await userEvent.selectOptions(screen.getByTestId("tx-plugins-template"), "wifi-frame");
+  await userEvent.type(screen.getByTestId("tx-plugins-name"), "probe");
+  const before = txStatus.mock.calls.length;
+  await userEvent.click(screen.getByTestId("tx-plugins-make"));
+  expect(a.txPluginNew).toHaveBeenCalledWith("wifi-frame", "probe");
+  expect(await screen.findByTestId("tx-plugins-made")).toHaveTextContent("만들었습니다: probe.py");
+  await waitFor(() => expect(txStatus.mock.calls.length).toBeGreaterThan(before)); // 만든 뒤 목록을 다시 읽는다
+  await userEvent.click(screen.getByTestId("tx-plugins-reload"));
+  await waitFor(() => expect(txStatus.mock.calls.length).toBeGreaterThan(before + 1));
+});

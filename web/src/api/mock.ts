@@ -229,6 +229,11 @@ export const mockApi: Api = {
   deviceRescan: async () => ({ backends: [] }),
   deviceReset: async () => ({ backends: [] }),
   txStatus: async () => ({ available: false }),
+  txPlugins: async () => ({ folder: "", files: [], templates: [], can_reveal: false }),
+  txPluginNew: async () => {
+    throw new Error("mock");
+  },
+  txPluginReveal: async () => ({ ok: true }),
   txStart: async () => {
     throw new Error("mock");
   },

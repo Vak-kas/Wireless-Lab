@@ -208,9 +208,24 @@ export interface TxStatus {
     error?: string | null;
     /** 사용자 생성기가 프레임 바이트만 돌려주고, 전파 모양은 이 도구가 만드는 종류인가 */
     frames?: boolean;
+    /** 사용자 생성기의 파일 이름 */
+    file?: string;
+    /** 사용자 생성기가 화면에서 고칠 수 있게 내놓은 값들(이름 → 기본값) */
+    params?: Record<string, number | string | boolean>;
   }[];
   /** 보내면서 받기의 한도 */
   receive?: { max_seconds: number; max_samples: number; skip_seconds: number; default_gain_db: number };
+}
+
+/** 사용자 생성기 폴더 */
+export interface TxPluginFolder {
+  folder: string;
+  files: string[];
+  /** 고를 수 있는 견본: wave(파형), wifi-frame(Wi-Fi 프레임), matlab */
+  templates: string[];
+  can_reveal: boolean;
+  /** 방금 만든 파일들(txPluginNew 의 답에만) */
+  made?: string[];
 }
 
 /** 보내면서 받은 신호를 보낸 것과 견준 결과 */
@@ -259,7 +274,7 @@ export interface TxRequest {
   sample_rate_hz: number;
   gain_db: number;
   seconds: number;
-  waveform: { kind: "tone"; offset_hz: number; amplitude: number } | { kind: "standard"; standard: string } | { kind: "file"; path: string };
+  waveform: { kind: "tone"; offset_hz: number; amplitude: number } | { kind: "standard"; standard: string; params?: Record<string, string> } | { kind: "file"; path: string };
   /** 보내면서 받기: 받는 장비(보내는 장비와 같아도 된다), 수신 이득, 모을 길이 */
   receive?: { device: string; gain_db: number; seconds: number };
   /** 경고창에서 확인한 내용. 없으면 서버가 거부한다 */
@@ -812,6 +827,10 @@ export interface Api {
   /** 장비 연결을 처음부터 다시 (MATLAB 을 닫았다가 새로 띄워 찾는다) */
   deviceReset(): Promise<DeviceSearch>;
   txStatus(): Promise<TxStatus>;
+  /** 사용자 생성기 자리(plugins/tx/): 폴더와 파일들, 견본으로 새 생성기 만들기, 파일 관리자에서 보기 */
+  txPlugins(): Promise<TxPluginFolder>;
+  txPluginNew(template: string, name: string): Promise<TxPluginFolder>;
+  txPluginReveal(name?: string): Promise<{ ok: boolean }>;
   txStart(req: TxRequest): Promise<TxResult>;
   /** 여러 장비의 송신을 같은 시각에 시작시킨다. 요청마다 경고 확인이 들어 있어야 한다 */
   txStartGroup(items: TxRequest[]): Promise<TxGroupResult>;

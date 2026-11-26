@@ -2089,3 +2089,13 @@ canvas[data-tunable] {
   color: var(--fg-muted);
   opacity: 0.6;
 }
+/* 송신 설정 칸: 좁은 가운데 칸이 아니라 주어진 폭을 다 쓴다(작업판의 칸 안에서 또 좁아지지 않게) */
+.tx-setup {
+  max-width: none;
+}
+.tx-plugins {
+  display: grid;
+  gap: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--line);
+}

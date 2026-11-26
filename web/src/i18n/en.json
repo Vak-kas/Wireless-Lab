@@ -1040,5 +1040,21 @@
   "compare.advice.gain.raise": "The peak is only {peak} dBFS. Raise the receive gain or bring the device closer.",
   "compare.frames.length_second": "On air the length differs between bursts ({lo} to {hi} symbols), but with the second layer decoded it is {slo} to {shi} bits (the last bit can be cut off where the burst ends).",
   "compare.frames.all": "All",
-  "compare.frames.all.note": "The frames joined side by side (┃ marks a frame boundary). Each frame is aligned on its own start and its positions count from 0 again. The preamble and markers are not content and are left out."
+  "compare.frames.all.note": "The frames joined side by side (┃ marks a frame boundary). Each frame is aligned on its own start and its positions count from 0 again. The preamble and markers are not content and are left out.",
+  "tx.rate.fixed": "A standard test signal has its sample rate fixed to suit that signal (the value shown above).",
+  "tx.plugin.param": "Generator value: {name}",
+  "tx.warn.params": "Values passed to the generator",
+  "tx.plugins.title": "My generators (plugins/tx)",
+  "tx.plugins.lead": "This is where you make the signal to send yourself. Put a generator file (Python or MATLAB) in this folder and it appears in the list above. There are {n} now. Folder: {folder}",
+  "tx.plugins.open": "Open folder",
+  "tx.plugins.new": "New generator from a template",
+  "tx.plugins.reload": "Reload",
+  "tx.plugins.template": "Template",
+  "tx.plugins.template.wave": "Waveform generator (Python: you make the I/Q)",
+  "tx.plugins.template.wifi-frame": "Wi-Fi frame generator (Python: you return frame bytes)",
+  "tx.plugins.template.matlab": "Waveform generator (MATLAB)",
+  "tx.plugins.name": "Name (lowercase letters, digits, -)",
+  "tx.plugins.make": "Create",
+  "tx.plugins.made": "Created: {files}. It is still the template, so for now it sends two tones (or the template frame). Open the file, change build(), then press 'Reload'. To change values from the screen, add a params entry (names and defaults) to INFO and fields appear.",
+  "tx.plugins.show": "Show file"
 }
