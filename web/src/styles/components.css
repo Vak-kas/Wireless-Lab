@@ -1869,3 +1869,31 @@ canvas[data-tunable] {
   border-bottom: 0;
   padding-bottom: 0;
 }
+/* 추가해 둔 볼 곳의 고치기·지우기: 평소에는 접혀 있고, 마우스를 올리거나 키보드로 들어오면 옆으로 펼쳐진다.
+   마우스가 없는 화면(터치)에서는 올릴 수 없으므로 늘 보인다. */
+@media (hover: hover) {
+  .chip-pair .chip-remove {
+    min-width: 0;
+    max-width: 0;
+    padding: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition:
+      max-width var(--motion-normal) ease-out,
+      opacity var(--motion-normal) ease-out;
+  }
+  .chip-pair:hover .chip-remove,
+  .chip-pair:focus-within .chip-remove {
+    max-width: var(--size-touch-min);
+    min-width: calc(var(--size-touch-min) * 0.7);
+    opacity: 1;
+  }
+}
+.chip-pair .chip-remove:hover {
+  color: var(--fg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip-pair .chip-remove {
+    transition: none;
+  }
+}
