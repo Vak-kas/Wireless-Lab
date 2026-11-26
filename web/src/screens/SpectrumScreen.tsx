@@ -969,7 +969,15 @@ export function SpectrumScreen({
                     {info.plans
                       .filter((p) => p.available && p.id !== "custom")
                       .map((p) => (
-                        <Chip key={p.id} selected={p.id === plan} onSelect={() => choosePlan(p)} disabled={starting}>
+                        <Chip
+                          key={p.id}
+                          selected={p.id === plan && adding === null}
+                          onSelect={() => {
+                            setAdding(null);
+                            choosePlan(p);
+                          }}
+                          disabled={starting}
+                        >
                           {t(`spectrum.plan.${p.id}`)}
                         </Chip>
                       ))}
@@ -977,8 +985,9 @@ export function SpectrumScreen({
                       bands.map((x) => (
                         <span key={x.id} className="chip-pair">
                           <Chip
-                            selected={plan === `band:${x.id}`}
+                            selected={plan === `band:${x.id}` && adding === null}
                             onSelect={() => {
+                              setAdding(null);
                               setTyped(false);
                               setPlan(`band:${x.id}`);
                               setPicked([]);
@@ -1030,8 +1039,9 @@ export function SpectrumScreen({
                       </div>
                     </div>
                   )}
-                  {!band && <p className="t-caption muted">{t(real ? "spectrum.plan.hint_real" : "spectrum.plan.hint_sim")}</p>}
-                  {current && !band && (
+                  {/* + 로 볼 곳을 추가하는 동안에는 그 칸만 보인다(채널 맵과 안내는 대역을 골랐을 때의 것이다) */}
+                  {!band && adding === null && <p className="t-caption muted">{t(real ? "spectrum.plan.hint_real" : "spectrum.plan.hint_sim")}</p>}
+                  {current && !band && adding === null && (
                     <ChannelMap
                       key={plan}
                       plan={current}

@@ -358,7 +358,11 @@ test("+ 로 볼 곳을 추가하면 단추로 남고 바로 골라진다. 대역
   await userEvent.click(screen.getByTestId("view-run"));
   await waitFor(() => expect(a.surveySpectrum).toHaveBeenCalledWith(expect.objectContaining({ center_hz: 433.92e6, bandwidth_hz: 2e6 })));
   // 장비가 받을 수 있는 것보다 넓게 추가하면 가운데 부분만 본다
+  await userEvent.click(screen.getByRole("button", { name: "Wi-Fi 5 GHz" }));
+  expect(screen.getByTestId("channel-map")).toBeInTheDocument();
   await userEvent.click(screen.getByTestId("band-add"));
+  expect(screen.queryByTestId("channel-map")).toBeNull(); // 추가하는 동안에는 채널 맵을 숨기고, 대역 단추도 고른 표시를 뗀다
+  expect(screen.getByRole("button", { name: "Wi-Fi 5 GHz" })).toHaveAttribute("aria-pressed", "false");
   await userEvent.type(screen.getByTestId("band-center"), "3550");
   await userEvent.type(screen.getByTestId("band-width"), "100");
   await userEvent.type(screen.getByTestId("band-name"), "5G");
