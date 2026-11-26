@@ -1979,3 +1979,17 @@ canvas[data-tunable] {
   flex: 1;
   min-width: 200px;
 }
+.an-packet {
+  display: grid;
+  gap: var(--space-xxs);
+  padding: var(--space-xs) 0;
+  border-top: 1px solid var(--line);
+}
+.an-bits {
+  display: block;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 12px;
+}

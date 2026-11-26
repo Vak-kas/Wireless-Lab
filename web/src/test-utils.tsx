@@ -110,6 +110,7 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     analyzeChoose: async () => ({ path: null }),
     analyzeOpen: no,
     analyzeDetail: no,
+    analyzeDemod: no,
     analyzeCut: no,
     bandsLoad: async () => ({ bands: [] }),
     bandsSave: async (bands) => ({ bands }),

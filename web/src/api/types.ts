@@ -519,6 +519,16 @@ export interface AnalyzeDetail {
   modulation?: { kind: "ook" | "fsk" | "psk" | "unknown" | "unpicked"; shortest_on_s?: number; symbol_rate_hz?: number | null; deviation_hz?: number; tones_hz?: number[] };
 }
 
+/** 비트로 푼 결과. 패킷마다 비트와 HEX, 맨체스터 부호로 보이면 그것을 푼 것도 */
+export interface AnalyzeBits {
+  kind: "ook" | "fsk";
+  guessed: string;
+  symbol_s: number;
+  symbol_rate_hz: number;
+  packets: { start_s: number; seconds: number; bits: string; hex: string; repeats: number; manchester?: { bits: string; hex: string } }[];
+  packets_total: number;
+}
+
 /** 녹화 파일의 저장 위치와, 이 서버가 해 줄 수 있는 것 */
 export interface SavedState {
   folder: string;
@@ -736,6 +746,8 @@ export interface Api {
   analyzeChoose(): Promise<{ path: string | null }>;
   analyzeOpen(src: AnalyzeSource): Promise<AnalyzeOverview>;
   analyzeDetail(req: AnalyzeSource & { start_s: number; seconds: number; offset_hz: number; bandwidth_hz: number }): Promise<AnalyzeDetail>;
+  /** 고른 신호를 비트로 푼다. kind: "auto" | "ook" | "fsk". symbol_rate_hz 를 비우면 잰 값을 쓴다 */
+  analyzeDemod(req: AnalyzeSource & { start_s: number; seconds: number; offset_hz: number; bandwidth_hz: number; kind: string; symbol_rate_hz?: number }): Promise<AnalyzeBits>;
   analyzeCut(req: AnalyzeSource & { start_s: number; seconds: number }): Promise<{ meta_path: string; data_path: string; bytes: number; seconds: number }>;
   /** + 로 추가한 "볼 곳"을 서버에 둔다(브라우저 저장소는 주소가 바뀌면 사라진다) */
   bandsLoad(): Promise<{ bands: { id: string; name: string; center_mhz: number; width_mhz: number }[] }>;

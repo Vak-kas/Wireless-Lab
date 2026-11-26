@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import type { AnalyzeDetail, AnalyzeFile, AnalyzeGrid, AnalyzeOverview, AnalyzeSource } from "../api";
+import type { AnalyzeBits, AnalyzeDetail, AnalyzeFile, AnalyzeGrid, AnalyzeOverview, AnalyzeSource } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Field } from "../components/ui";
 import { t } from "../i18n";
@@ -212,6 +212,11 @@ export function AnalyzeScreen() {
   const [det, setDet] = useState<AnalyzeDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState("");
+  /** 비트로 풀기: 방식(자동·켜고 끄기·주파수 바꾸기), 심볼 속도(비우면 잰 값), 결과 */
+  const [demodKind, setDemodKind] = useState("auto");
+  const [baud, setBaud] = useState("");
+  const [bits, setBits] = useState<AnalyzeBits | null>(null);
+  const [demodding, setDemodding] = useState(false);
 
   const reload = useCallback(() => {
     void api.analyzeFiles().then(setFiles, () => setFiles({ folder: "", files: [], can_choose: false }));
@@ -254,6 +259,7 @@ export function AnalyzeScreen() {
   const seconds = win?.seconds;
   useEffect(() => {
     if (!src || start === undefined || seconds === undefined) return;
+    setBits(null); // 구간이나 고른 주파수가 바뀌면 전에 푼 비트는 그 신호의 것이 아니다
     let on = true;
     const timer = setTimeout(() => {
       setBusy(true);
@@ -299,6 +305,18 @@ export function AnalyzeScreen() {
       reload();
     } catch (e) {
       fail(String(e instanceof Error ? e.message : e));
+    }
+  };
+
+  const demod = async () => {
+    if (!src || !win) return;
+    setDemodding(true);
+    try {
+      setBits(await api.analyzeDemod({ ...src, start_s: win.start, seconds: win.seconds, offset_hz: pick.offset, bandwidth_hz: pick.width, kind: demodKind, symbol_rate_hz: Number(baud) > 0 ? Number(baud) : undefined }));
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    } finally {
+      setDemodding(false);
     }
   };
 
@@ -524,6 +542,49 @@ export function AnalyzeScreen() {
                     <Trace lines={freq} onSelect={(a, b) => move({ start: det.start_s + a * det.seconds, seconds: (b - a) * det.seconds })} label={t("analyze.plot.freq")} testid="analyze-freq" />
                     <p className="t-caption muted center">{t("analyze.plot.freq.note")}</p>
                   </>
+                )}
+                <h4 className="t-caption-strong">{t("analyze.bits.title")}</h4>
+                <div className="row an-buttons" data-testid="analyze-bits-controls">
+                  <label className="record-export t-caption">
+                    <span className="muted">{t("analyze.bits.kind")}</span>
+                    <select value={demodKind} onChange={(e) => setDemodKind(e.target.value)} data-testid="analyze-bits-kind">
+                      {["auto", "ook", "fsk"].map((k) => (
+                        <option key={k} value={k}>
+                          {t(`analyze.bits.kind.${k}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Field label={t("analyze.bits.baud")}>{(f) => <input {...f} inputMode="decimal" value={baud} onChange={(e) => setBaud(e.target.value)} data-testid="analyze-bits-baud" />}</Field>
+                  <Button onClick={() => void demod()} disabled={demodding || pick.width <= 0 || det.coarse} data-testid="analyze-bits-go">
+                    {demodding ? t("analyze.bits.busy") : t("analyze.bits.go")}
+                  </Button>
+                </div>
+                {pick.width <= 0 && <p className="t-caption muted">{t("analyze.bits.need")}</p>}
+                {bits && (
+                  <div data-testid="analyze-bits">
+                    <p className="t-caption">
+                      {t("analyze.bits.summary", { kind: t(`analyze.mod.${bits.kind}`), rate: num(bits.symbol_rate_hz, 0), symbol: span(bits.symbol_s), n: bits.packets_total })}
+                    </p>
+                    {bits.packets.map((p, k) => (
+                      <div className="an-packet" key={k} data-testid={`analyze-packet-${k}`}>
+                        <div className="t-caption muted">
+                          {t("analyze.bits.packet", { no: k + 1, at: num(p.start_s, 4), len: span(p.seconds), bits: p.bits.length })}
+                          {p.repeats > 1 ? ` · ${t("analyze.bits.repeats", { n: p.repeats })}` : ""}
+                        </div>
+                        <code className="an-bits">{p.bits.replace(/(.{8})/g, "$1 ").trim()}</code>
+                        <code className="an-bits">HEX {p.hex.replace(/(.{2})/g, "$1 ").trim()}</code>
+                        {p.manchester && (
+                          <>
+                            <div className="t-caption muted">{t("analyze.bits.manchester", { bits: p.manchester.bits.length })}</div>
+                            <code className="an-bits">{p.manchester.bits.replace(/(.{8})/g, "$1 ").trim()}</code>
+                            <code className="an-bits">HEX {p.manchester.hex.replace(/(.{2})/g, "$1 ").trim()}</code>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    <p className="t-caption muted">{t("analyze.bits.note")}</p>
+                  </div>
                 )}
                 {det.constellation && (
                   <>

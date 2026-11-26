@@ -79,6 +79,44 @@ def test_detail_measures_where_the_signal_sits_and_guesses_how_it_is_keyed(recor
     assert whole["modulation"]["kind"] == "unpicked"
 
 
+def test_demodulate_turns_the_picked_signal_into_bits(tmp_path):
+    rng = np.random.default_rng(5)
+    bits = [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1]
+    want = "".join(map(str, bits))
+    n = int(RATE * 0.4)
+    iq = (rng.normal(0, 1e-3, n) + 1j * rng.normal(0, 1e-3, n)).astype(np.complex64)
+    key = ook(bits, 200e3)
+    for at in (0.05, 0.10):                                             # 같은 패킷을 두 번 보낸다(리모컨처럼)
+        iq[int(at * RATE): int(at * RATE) + len(key)] += key
+    tone = fsk(bits, -300e3)
+    iq[int(0.3 * RATE): int(0.3 * RATE) + len(tone)] += tone
+    cap = analyze.source(str(write(tmp_path, iq)))
+
+    keyed = analyze.demodulate(cap, 0.04, 0.09, offset_hz=200e3, bandwidth_hz=60e3)
+    assert keyed["kind"] == "ook" and abs(keyed["symbol_s"] - 200e-6) < 15e-6
+    assert [p["bits"] for p in keyed["packets"]] == [want.rstrip("0"), want.rstrip("0")]   # 끝의 꺼짐은 내용에서 뺀다
+    assert keyed["packets"][0]["repeats"] == 2 and abs(keyed["packets"][1]["start_s"] - 0.10) < 1e-3
+    assert keyed["packets"][0]["hex"] == analyze.to_hex(want.rstrip("0"))
+
+    shifted = analyze.demodulate(cap, 0.295, len(tone) / RATE + 0.01, offset_hz=-300e3, bandwidth_hz=200e3)
+    assert shifted["kind"] == "fsk" and len(shifted["packets"]) == 1
+    assert want in shifted["packets"][0]["bits"]                          # 앞뒤 가장자리에 한두 비트가 더 붙을 수 있다
+    forced = analyze.demodulate(cap, 0.295, len(tone) / RATE + 0.01, offset_hz=-300e3, bandwidth_hz=200e3, kind="fsk", symbol_s=200e-6)
+    assert want in forced["packets"][0]["bits"]
+
+    with pytest.raises(analyze.AnalyzeError):
+        analyze.demodulate(cap, 0.04, 0.09, offset_hz=0, bandwidth_hz=0)     # 신호를 고르지 않았다
+    with pytest.raises(analyze.AnalyzeError):
+        analyze.demodulate(cap, 0.2, 0.02, offset_hz=0, bandwidth_hz=100e3)  # 잡음뿐인 곳: 방식을 알 수 없다
+
+
+def test_manchester_is_recognised_and_hex_pads_the_tail():
+    assert analyze.manchester("1001" * 4 + "0110" * 2) == "10" * 4 + "01" * 2
+    assert analyze.manchester("0" + "1001" * 6) == "10" * 6             # 두 칸씩 끊는 자리가 한 칸 밀려 있어도 찾는다
+    assert analyze.manchester("1110" * 6) is None                        # 어느 자리에서 끊어도 "11" 이 나온다: 맨체스터가 아니다
+    assert analyze.to_hex("10101") == "A8" and analyze.to_hex("11110000") == "F0"
+
+
 def test_long_windows_are_read_sparsely_and_say_so(recording, monkeypatch):
     cap, *_ = recording
     monkeypatch.setattr(analyze, "MAX_DETAIL_SAMPLES", 100_000)

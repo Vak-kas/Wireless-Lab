@@ -5,16 +5,18 @@
                    파일 전체의 스펙트로그램을 성기게 그린다.
     2. detail      고른 시간 구간을 자세히 본다: 스펙트로그램, 스펙트럼, 시간 파형, 순간 주파수, 성상도, 잰 값들.
                    offset_hz 와 bandwidth_hz 를 주면 그 주파수의 신호만 골라내고(가운데로 옮긴 뒤 저역 통과) 본다.
-    3. cut         고른 구간만 새 SigMF 파일로 잘라 낸다.
+    3. demodulate  고른 신호를 0·1 로 푼다(켜고 끄는 신호와 주파수를 바꾸는 신호). 패킷마다 비트와 HEX 를 내놓는다.
+    4. cut         고른 구간만 새 SigMF 파일로 잘라 낸다.
 
 큰 파일
     몇 GB 짜리도 메모리에 다 올리지 않는다. 훑기는 조각(CHUNK_SAMPLES)씩 읽어 블록마다 최대·평균 세기만 남기고,
     자세히 보기는 필요한 구간만 읽는다(구간이 MAX_DETAIL_SAMPLES 보다 길면 띄엄띄엄 읽고 coarse 로 알린다).
     훑은 결과는 (경로, 고친 시각, 크기)로 기억해 두어 같은 파일을 다시 열면 바로 나온다.
 
-여기서 하지 않는 것
-    비트로 풀기(복조)와 내용 해석은 하지 않는다. 모양(세기, 주파수, 폭, 박자)을 재서 보여 주는 데까지다.
-    변조 방식은 모양으로 **추정**만 한다(켜고 끄는 방식인지, 주파수를 바꾸는 방식인지).
+어디까지 하는가 (2026-11-26 사용자 결정으로 비트까지)
+    저장한 파일의 신호를 0·1 과 HEX 로 보여 주는 데까지 한다. 그 비트가 무슨 뜻인지(어떤 명령·주소·암호인지)는 해석하지 않는다.
+    변조 방식은 모양으로 **추정**한다(켜고 끄는 방식인지, 주파수를 바꾸는 방식인지). 틀릴 수 있어 화면에서 바꿀 수 있다.
+    푼 비트를 다시 내보내는 것(재전송)은 이 도구가 하지 않는다(남의 기기인 척하는 송신은 CLAUDE.md 의 금지 항목이다).
 
 단위: 시간은 초, 주파수는 Hz, 세기는 dBFS(장비가 표현할 수 있는 최대 크기를 0 dB 로 본 값. 절대 전력이 아니다).
 파일의 주파수 축은 "녹화한 가운데 주파수에서 얼마나 떨어졌는가"(offset)로 다룬다. 0 이 가운데다.
@@ -430,7 +432,152 @@ def detail(cap: sigmf.Capture, start_s: float, seconds: float, offset_hz: float 
     return out
 
 
-# ── 3. 구간 잘라 내기 ──────────────────────────────────────────────────────────
+# ── 3. 비트로 풀기 ─────────────────────────────────────────────────────────────
+
+MAX_PACKETS = 60
+MAX_BITS = 4096                    # 패킷 하나에서 내놓는 비트 수의 한도
+
+
+def pick(cap: sigmf.Capture, start_s: float, seconds: float, offset_hz: float, bandwidth_hz: float) -> tuple[np.ndarray, float, int]:
+    """구간에서 고른 주파수의 신호만 남긴 것: (신호, 그 샘플 속도, 구간의 첫 샘플 번호). detail 과 같은 길을 쓴다."""
+    rate = cap.sample_rate_hz
+    first = int(np.clip(round(start_s * rate), 0, max(cap.num_samples - 1, 0)))
+    count = int(np.clip(round(seconds * rate), 0, cap.num_samples - first))
+    if count < 64:
+        raise AnalyzeError("구간이 너무 짧거나 파일 밖입니다.")
+    if count > MAX_DETAIL_SAMPLES:
+        raise AnalyzeError(f"구간이 너무 깁니다({count / rate:.2f}초). {MAX_DETAIL_SAMPLES / rate:.2f}초 안으로 좁혀 주세요.")
+    if not bandwidth_hz or bandwidth_hz >= rate * 0.95:
+        raise AnalyzeError("먼저 풀 신호를 고르세요(스펙트럼에서 누르거나 '이 신호 고르기').")
+    iq = cap.read(first, count)
+    if offset_hz:
+        iq = iq * np.exp(-2j * np.pi * offset_hz / rate * np.arange(len(iq))).astype(np.complex64)
+    out, out_rate = lowpass(iq, rate, bandwidth_hz)
+    return out, out_rate, first
+
+
+def to_hex(bits: str) -> str:
+    """비트 문자열을 16진수로. 4의 배수가 아니면 뒤를 0 으로 채운다(앞에서부터 읽은 그대로 보이게)."""
+    padded = bits + "0" * (-len(bits) % 4)
+    return "".join(f"{int(padded[k:k + 4], 2):X}" for k in range(0, len(padded), 4))
+
+
+def manchester(bits: str) -> str | None:
+    """맨체스터 부호(비트 하나를 "01" 이나 "10" 두 칸으로 보내는 방식)면 풀어 준다. 아니면 None.
+
+    두 칸씩 끊는 자리를 0 과 1 에서 다 해 보고, "00"·"11" 이 하나도 없는 쪽을 쓴다. "10" 을 1, "01" 을 0 으로 읽는다
+    (반대 약속도 있다: 그 경우 결과의 0 과 1 이 뒤바뀐 것이다).
+    """
+    for shift in (0, 1):
+        pairs = [bits[k:k + 2] for k in range(shift, len(bits) - 1, 2)]
+        if len(pairs) >= 8 and all(pair in ("01", "10") for pair in pairs):
+            return "".join("1" if pair == "10" else "0" for pair in pairs)
+    return None
+
+
+def slice_bits(level: np.ndarray, symbol: float) -> str:
+    """0/1 로 가른 파형(level, 샘플마다 참·거짓)을 심볼 길이(symbol, 샘플 수)로 끊어 비트로.
+
+    같은 값이 이어진 토막마다 "심볼 몇 개 길이인가"를 반올림해 그만큼 적는다. 박자를 따로 맞추지 않아도
+    토막의 경계가 박자 노릇을 한다(같은 값이 아주 길게 이어지면 한두 개 틀릴 수 있다).
+    """
+    edges = np.flatnonzero(np.diff(level.astype(np.int8))) + 1
+    bounds = np.concatenate([[0], edges, [len(level)]])
+    out: list[str] = []
+    for a, b in zip(bounds[:-1], bounds[1:], strict=True):
+        n = int(round((b - a) / symbol))
+        if n >= 1:
+            out.append(("1" if level[a] else "0") * min(n, MAX_BITS))
+    return "".join(out)[:MAX_BITS]
+
+
+def symbol_length(level: np.ndarray) -> float | None:
+    """심볼 하나의 길이(샘플 수). 가장 짧은 토막들(아래 10%)을 한 심볼로 보고, 그 배수에 가까운 토막들로 다듬는다."""
+    edges = np.flatnonzero(np.diff(level.astype(np.int8))) + 1
+    lengths = np.diff(edges)                                             # 처음과 끝 토막은 잘렸을 수 있어 뺀다
+    lengths = lengths[lengths >= 3]
+    if len(lengths) < 4:
+        return None
+    unit = float(np.percentile(lengths, 10))
+    multiples = np.maximum(np.rint(lengths / unit), 1)
+    keep = multiples <= 4                                                # 아주 긴 토막(쉬는 구간)은 다듬는 데 쓰지 않는다
+    return float(np.median(lengths[keep] / multiples[keep])) if keep.any() else unit
+
+
+def demodulate(cap: sigmf.Capture, start_s: float, seconds: float, offset_hz: float, bandwidth_hz: float,
+               kind: str = "auto", symbol_s: float | None = None) -> dict[str, Any]:
+    """고른 신호를 비트로. kind 는 "ook"(켜고 끄기), "fsk"(주파수 바꾸기), "auto"(모양으로 추정한 것).
+
+    하는 순서
+      1. 신호가 켜진 곳들을 찾아 패킷으로 나눈다(꺼진 틈이 길면 다른 패킷이다).
+      2. 패킷마다 샘플을 0/1 로 가른다. ook: 크기가 문턱보다 큰가. fsk: 순간 주파수가 두 값의 가운데보다 높은가.
+      3. 심볼 길이를 잰다(symbol_s 를 주면 그 값을 쓴다).
+      4. 같은 값이 이어진 토막을 심볼 길이로 나눠 비트를 적는다. 맨체스터 부호로 보이면 그것도 풀어 함께 준다.
+    """
+    picked, rate, first = pick(cap, start_s, seconds, offset_hz, bandwidth_hz)
+    guessed = guess_modulation(picked, rate)
+    use = guessed["kind"] if kind == "auto" else kind
+    if use not in ("ook", "fsk"):
+        raise AnalyzeError("이 신호의 변조 방식을 알아보지 못했습니다. '켜고 끄기'나 '주파수 바꾸기'를 직접 골라 보세요."
+                           if kind == "auto" else f"모르는 방식입니다: {kind}")
+    mag = np.abs(picked)
+    top = float(mag.max())
+    if top <= 0:
+        raise AnalyzeError("이 구간에는 신호가 없습니다.")
+    # 순간 주파수가 한 샘플마다 흔들리는 것을 누그러뜨린다(다섯 샘플 평균)
+    smooth = np.ones(5, dtype=np.float32) / 5
+
+    if use == "fsk":
+        on = mag > 0.3 * top
+        turn = np.angle(picked[1:] * np.conj(picked[:-1])) * rate / (2 * np.pi)
+        turn = np.convolve(np.concatenate([[turn[0]], turn]), smooth, mode="same")
+        inside = turn[on]
+        lo, hi = np.percentile(inside, [10, 90])
+        level = turn > (lo + hi) / 2
+        gap = int(rate * 2e-3)                                           # 2 ms 넘게 꺼지면 다른 패킷
+    else:
+        on = mag > 0.15 * top                                            # 켜고 끄는 신호는 꺼진 동안도 패킷 안이다: 문턱을 낮춰 패킷의 범위를 잡는다
+        level = np.convolve(mag, smooth, mode="same") > 0.5 * float(np.percentile(mag[mag > 0.3 * top], 50))
+        gap = 0                                                          # 아래에서 심볼 길이를 잰 뒤 정한다
+
+    unit = symbol_s * rate if symbol_s else symbol_length(level[np.flatnonzero(on)[0]: np.flatnonzero(on)[-1] + 1] if on.any() else level)
+    if not unit or unit < 2:
+        raise AnalyzeError("심볼 길이를 재지 못했습니다(켜짐과 꺼짐이 너무 적습니다). 구간을 넓히거나 심볼 속도를 직접 적어 보세요.")
+    if use == "ook":
+        gap = int(unit * 12)                                             # 심볼 12개 넘게 꺼져 있으면 다른 패킷
+
+    begins, lengths = runs(on)
+    spans: list[list[int]] = []
+    for b, n in zip(begins, lengths, strict=True):
+        if spans and b - spans[-1][1] <= gap:
+            spans[-1][1] = int(b + n)
+        else:
+            spans.append([int(b), int(b + n)])
+    packets = []
+    for a, b in spans:
+        if b - a < unit * 4:
+            continue                                                     # 심볼 네 개도 안 되는 것은 잡음이다
+        bits = slice_bits(level[a:b], unit)
+        if use == "ook":
+            bits = bits.strip("0") or bits                               # 패킷 앞뒤의 꺼짐은 내용이 아니다
+        if len(bits) < 4:
+            continue
+        item: dict[str, Any] = {"start_s": round((first + a * cap.sample_rate_hz / rate) / cap.sample_rate_hz, 6),
+                                "seconds": round((b - a) / rate, 6), "bits": bits, "hex": to_hex(bits)}
+        plain = manchester(bits)
+        if plain:
+            item["manchester"] = {"bits": plain, "hex": to_hex(plain)}
+        packets.append(item)
+    same: dict[str, int] = {}
+    for item in packets:
+        same[item["bits"]] = same.get(item["bits"], 0) + 1
+    for item in packets:
+        item["repeats"] = same[item["bits"]]
+    return {"kind": use, "guessed": guessed["kind"], "symbol_s": round(unit / rate, 8), "symbol_rate_hz": round(rate / unit, 1),
+            "packets": packets[:MAX_PACKETS], "packets_total": len(packets)}
+
+
+# ── 4. 구간 잘라 내기 ──────────────────────────────────────────────────────────
 
 def cut(cap: sigmf.Capture, start_s: float, seconds: float) -> dict[str, Any]:
     """구간만 새 SigMF 파일로 남긴다(원본 옆, 숫자 형식은 그대로). 같은 이름이 있으면 번호를 붙인다."""
@@ -480,6 +627,11 @@ class DetailBody(FileBody):
     bandwidth_hz: float = 0.0
 
 
+class DemodBody(DetailBody):
+    kind: str = "auto"
+    symbol_rate_hz: float | None = None
+
+
 class CutBody(FileBody):
     start_s: float
     seconds: float
@@ -516,6 +668,14 @@ def register(app: FastAPI) -> None:
     def analyze_detail(body: DetailBody) -> dict[str, Any]:
         try:
             return detail(cap_of(body), body.start_s, body.seconds, body.offset_hz, body.bandwidth_hz)
+        except AnalyzeError as e:
+            raise HTTPException(400, str(e)) from e
+
+    @app.post("/api/analyze/demod")
+    def analyze_demod(body: DemodBody) -> dict[str, Any]:
+        try:
+            return demodulate(cap_of(body), body.start_s, body.seconds, body.offset_hz, body.bandwidth_hz, body.kind,
+                              1.0 / body.symbol_rate_hz if body.symbol_rate_hz and body.symbol_rate_hz > 0 else None)
         except AnalyzeError as e:
             raise HTTPException(400, str(e)) from e
 

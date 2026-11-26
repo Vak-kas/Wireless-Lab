@@ -53,8 +53,20 @@ test("파일을 열면 전체를 훑어 버스트를 보여 주고, 가장 센 �
   await waitFor(() => expect(screen.getByTestId("analyze-facts")).toHaveTextContent("주파수 바꾸기 (FSK)"));
   expect(screen.getByTestId("analyze-facts")).toHaveTextContent("±36.2 kHz");
   expect(screen.getByTestId("analyze-offset")).toHaveValue("-100");
+  // 비트로 풀기: 고른 신호를 0·1 과 HEX 로. 되풀이된 패킷은 그렇다고 알려 준다
+  a.analyzeDemod = vi.fn(async () => ({ kind: "fsk" as const, guessed: "fsk", symbol_s: 0.00025, symbol_rate_hz: 4000, packets_total: 1,
+    packets: [{ start_s: 0.5, seconds: 0.2, bits: "0101010111110000", hex: "55F0", repeats: 2, manchester: { bits: "00001100", hex: "0C" } }] }));
+  await userEvent.click(screen.getByTestId("analyze-bits-go"));
+  expect(a.analyzeDemod).toHaveBeenCalledWith({ path: "/d/key.sigmf-meta", start_s: 0.47, seconds: 0.26, offset_hz: -100e3, bandwidth_hz: 160e3, kind: "auto", symbol_rate_hz: undefined });
+  const packet = await screen.findByTestId("analyze-packet-0");
+  expect(packet).toHaveTextContent("01010101 11110000");
+  expect(packet).toHaveTextContent("HEX 55 F0");
+  expect(packet).toHaveTextContent("같은 내용이 2번");
+  expect(packet).toHaveTextContent("맨체스터 부호로 보입니다");
+  expect(screen.getByTestId("analyze-bits")).toHaveTextContent("심볼 속도 4000 /s");
   // 다른 버스트로 옮기고, 확대하고, 그 구간만 파일로 남긴다
   await userEvent.click(screen.getByTestId("analyze-burst-0"));
+  await waitFor(() => expect(screen.queryByTestId("analyze-bits")).toBeNull()); // 구간이 바뀌면 전에 푼 비트는 치운다
   await waitFor(() => expect(a.analyzeDetail).toHaveBeenLastCalledWith(expect.objectContaining({ start_s: expect.closeTo(0.097, 6), seconds: expect.closeTo(0.026, 6) })));
   await userEvent.click(screen.getByTestId("analyze-in"));
   await waitFor(() => expect(a.analyzeDetail).toHaveBeenLastCalledWith(expect.objectContaining({ start_s: expect.closeTo(0.1035, 6), seconds: expect.closeTo(0.013, 6) })));

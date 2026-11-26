@@ -275,6 +275,9 @@ export const mockApi: Api = {
   analyzeDetail: async () => {
     throw new Error("mock");
   },
+  analyzeDemod: async () => {
+    throw new Error("mock");
+  },
   analyzeCut: async () => {
     throw new Error("mock");
   },
