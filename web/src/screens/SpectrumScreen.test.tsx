@@ -473,15 +473,20 @@ test("실시간 그림: 받는 쪽이 줄을 계산해 주는 장비에서는 �
   expect(table.getAllByText("(추정)")).toHaveLength(2);
   expect(screen.getByTestId("signal-confirm-0")).toHaveTextContent("—");
   // 세부 조정: 표의 신호를 "가운데로" 하면 받던 것을 멈추고 그 주파수를 가운데로 다시 받는다. 칸의 값도 바뀐다
+  a.streamStart = vi.fn(async () => ({ ...live, id: "s3", center_hz: 5175.05e6 }));
+  a.streamState = vi.fn(async () => ({ ...live, id: "s3", center_hz: 5175.05e6 }));
+  asked.length = 0;
   await userEvent.click(screen.getByTestId("signal-tune-1"));
   await waitFor(() => expect(a.streamStart).toHaveBeenLastCalledWith({ device: "driver=uhd", center_hz: 5175.05e6, bandwidth_hz: 20e6, gain_db: undefined, taps: ["spectrum"] }));
   expect(a.streamStop).toHaveBeenCalledWith("s2");
+  // 새로 받는 것의 줄은 처음(-1)부터 다시 가져온다: 지난 번호를 들고 있으면 그림이 멈춘 것처럼 보인다
+  await waitFor(() => expect(a.streamRows).toHaveBeenCalledWith("s3", -1));
   expect(screen.getByTestId("view-center")).toHaveValue("5175.05");
   // 폭 절반으로: 같은 가운데에서 폭만 줄여 다시 받는다
   await userEvent.click(await screen.findByTestId("tune-narrow"));
-  await waitFor(() => expect(a.streamStart).toHaveBeenLastCalledWith({ device: "driver=uhd", center_hz: 5180e6, bandwidth_hz: 10e6, gain_db: undefined, taps: ["spectrum"] }));
+  await waitFor(() => expect(a.streamStart).toHaveBeenCalledTimes(2));
+  expect(a.streamStart).toHaveBeenLastCalledWith({ device: "driver=uhd", center_hz: 5175.05e6, bandwidth_hz: 10e6, gain_db: undefined, taps: ["spectrum"] });
   expect(screen.getByTestId("view-width")).toHaveValue("10");
-  await userEvent.click(screen.getByTestId("live-toggle"));
 });
 
 test("가운데 주파수와 대역폭을 직접 적으면 그대로 보고, 채널과 딱 맞으면 그 채널이 체크되며, 안 맞으면 아무 채널도 체크되지 않는다", async () => {
@@ -592,4 +597,19 @@ test("추가해 둔 곳은 서버에서 읽어 오고(앱을 다시 켜도 남�
     { id: "k", name: "KEYLESS", center_mhz: 433.92, width_mhz: 2 },
     expect.objectContaining({ name: "315 MHz", center_mhz: 315, width_mhz: 2 }),
   ]);
+  // 추가해 둔 것을 고친다: 연필을 누르면 같은 칸에 지금 값이 채워져 나오고, 저장하면 그 단추가 바뀐다(새로 생기지 않는다)
+  await userEvent.click(screen.getByTestId("band-edit-KEYLESS"));
+  expect(screen.getByTestId("band-center")).toHaveValue("433.92");
+  expect(screen.getByTestId("band-name")).toHaveValue("KEYLESS");
+  await userEvent.clear(screen.getByTestId("band-center"));
+  await userEvent.type(screen.getByTestId("band-center"), "434.016");
+  await userEvent.clear(screen.getByTestId("band-name"));
+  await userEvent.type(screen.getByTestId("band-name"), "차 키");
+  await userEvent.click(screen.getByTestId("band-save"));
+  expect(a.bandsSave).toHaveBeenLastCalledWith([
+    { id: "k", name: "차 키", center_mhz: 434.016, width_mhz: 2 },
+    expect.objectContaining({ name: "315 MHz" }),
+  ]);
+  expect(screen.getByRole("button", { name: "차 키" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("view-center")).toHaveValue("434.016");
 });

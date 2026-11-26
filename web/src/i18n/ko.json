@@ -856,5 +856,7 @@
   "tune.narrow": "폭 절반으로",
   "tune.wide": "폭 두 배로",
   "tune.here": "가운데로",
-  "signal.col.tune": "조정"
+  "signal.col.tune": "조정",
+  "view.band.edit": "{name} 고치기",
+  "view.band.update": "고친 값 저장"
 }

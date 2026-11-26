@@ -856,5 +856,7 @@
   "tune.narrow": "Half width",
   "tune.wide": "Double width",
   "tune.here": "Centre",
-  "signal.col.tune": "Tune"
+  "signal.col.tune": "Tune",
+  "view.band.edit": "Edit {name}",
+  "view.band.update": "Save changes"
 }

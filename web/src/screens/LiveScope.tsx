@@ -70,8 +70,17 @@ export function LiveScope({
       }
     : {};
 
+  // 새로 받기 시작하면(가운데를 옮기거나 폭을 바꿔 다시 받을 때도) 줄 번호가 0 부터 다시 센다. 지난번에 어디까지 가져왔는지를
+  // 들고 있으면 새 줄이 그 번호를 넘을 때까지 그림이 멈춘 것처럼 보인다. 그림과 진하기 기준도 새로 시작한다.
+  const drawn = useRef("");
   useEffect(() => {
     if (!running) return;
+    if (drawn.current !== id) {
+      drawn.current = id;
+      after.current = -1;
+      range.current = null;
+      for (const canvas of [lineRef.current, fallRef.current]) canvas?.getContext?.("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    }
     let alive = true;
     let asking = false;
     let total = 0;

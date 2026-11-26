@@ -261,7 +261,7 @@ export function SpectrumScreen({
       on = false;
     };
   }, [api]);
-  const [adding, setAdding] = useState<{ name: string; center: string; width: string } | null>(null);
+  const [adding, setAdding] = useState<{ id?: string; name: string; center: string; width: string } | null>(null); // id 가 있으면 추가해 둔 것을 고치는 중
   /** 볼 대역을 사용자가 칸에 직접 적는 중인가. 그동안에는 위에서 고른 것으로 칸을 덮어쓰지 않는다 */
   const [typed, setTyped] = useState(false);
   /**
@@ -562,8 +562,8 @@ export function SpectrumScreen({
     if (!adding || !(Number(adding.center) > 0)) return;
     const center = Number(adding.center);
     const width = Number(adding.width) > 0 ? Number(adding.width) : DEFAULT_WIDTH_MHZ;
-    const made: Band = { id: String(Date.now()), name: adding.name.trim() || `${center} MHz`, center_mhz: center, width_mhz: width };
-    keepBands([...bands, made]);
+    const made: Band = { id: adding.id ?? String(Date.now()), name: adding.name.trim() || `${center} MHz`, center_mhz: center, width_mhz: width };
+    keepBands(adding.id ? bands.map((x) => (x.id === adding.id ? made : x)) : [...bands, made]);
     setAdding(null);
     setTyped(false);
     setPlan(`band:${made.id}`);
@@ -1007,7 +1007,7 @@ export function SpectrumScreen({
                       bands.map((x) => (
                         <span key={x.id} className="chip-pair">
                           <Chip
-                            selected={plan === `band:${x.id}` && adding === null}
+                            selected={adding === null ? plan === `band:${x.id}` : adding.id === x.id}
                             onSelect={() => {
                               setAdding(null);
                               setTyped(false);
@@ -1019,7 +1019,17 @@ export function SpectrumScreen({
                           >
                             {x.name}
                           </Chip>
-                          <button type="button" className="chip-remove t-caption" aria-label={t("view.band.remove", { name: x.name })} onClick={() => removeBand(x.id)}>
+                          <button
+                            type="button"
+                            className="chip-remove t-caption"
+                            aria-label={t("view.band.edit", { name: x.name })}
+                            title={t("view.band.edit", { name: x.name })}
+                            onClick={() => setAdding({ id: x.id, name: x.name, center: String(x.center_mhz), width: String(x.width_mhz) })}
+                            data-testid={`band-edit-${x.name}`}
+                          >
+                            ✎
+                          </button>
+                          <button type="button" className="chip-remove t-caption" aria-label={t("view.band.remove", { name: x.name })} title={t("view.band.remove", { name: x.name })} onClick={() => removeBand(x.id)}>
                             ×
                           </button>
                         </span>
@@ -1028,7 +1038,7 @@ export function SpectrumScreen({
                       <button
                         type="button"
                         className="chip chip-add t-caption"
-                        aria-pressed={adding !== null}
+                        aria-pressed={adding !== null && !adding.id}
                         aria-label={t("view.band.add")}
                         title={t("view.band.add")}
                         onClick={() => setAdding(adding === null ? { name: "", center: "", width: "" } : null)}
@@ -1053,7 +1063,7 @@ export function SpectrumScreen({
                       </div>
                       <div className="row">
                         <Button onClick={addBand} disabled={!(Number(adding.center) > 0)} data-testid="band-save">
-                          {t("view.band.save")}
+                          {t(adding.id ? "view.band.update" : "view.band.save")}
                         </Button>
                         <Button variant="link" onClick={() => setAdding(null)}>
                           {t("view.band.cancel")}
