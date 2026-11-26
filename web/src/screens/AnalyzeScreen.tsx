@@ -6,6 +6,9 @@ import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { heatTable } from "./heat";
 
+/** 화면이 열리자마자 열 파일(수신 화면이 녹화하고 넘어올 때 적어 둔다) */
+const ANALYZE_NEXT = "nrtrail.analyze.next";
+
 /**
  * 신호 분석: 저장해 둔 I/Q 파일을 열어 뜯어본다. 장비는 쓰지 않는다.
  *
@@ -219,6 +222,15 @@ export function AnalyzeScreen() {
     void api.analyzeFiles().then(setFiles, () => setFiles({ folder: "", files: [], can_choose: false }));
   }, [api]);
   useEffect(reload, [reload]);
+  // 수신 화면에서 "녹화해서 분석하기"로 넘어왔으면 그 파일을 바로 연다
+  useEffect(() => {
+    const next = sessionStorage.getItem(ANALYZE_NEXT);
+    if (!next) return;
+    sessionStorage.removeItem(ANALYZE_NEXT);
+    void open({ path: next });
+    // 화면이 뜰 때 한 번만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const open = async (next: AnalyzeSource) => {
     setOpening(true);

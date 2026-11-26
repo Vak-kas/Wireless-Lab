@@ -4,6 +4,7 @@ import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field, Fold } from "../components/ui";
 import { t } from "../i18n";
+import { go } from "../router";
 import { useStore } from "../state/store";
 import { useUsableDevices } from "../devices/DeviceHub";
 import { takeIntent } from "../devices/intent";
@@ -20,6 +21,8 @@ const USIG_KEEP_MS = 60_000;
 const LIVE_EVERY_MS = 2000;
 /** 이 시간 동안 다시 안 잡힌 AP 는 목록에서 뺀다 */
 const AP_KEEP_MS = 30_000;
+/** 신호 분석 화면이 열리자마자 열 파일(녹화하고 넘어갈 때 여기에 적어 둔다). AnalyzeScreen 과 같은 이름을 쓴다 */
+export const ANALYZE_NEXT = "nrtrail.analyze.next";
 const BLE_ADV = [37, 38, 39];
 /** 수신이 이만큼 잇달아 실패하면 모니터링을 멈춘다(한두 번의 샘플 유실로는 멈추지 않는다) */
 const MAX_FAILS = 3;
@@ -277,6 +280,9 @@ export function SpectrumScreen({
   const [parts, setParts] = useState(8);
   /** 신호 해석: 이 대역에 풀이마다 맞는지와 안 맞는 이유(서버의 풀이 목록에서 온다) */
   const [fits, setFits] = useState<{ key: string; taps: StreamTapInfo[] }>({ key: "", taps: [] });
+  /** 풀이가 없는 대역: 몇 초 녹화해서 신호 분석 화면으로 넘긴다. taking 은 녹화 중일 때 지난 초 */
+  const [takeSecs, setTakeSecs] = useState(5);
+  const [taking, setTaking] = useState<number | null>(null);
   const [bleFound, setBleFound] = useState<{ devices: BleDevice[]; directed: Record<string, number>; broken: number } | null>(null);
   const [gain, setGain] = useState("");
   const [mon, setMon] = useState<MonitorState | null>(null);
@@ -639,6 +645,37 @@ export function SpectrumScreen({
     }
   };
 
+  /**
+   * 풀이가 없는 신호를 뜯어보는 길: 지금 대역을 takeSecs 초 녹화하고, 그 파일을 신호 분석 화면에서 연다.
+   * 실시간 받기와 같은 길(끊김 없이 받기 + 녹화 풀이)을 쓴다. 받는 동안 상태를 물어 서버가 "아무도 안 본다"고 끊지 않게 한다.
+   */
+  const recordAndAnalyze = async () => {
+    if (!hasRange) return;
+    setTaking(0);
+    let id = "";
+    try {
+      const started = await api.streamStart({ device, center_hz: rangeCenter, bandwidth_hz: rangeWidth, gain_db: gain.trim() ? Number(gain) : undefined, taps: ["record"] });
+      id = started.id;
+      const began = Date.now();
+      while (Date.now() - began < takeSecs * 1000) {
+        await new Promise((r) => setTimeout(r, 500));
+        setTaking((Date.now() - began) / 1000);
+        void api.streamState(id).catch(() => undefined);
+      }
+      const ended = await api.streamStop(id);
+      id = "";
+      const meta = ended.taps.record?.meta_path;
+      if (!meta) throw new Error(t("decode.record.empty"));
+      sessionStorage.setItem(ANALYZE_NEXT, meta);
+      go("analyze");
+    } catch (e) {
+      if (id) void api.streamStop(id).catch(() => undefined);
+      fail(String(e instanceof Error ? e.message : e));
+    } finally {
+      setTaking(null);
+    }
+  };
+
   /** 블루투스 LE: 광고 채널 셋을 차례로 받아 주변 기기를 모은다(누구나 받으라고 보내는 광고만 읽는다) */
   const findBle = async () => {
     setFinding(true);
@@ -963,6 +1000,21 @@ export function SpectrumScreen({
                           </ul>
                         )}
                         <p className="t-caption muted">{t("decode.none.hint")}</p>
+                        {hasRange && (
+                          <div className="row job-go" data-testid="decode-record">
+                            <div className="segments" role="group" aria-label={t("decode.record.seconds")}>
+                              {[3, 5, 10].map((n) => (
+                                <button key={n} type="button" className="segment t-caption" aria-pressed={takeSecs === n} disabled={taking !== null} onClick={() => setTakeSecs(n)} data-testid={`decode-record-${n}`}>
+                                  {t("decode.record.n", { n })}
+                                </button>
+                              ))}
+                            </div>
+                            <Button onClick={() => void recordAndAnalyze()} disabled={taking !== null || starting || liveOnAir} data-testid="decode-record-go">
+                              {taking !== null ? t("decode.record.busy", { s: taking.toFixed(1), n: takeSecs }) : t("decode.record.go")}
+                            </Button>
+                          </div>
+                        )}
+                        {hasRange && <p className="t-caption muted">{t("decode.record.note", { mb: Math.round((rangeWidth * takeSecs * 4) / 1e6) })}</p>}
                       </div>
                     )}
                   </div>

@@ -847,10 +847,10 @@
   "decode.ble": "Bluetooth LE (reads advertising to find nearby devices)",
   "decode.ble.find": "Find nearby devices on the advertising channels",
   "decode.ble.busy": "Receiving advertising channels 37, 38, 39…",
-  "decode.none": "There is no decoder for this band yet.",
+  "decode.none": "There is no decoder that runs live on this band yet. You can record it and take it apart in the signal analysis screen instead.",
   "decode.need": "Pick a band, or enter a centre frequency and bandwidth, to look for a matching decoder.",
   "decode.tap.ok": "fits this band (runs while you receive in the live view)",
-  "decode.none.hint": "For signals without a decoder (remotes, car keys and so on) the live view labels the kind by width and position, and you can record them to decode with another tool.",
+  "decode.none.hint": "For signals without a live decoder (remotes, car keys) the button below records a few seconds and opens the signal analysis screen. There you find the bursts, pick the signal, measure its modulation and decode it to bits. Press the device while it records.",
   "tune.hint": "Click the picture to receive again with that frequency in the centre.",
   "tune.cursor": "{mhz} MHz · click to centre here",
   "tune.narrow": "Half width",
@@ -949,5 +949,11 @@
   "analyze.bits.note": "Each run of the same value is divided by the symbol length. A leading 0101… is usually the preamble the receiver uses to find the beat. Which side is 0 or 1 depends on convention, and the meaning of the bits is not interpreted.",
   "heat.weak": "weak",
   "heat.strong": "strong",
-  "analyze.bits.poor": "The runs do not fit multiples of the symbol length well. The method or symbol rate may be wrong, or another signal is inside the picked width. Narrow the width or enter the symbol rate."
+  "analyze.bits.poor": "The runs do not fit multiples of the symbol length well. The method or symbol rate may be wrong, or another signal is inside the picked width. Narrow the width or enter the symbol rate.",
+  "decode.record.seconds": "Recording length",
+  "decode.record.n": "{n} s",
+  "decode.record.go": "Record and analyze",
+  "decode.record.busy": "Recording {s} / {n} s — press the device now",
+  "decode.record.empty": "Nothing was recorded (no samples came from the device).",
+  "decode.record.note": "Recording this width takes about {mb} MB. For a narrow signal, reduce the bandwidth to 2–5 MHz: the file is smaller and no samples are lost."
 }

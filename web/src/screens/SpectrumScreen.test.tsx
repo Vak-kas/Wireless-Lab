@@ -560,10 +560,27 @@ test("하는 일은 통신 방식에 묶이지 않는다: 아무 주파수나 �
   // 신호 해석: 이 대역에 맞는 풀이가 없다고 알리고, 풀이마다 무엇이 필요한지 보여 준다
   await userEvent.click(screen.getByTestId("job-decode"));
   const none = await screen.findByTestId("decode-none");
-  expect(none).toHaveTextContent("풀 수 있는 풀이가 아직 없습니다");
+  expect(none).toHaveTextContent("바로 풀어 주는 풀이는 아직 없습니다");
   await waitFor(() => expect(none).toHaveTextContent("블루투스 풀이: 가운데 주파수가 광고 채널"));
   expect(none).not.toHaveTextContent("스펙트로그램"); // 그림과 저장은 풀이가 아니다
   expect(a.streamTaps).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 433.92e6, bandwidth_hz: 2e6 });
+  // 대신 녹화해서 신호 분석으로 넘긴다: 그 대역을 녹화 풀이만 꽂아 받고, 끝나면 그 파일을 분석 화면에 넘긴다
+  const base = { id: "r1", device: "driver=uhd", running: true, error: "", center_hz: 433.92e6, sample_rate_hz: 2e6, segment_s: 0.25, segments: 1, seconds: 0.25, lost_samples: 0, overflows: 0, continuous: true, scope: null, taps: {} };
+  a.streamStart = vi.fn(async () => base);
+  a.streamState = vi.fn(async () => base);
+  a.streamStop = vi.fn(async () => ({ ...base, running: false, taps: { record: { done: 1, skipped: 0, error: "", took_s: 0, data_path: "/d/k.sigmf-data", meta_path: "/d/k.sigmf-meta" } } }));
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  await userEvent.click(screen.getByTestId("decode-record-3"));
+  expect(screen.getByTestId("decode-none")).toHaveTextContent("약 24 MB"); // 2 MHz × 3초 × 4바이트
+  await userEvent.click(screen.getByTestId("decode-record-go"));
+  expect(a.streamStart).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 433.92e6, bandwidth_hz: 2e6, gain_db: undefined, taps: ["record"] });
+  await vi.advanceTimersByTimeAsync(3600);
+  vi.useRealTimers();
+  await waitFor(() => expect(a.streamStop).toHaveBeenCalledWith("r1"));
+  await waitFor(() => expect(sessionStorage.getItem("nrtrail.analyze.next")).toBe("/d/k.sigmf-meta"));
+  expect(window.location.hash).toBe("#/analyze");
+  sessionStorage.clear();
+  window.location.hash = "";
 });
 
 test("신호 해석(블루투스 대역): 광고 채널 셋을 받아 주변 기기를 모은다", async () => {

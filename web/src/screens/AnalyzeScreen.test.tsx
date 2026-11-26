@@ -91,3 +91,13 @@ test("날것 파일은 샘플 속도를 함께 적어 열고, 녹화가 없으�
   expect(await screen.findByText(/켜졌다 꺼지는 신호를 찾지 못했습니다/)).toBeInTheDocument();
   expect(await screen.findByText(/구간이 길어 세기만 보여 줍니다/)).toBeInTheDocument();
 });
+
+test("수신 화면에서 녹화하고 넘어오면 그 파일을 바로 연다", async () => {
+  sessionStorage.setItem("nrtrail.analyze.next", "/d/k.sigmf-meta");
+  const a = fakeApi();
+  a.analyzeOpen = vi.fn(async () => ({ ...OVER, bursts: [] }));
+  a.analyzeDetail = vi.fn(async () => detail());
+  renderWithStore(<AnalyzeScreen />, a);
+  await waitFor(() => expect(a.analyzeOpen).toHaveBeenCalledWith({ path: "/d/k.sigmf-meta" }));
+  expect(sessionStorage.getItem("nrtrail.analyze.next")).toBeNull();
+});
