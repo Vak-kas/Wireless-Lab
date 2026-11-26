@@ -62,7 +62,7 @@ export function SpectrumView({
   onLive,
   onEdit,
   gainField,
-  selectorOnly,
+  actions,
 }: {
   info: SurveyDevice;
   gain: string;
@@ -79,8 +79,8 @@ export function SpectrumView({
   onEdit?: (centerMhz: number, widthMhz: number) => void;
   /** 가운데 주파수·대역폭 칸 옆에 함께 놓을 칸(수신 이득) */
   gainField?: ReactNode;
-  /** true 면 selector 만 그린다(다른 일을 하는 중이라 볼 대역 칸과 받기 단추가 필요 없다) */
-  selectorOnly?: boolean;
+  /** 있으면 받기 단추(실시간·녹화·한 번 보기) 자리에 이것을 그린다: 세기 비교나 신호 해석처럼 다른 일을 하는 중 */
+  actions?: ReactNode;
   /** 실시간으로 받는 중인지 바깥에 알린다 */
   onLive?: (running: boolean) => void;
 }) {
@@ -178,7 +178,7 @@ export function SpectrumView({
   const toggleRecord = () => (live.running ? void live.tap("record", !recording) : goLive(true));
 
   useEffect(() => {
-    if (startSignal && !live.running && !live.starting && !selectorOnly && !paused && (sim || (Number(center) > 0 && Number(width) > 0))) goLive();
+    if (startSignal && !live.running && !live.starting && !actions && !paused && (sim || (Number(center) > 0 && Number(width) > 0))) goLive();
     // 신호가 바뀔 때만 시작한다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startSignal]);
@@ -201,7 +201,7 @@ export function SpectrumView({
   const controls = (
     <div className={selector ? "card view-one" : "card view-controls"} data-testid="view-controls">
       {selector}
-      {!sim && !selectorOnly && (
+      {!sim && (
         <>
           {/* 볼 대역: 위에서 고르면 채워지고, 직접 적어도 된다(적은 값이 채널과 맞으면 위의 채널이 체크된다) */}
           <div className={selector ? "row view-target" : "row"}>
@@ -247,12 +247,13 @@ export function SpectrumView({
           )}
         </>
       )}
-      {selector && error && !selectorOnly && (
+      {selector && error && !actions && (
         <p className="t-caption" role="alert" data-testid="view-error">
           ! {error}
         </p>
       )}
-      {!selectorOnly && (
+      {actions}
+      {!actions && (
         <>
       <div className="row">
         {live.can && (

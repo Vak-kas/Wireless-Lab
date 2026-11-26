@@ -168,13 +168,13 @@ test("모니터를 멈춘 뒤 표에서 들여다보기를 누르면 그 채널�
   expect(screen.getByTestId("view-center")).toHaveValue("5180");
 });
 
-test("주변 AP 찾기: 찾은 AP의 '이 대역 고르기'로 그 AP가 쓰는 채널이 골라진다", async () => {
+test("신호 해석(Wi-Fi 대역): 찾은 AP의 '이 대역 고르기'로 그 AP가 쓰는 채널이 골라진다", async () => {
   const a = api();
   a.wifiStatus = async () => ({ available: true });
   a.wifiAps = vi.fn(async () => ({ aps: [{ ssid: "home", bssid: "AA:BB", seen_on: "ch36", primary: "ch44", width_mhz: 80, eht: true, count: 2, power_db: -31.25 }] }));
   renderWithStore(<SpectrumScreen />, a);
   await userEvent.click(await screen.findByTestId("cell-ch36"));
-  await userEvent.click(await screen.findByTestId("job-aps"));
+  await userEvent.click(await screen.findByTestId("job-decode"));
   await userEvent.click(await screen.findByTestId("ap-find"));
   expect(a.wifiAps).toHaveBeenCalledWith({ device: "driver=uhd", plan: "wifi-5g", channels: ["ch36"], gain_db: undefined });
   const table = await screen.findByTestId("ap-table");
@@ -507,16 +507,57 @@ test("가운데 주파수와 대역폭을 직접 적으면 그대로 보고, 채
   expect(width).toHaveValue("20");
 });
 
-test("하는 일을 고르면 그 일에 필요한 것만 보인다: 실시간 보기에는 볼 대역 칸과 받기 단추, 세기 비교에는 시작 단추만", async () => {
-  renderWithStore(<SpectrumScreen />, api());
+test("하는 일은 통신 방식에 묶이지 않는다: 아무 주파수나 적어 세기를 비교하고, 맞는 풀이가 없으면 그렇다고 알려 준다", async () => {
+  const a = api();
+  a.monitorStart = vi.fn(async () => {
+    throw new Error("시험");
+  });
+  a.streamTaps = vi.fn(async () => ({
+    taps: [
+      { name: "spectrum", ok: true, reason: "" },
+      { name: "wifi", ok: false, reason: "가운데 주파수가 Wi-Fi 채널(20 MHz)의 한가운데여야 합니다." },
+      { name: "ble", ok: false, reason: "가운데 주파수가 광고 채널(2402, 2426, 2480 MHz)이어야 합니다." },
+    ],
+  }));
+  renderWithStore(<SpectrumScreen />, a);
   expect(await screen.findByTestId("job-live")).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByTestId("view-center")).toBeInTheDocument();
   expect(screen.getByTestId("rx-gain")).toBeInTheDocument(); // 수신 이득은 주파수 칸 옆에 있다
   expect(screen.queryByTestId("monitor-start")).toBeNull();
+  // 세기 비교: 볼 곳을 적는 칸은 그대로 있고, 받기 단추 자리에 시작 단추가 온다. 채널도 주파수도 없으면 시작할 수 없다
   await userEvent.click(screen.getByTestId("job-levels"));
-  expect(screen.getByTestId("monitor-start")).toBeInTheDocument();
-  expect(screen.queryByTestId("view-center")).toBeNull();
+  expect(screen.getByTestId("view-center")).toBeInTheDocument();
   expect(screen.queryByTestId("view-run")).toBeNull();
-  expect(screen.queryByTestId("band-add")).toBeNull(); // 추가한 주파수는 실시간 보기에서만 쓴다
-  expect(screen.getByTestId("job-aps")).toBeDisabled(); // 이 설치에는 Wi-Fi 풀이가 없다
+  expect(screen.getByTestId("band-add")).toBeInTheDocument();
+  expect(screen.getByTestId("monitor-start")).toBeDisabled();
+  // Wi-Fi 가 아닌 주파수를 적으면 그 범위를 칸으로 나눠 비교한다
+  await userEvent.type(screen.getByTestId("view-center"), "433.92");
+  await userEvent.type(screen.getByTestId("view-width"), "2");
+  await userEvent.click(screen.getByTestId("levels-parts-4"));
+  expect(screen.getByTestId("levels-go")).toHaveTextContent("칸 하나 0.5 MHz");
+  await userEvent.click(screen.getByTestId("monitor-start"));
+  expect(a.monitorStart).toHaveBeenCalledWith({ device: "driver=uhd", plan: "custom", center_hz: 433.92e6, span_hz: 2e6, step_hz: 0.5e6, gain_db: undefined });
+  // 신호 해석: 이 대역에 맞는 풀이가 없다고 알리고, 풀이마다 무엇이 필요한지 보여 준다
+  await userEvent.click(screen.getByTestId("job-decode"));
+  const none = await screen.findByTestId("decode-none");
+  expect(none).toHaveTextContent("풀 수 있는 풀이가 아직 없습니다");
+  await waitFor(() => expect(none).toHaveTextContent("블루투스 풀이: 가운데 주파수가 광고 채널"));
+  expect(none).not.toHaveTextContent("스펙트로그램"); // 그림과 저장은 풀이가 아니다
+  expect(a.streamTaps).toHaveBeenCalledWith({ device: "driver=uhd", center_hz: 433.92e6, bandwidth_hz: 2e6 });
+});
+
+test("신호 해석(블루투스 대역): 광고 채널 셋을 받아 주변 기기를 모은다", async () => {
+  const a = api();
+  const dev = { address: "AA:01", address_type: "random" as const, name: "", company: "", company_id: null, services: [], pdu_types: ["ADV_IND"], count: 1, power_db: -40, channel: 37 };
+  a.bleScan = vi.fn(async (req: { channel: number }) => ({ channel: req.channel, packets: 1, crc_failed: 1, clipped: false, devices: [{ ...dev, channel: req.channel, name: req.channel === 38 ? "tag" : "" }], directed: {} }));
+  const device = a.surveyDevice;
+  a.surveyDevice = async (id) => {
+    const info = await device(id);
+    return { ...info, plans: [{ id: "ble", available: true, channels: 3, widths: [2], map: [37, 38, 39].map((n) => ({ name: `ch${n}`, center_hz: 2402e6, width_hz: 2e6, reachable: true })) }] };
+  };
+  renderWithStore(<SpectrumScreen />, a);
+  await userEvent.click(await screen.findByTestId("job-decode"));
+  await userEvent.click(screen.getByTestId("ble-find"));
+  const panel = await screen.findByTestId("ble-panel");
+  expect(a.bleScan).toHaveBeenCalledTimes(3);
+  expect(within(panel).getByText("tag")).toBeInTheDocument(); // 세 채널에서 본 같은 기기는 하나로 합친다
 });

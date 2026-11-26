@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
-import type { DoctorReport, Session } from "../api";
+import type { Session } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
-import { Badge, Button, Empty } from "../components/ui";
+import { Button } from "../components/ui";
 import { t } from "../i18n";
-import { go, href } from "../router";
+import { go } from "../router";
 import { useStore } from "../state/store";
 import { DeviceCard, SearchNote, useUsableDevices } from "../devices/DeviceHub";
 import { saveBench, type Pane } from "../devices/intent";
 import { PhoneTile } from "./PhoneTile";
 
-const DOCTOR_LEVEL = { ok: "ok", warn: "warn", missing: "error" } as const;
-
-/** 1. 시작: 쓸 장비를 고르고 수신·송신(작업판)이나 시나리오로 들어간다. 그 아래에 장비 상태와 최근 세션. */
+/** 1. 시작: 쓸 장비를 고르고 수신·송신(작업판)이나 시나리오로 들어간다. 준비 상태는 Settings, 지난 세션은 Sessions 에 있다. */
 const TASK_ICONS: Record<string, React.ReactNode> = {
   // 기지국 탑과 퍼지는 신호
   nr: (
@@ -82,15 +80,11 @@ export function StartScreen() {
   const { api, start } = useStore();
   const hub = useUsableDevices();
   const devices = hub.devices ?? [];
-  const [doctor, setDoctor] = useState<DoctorReport | null>(null);
-  const [recent, setRecent] = useState<Session[]>([]);
   const [busy, setBusy] = useState(false);
   const [txReady, setTxReady] = useState(false);
 
   useEffect(() => {
-    void api.doctor(true).then(setDoctor);
     void api.txStatus().then((s) => setTxReady(s.available), () => setTxReady(false));
-    void api.listSessions().then(setRecent);
   }, [api]);
 
   const real = devices.filter((d) => d.driver !== "simulated");
@@ -211,44 +205,7 @@ export function StartScreen() {
         </p>
       </Tile>
 
-      <Tile tone="dark">
-        <TileHead title={t("start.status.title")} lead={t("start.status.lead")}>
-          <a href={href("settings")}>{t("start.status.more")}</a>
-        </TileHead>
-        <div className="cards" data-testid="doctor-summary">
-          {(doctor?.checks ?? []).map((c) => (
-            <div className="card" key={c.id}>
-              <div className="t-caption muted">{c.label}</div>
-              <div className="t-body-strong">{c.detail}</div>
-              <div style={{ marginTop: "var(--space-xs)" }}>
-                <Badge level={DOCTOR_LEVEL[c.status]}>{t(`doctor.${c.status}`)}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Tile>
-
       <PhoneTile devices={devices} />
-
-      <Tile tone="parchment">
-        <TileHead title={t("start.recent.title")}>
-          <a href={href("sessions")}>{t("start.recent.all")}</a>
-        </TileHead>
-        {recent.length === 0 ? (
-          <Empty>{t("start.recent.none")}</Empty>
-        ) : (
-          <div className="cards">
-            {recent.slice(0, 6).map((s) => (
-              <a className="card" key={s.id} href={href("follow", s.id)}>
-                <div className="t-body-strong">{s.name}</div>
-                <div className="t-caption muted">
-                  {t(`source.${s.source.kind}`)} · {new Date(s.created_at).toLocaleString()}
-                </div>
-              </a>
-            ))}
-          </div>
-        )}
-      </Tile>
     </>
   );
 }

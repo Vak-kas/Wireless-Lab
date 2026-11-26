@@ -1820,7 +1820,6 @@ details.fold > .fold-body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  direction: rtl; /* 긴 경로는 끝(폴더 이름)이 보이게 앞을 줄인다 */
 }
 .save-folder-type {
   flex-basis: 100%;
@@ -1840,4 +1839,9 @@ details.fold > .fold-body {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
+}
+.decode-list {
+  margin: var(--space-xs) 0;
+  padding-left: var(--space-lg);
+  text-align: left;
 }

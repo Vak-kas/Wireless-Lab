@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }, info) => {
 
 test("연습 모드: 처음부터 끝까지 (스캔 → SSB → MIB → SIB1 → SIB19 → NTN → 추적)", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByTestId("doctor-summary")).toBeVisible();
+  await expect(page.getByTestId("home-tasks").or(page.getByTestId("home-no-device"))).toBeVisible();
   await shot(page, "01-start");
 
   await startPractice(page);
@@ -69,18 +69,18 @@ test("연습 모드: 처음부터 끝까지 (스캔 → SSB → MIB → SIB1 →
   await expect(page.locator("#ntn-result .figure")).toBeVisible();
   await shot(page, "05-ntn");
 
-  await page.getByRole("link", { name: "추적", exact: true }).click();
+  await page.getByRole("link", { name: "Track", exact: true }).click();
   await expect(page.getByTestId("track-toggle")).toBeVisible();
   await page.getByTestId("track-toggle").click();
   await expect(page.getByTestId("track-csv")).toBeVisible({ timeout: 20_000 });
   await page.getByTestId("track-toggle").click();
   await shot(page, "06-track");
 
-  await page.getByRole("link", { name: "세션", exact: true }).click();
+  await page.getByRole("link", { name: "Sessions", exact: true }).click();
   await expect(page.getByTestId("sessions-table")).toBeVisible();
   await shot(page, "07-sessions");
 
-  await page.getByRole("link", { name: "설정 · 점검" }).click();
+  await page.getByRole("link", { name: "Settings" }).click();
   await expect(page.getByTestId("doctor-table")).toBeVisible();
   await page.getByTestId("settings-save").click();
   await expect(page.getByText("저장했습니다")).toBeVisible();
@@ -123,11 +123,11 @@ test("언어: 영어로 바꾸면 화면 문구가 바뀌고, 다시 한국어�
   await page.goto("/#/settings");
   await page.getByRole("button", { name: "English" }).click();
   await page.getByTestId("settings-save").click();
-  await expect(page.getByRole("link", { name: "Start", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Home", exact: true })).toBeVisible(); // 맨 위 줄의 이름은 두 언어에서 같다
   await expect(page.getByRole("heading", { name: "Environment check" })).toBeVisible();
   await page.getByRole("button", { name: "한국어" }).click();
   await page.getByTestId("settings-save").click();
-  await expect(page.getByRole("link", { name: "시작", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "환경 점검" })).toBeVisible();
 });
 
 test("RA 관측(테스트베드 전용): SIB1 전에는 잠겨 있고, 읽은 뒤에는 기지국의 응답을 보여준다", async ({ page }) => {

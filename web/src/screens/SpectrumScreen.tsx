@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BleDevice, MonitorState, SurveyDevice, SurveyPlan, WifiAp } from "../api";
+import type { BleDevice, MonitorState, StreamTapInfo, SurveyDevice, SurveyPlan, WifiAp } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { linear, ticks } from "../components/plots/scale";
 import { Badge, Button, Chip, Empty, Field, Fold } from "../components/ui";
@@ -244,8 +244,20 @@ export function SpectrumScreen({
   const [adding, setAdding] = useState<{ name: string; center: string; width: string } | null>(null);
   /** 볼 대역을 사용자가 칸에 직접 적는 중인가. 그동안에는 위에서 고른 것으로 칸을 덮어쓰지 않는다 */
   const [typed, setTyped] = useState(false);
-  /** 이 칸에서 하는 일: 실시간 보기(한 대역을 계속 받기) / 채널별 세기 비교 / 주변 AP 찾기 */
-  const [job, setJob] = useState<"live" | "levels" | "aps">("live");
+  /**
+   * 이 칸에서 하는 일. 어느 것도 특정 통신 방식에 묶이지 않는다(볼 곳은 채널로 골라도, 주파수를 적어도 된다).
+   *   live    실시간 보기: 한 대역을 계속 받아 그린다
+   *   levels  세기 비교: 여러 곳(고른 채널들, 또는 적은 범위를 나눈 칸들)의 세기를 돌아가며 재서 비교한다
+   *   decode  신호 해석: 그 대역에 맞는 풀이가 있으면 풀어서 보여 준다(Wi-Fi 비콘 → AP, 블루투스 광고 → 기기 …)
+   */
+  const [job, setJob] = useState<"live" | "levels" | "decode">("live");
+  /** 사용자가 칸에 적은 가운데 주파수와 대역폭(MHz) */
+  const [entered, setEntered] = useState({ center: 0, width: 0 });
+  /** 세기 비교에서 적은 범위를 몇 칸으로 나눌지 */
+  const [parts, setParts] = useState(8);
+  /** 신호 해석: 이 대역에 풀이마다 맞는지와 안 맞는 이유(서버의 풀이 목록에서 온다) */
+  const [fits, setFits] = useState<{ key: string; taps: StreamTapInfo[] }>({ key: "", taps: [] });
+  const [bleFound, setBleFound] = useState<{ devices: BleDevice[]; directed: Record<string, number>; broken: number } | null>(null);
   const [gain, setGain] = useState("");
   const [mon, setMon] = useState<MonitorState | null>(null);
   const [running, setRunning] = useState(false);
@@ -319,7 +331,9 @@ export function SpectrumScreen({
       },
       (e: unknown) => fail(String(e instanceof Error ? e.message : e)),
     );
-  }, [api, device, fail, choosePlan, intent]);
+    // fail 은 오류가 뜰 때마다 새 함수가 된다. 넣어 두면 오류 하나에 장비 정보를 다시 읽어 고른 것과 적은 값이 다 풀린다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, device, choosePlan, intent]);
 
   // 모니터링: 한 바퀴가 끝나면 잠깐 쉬고 다음 바퀴를 잰다. 화면을 떠나면 멈추고 서버의 모니터를 지운다.
   const monId = mon?.id;
@@ -431,7 +445,7 @@ export function SpectrumScreen({
   const real = info?.device.driver !== "simulated";
   /** 고른 것이 사용자가 추가한 대역이면 그것 (plan 이 "band:<id>") */
   const band = bands.find((x) => `band:${x.id}` === plan);
-  const canStart = Boolean(current) && picked.length > 0;
+
   // 지금 볼 대역: 추가한 대역이면 그 값, 채널을 골랐으면 고른 채널들의 한가운데와 전체 폭
   const cellsPicked = (current?.map ?? []).filter((c) => picked.includes(c.name));
   const lo = cellsPicked.length ? Math.min(...cellsPicked.map((c) => c.center_hz - c.width_hz / 2)) : 0;
@@ -446,6 +460,7 @@ export function SpectrumScreen({
    */
   const matchTyped = (centerMhz: number, widthMhz: number) => {
     setTyped(true);
+    setEntered({ center: centerMhz, width: widthMhz });
     setAps(null);
     const lo = (centerMhz - widthMhz / 2) * 1e6;
     const hi = (centerMhz + widthMhz / 2) * 1e6;
@@ -475,10 +490,33 @@ export function SpectrumScreen({
     setPlan(home?.id ?? "");
   };
 
-  // 고른 대역에서 할 수 없는 일이면 실시간 보기로 돌아간다(추가한 주파수에는 채널이 없고, AP 찾기는 Wi-Fi 대역만)
-  const canLevels = Boolean(current) && !band;
-  const canAps = wifi && real && plan.startsWith("wifi-");
-  const doing = (job === "levels" && !canLevels) || (job === "aps" && !canAps) ? "live" : job;
+  // 지금 볼 범위: 고른 것(채널·추가한 곳)이 있으면 그것, 없으면 칸에 적은 값
+  const rangeCenter = target ? target.center_hz : typed && entered.center > 0 && entered.width > 0 ? entered.center * 1e6 : 0;
+  const rangeWidth = target ? target.width_hz : typed && entered.center > 0 && entered.width > 0 ? entered.width * 1e6 : 0;
+  const hasRange = rangeCenter > 0 && rangeWidth > 0;
+  /** 세기 비교를 채널로 하는가(채널을 골랐다), 범위를 나눠서 하는가(주파수를 적었거나 추가한 곳을 골랐다) */
+  const byChannels = Boolean(current) && !band && picked.length > 0;
+  const canStart = byChannels || (real && hasRange);
+  const doing = real ? job : "live";
+  /** 이 대역을 푸는 방법: 대역(채널 계획)에 묶인 풀이가 있으면 그것 */
+  const decoder = plan.startsWith("wifi-") && wifi ? "wifi" : plan === "ble" ? "ble" : null;
+  const fitKey = `${device}|${rangeCenter}|${rangeWidth}`;
+  useEffect(() => {
+    if (job !== "decode" || !device || !(rangeCenter > 0) || !(rangeWidth > 0)) return;
+    let on = true;
+    const key = `${device}|${rangeCenter}|${rangeWidth}`;
+    const timer = setTimeout(() => {
+      void api.streamTaps({ device, center_hz: rangeCenter, bandwidth_hz: rangeWidth }).then(
+        (r) => on && setFits({ key, taps: r.taps.filter((x) => x.name !== "spectrum" && x.name !== "record") }),
+        () => on && setFits({ key, taps: [] }),
+      );
+    }, 300);
+    return () => {
+      on = false;
+      clearTimeout(timer);
+    };
+  }, [api, job, device, rangeCenter, rangeWidth]);
+  const fitTaps = fits.key === fitKey ? fits.taps : [];
   const gainField = real ? (
     <Field label={t("spectrum.gain")}>
       {(p) => <input {...p} inputMode="decimal" value={gain} onChange={(e) => setGain(e.target.value)} data-testid="rx-gain" />}
@@ -520,13 +558,14 @@ export function SpectrumScreen({
     setStarting(true);
     try {
       const order = (current?.map ?? []).map((c) => c.name);
+      const gain_db = gain.trim() ? Number(gain) : undefined;
       setMon(
-        await api.monitorStart({
-          device,
-          plan,
-          channels: [...picked].sort((a, b) => order.indexOf(a) - order.indexOf(b)),
-          gain_db: gain.trim() ? Number(gain) : undefined,
-        }),
+        await api.monitorStart(
+          byChannels
+            ? { device, plan, channels: [...picked].sort((a, b) => order.indexOf(a) - order.indexOf(b)), gain_db }
+            : // 채널이 없는 곳: 적은 범위를 같은 폭의 칸으로 나눠 칸마다 잰다
+              { device, plan: "custom", center_hz: rangeCenter, span_hz: rangeWidth, step_hz: rangeWidth / parts, gain_db },
+        ),
       );
       live.current = { on: liveOn, gain, next: 0, last: 0 };
       fails.current = 0;
@@ -572,6 +611,30 @@ export function SpectrumScreen({
     setFinding(true);
     try {
       setAps((await api.wifiAps({ device, plan, channels: picked, gain_db: gain.trim() ? Number(gain) : undefined })).aps);
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    } finally {
+      setFinding(false);
+    }
+  };
+
+  /** 블루투스 LE: 광고 채널 셋을 차례로 받아 주변 기기를 모은다(누구나 받으라고 보내는 광고만 읽는다) */
+  const findBle = async () => {
+    setFinding(true);
+    try {
+      const devices = new Map<string, BleDevice>();
+      const directed: Record<string, number> = {};
+      let broken = 0;
+      for (const channel of BLE_ADV) {
+        const res = await api.bleScan({ device, channel, gain_db: gain.trim() ? Number(gain) : undefined });
+        broken += res.crc_failed;
+        for (const [k, v] of Object.entries(res.directed)) directed[k] = (directed[k] ?? 0) + v;
+        for (const d of res.devices) {
+          const seen = devices.get(d.address);
+          devices.set(d.address, seen ? { ...(d.power_db > seen.power_db ? d : seen), name: d.name || seen.name, count: seen.count + d.count } : d);
+        }
+      }
+      setBleFound({ devices: [...devices.values()].sort((a, b) => b.power_db - a.power_db), directed, broken });
     } catch (e) {
       fail(String(e instanceof Error ? e.message : e));
     } finally {
@@ -817,7 +880,72 @@ export function SpectrumScreen({
               target={real && !typed ? target : undefined}
               onEdit={matchTyped}
               gainField={gainField}
-              selectorOnly={doing !== "live"}
+              actions={
+                doing === "levels" ? (
+                  <div data-testid="levels-go">
+                    {!byChannels && hasRange && (
+                      <div className="row job-go">
+                        <span className="t-caption muted">{t("levels.split")}</span>
+                        <div className="segments" role="group" aria-label={t("levels.split")}>
+                          {[4, 8, 16].map((n) => (
+                            <button key={n} type="button" className="segment t-caption" aria-pressed={parts === n} onClick={() => setParts(n)} data-testid={`levels-parts-${n}`}>
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                        <span className="t-caption muted">{t("levels.split.each", { mhz: Number((rangeWidth / parts / 1e6).toFixed(3)) })}</span>
+                      </div>
+                    )}
+                    <div className="row job-go">
+                      <Button onClick={() => void begin()} disabled={starting || finding || !canStart} data-testid="monitor-start">
+                        {t("monitor.start")}
+                      </Button>
+                    </div>
+                    <p className="t-caption muted">{t(byChannels ? "levels.by_channels" : hasRange ? "levels.by_range" : "levels.need")}</p>
+                  </div>
+                ) : doing === "decode" ? (
+                  <div data-testid="decode-go">
+                    {decoder === "wifi" && (
+                      <>
+                        <p className="t-caption">{t("decode.fits", { name: t("decode.wifi") })}</p>
+                        <div className="row job-go">
+                          <Button onClick={() => void findAps()} disabled={finding || starting || picked.length === 0} data-testid="ap-find">
+                            {finding ? t("wifi.aps.busy", { n: picked.length }) : t("wifi.aps.find")}
+                          </Button>
+                        </div>
+                        <p className="t-caption muted">{t("wifi.aps.hint")}</p>
+                        {aps && <ApTable aps={aps} onPick={pickAp} />}
+                      </>
+                    )}
+                    {decoder === "ble" && (
+                      <>
+                        <p className="t-caption">{t("decode.fits", { name: t("decode.ble") })}</p>
+                        <div className="row job-go">
+                          <Button onClick={() => void findBle()} disabled={finding || starting} data-testid="ble-find">
+                            {finding ? t("decode.ble.busy") : t("decode.ble.find")}
+                          </Button>
+                        </div>
+                        {bleFound && <BleTable devices={bleFound.devices} directed={bleFound.directed} broken={bleFound.broken} />}
+                      </>
+                    )}
+                    {decoder === null && (
+                      <div data-testid="decode-none">
+                        <p className="t-caption">{t(hasRange ? "decode.none" : "decode.need")}</p>
+                        {fitTaps.length > 0 && (
+                          <ul className="t-caption muted decode-list">
+                            {fitTaps.map((x) => (
+                              <li key={x.name}>
+                                {t(`live.tap.${x.name}`)}: {x.ok ? t("decode.tap.ok") : x.reason}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <p className="t-caption muted">{t("decode.none.hint")}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : undefined
+              }
               stopSignal={stopSignal}
               startSignal={doing === "live" ? startSignal : undefined}
               onLive={setLiveOnAir}
@@ -826,8 +954,8 @@ export function SpectrumScreen({
                   {real && (
                     <>
                       <div className="segments jobs" role="group" aria-label={t("job.label")}>
-                        {(["live", "levels", "aps"] as const).map((j) => (
-                          <button key={j} type="button" className="segment t-caption" aria-pressed={doing === j} disabled={starting || (j === "levels" && !canLevels) || (j === "aps" && !canAps)} onClick={() => setJob(j)} data-testid={`job-${j}`}>
+                        {(["live", "levels", "decode"] as const).map((j) => (
+                          <button key={j} type="button" className="segment t-caption" aria-pressed={doing === j} disabled={starting} onClick={() => setJob(j)} data-testid={`job-${j}`}>
                             {t(`job.${j}`)}
                           </button>
                         ))}
@@ -846,7 +974,6 @@ export function SpectrumScreen({
                         </Chip>
                       ))}
                     {real &&
-                      doing === "live" &&
                       bands.map((x) => (
                         <span key={x.id} className="chip-pair">
                           <Chip
@@ -866,7 +993,7 @@ export function SpectrumScreen({
                           </button>
                         </span>
                       ))}
-                    {real && doing === "live" && (
+                    {real && (
                       <button
                         type="button"
                         className="chip chip-add t-caption"
@@ -903,7 +1030,7 @@ export function SpectrumScreen({
                       </div>
                     </div>
                   )}
-                  {!band && <p className="t-caption muted">{!real ? t("spectrum.plan.hint_sim") : doing === "live" ? t("spectrum.plan.hint_real") : t("spectrum.plan.hint_channels")}</p>}
+                  {!band && <p className="t-caption muted">{t(real ? "spectrum.plan.hint_real" : "spectrum.plan.hint_sim")}</p>}
                   {current && !band && (
                     <ChannelMap
                       key={plan}
@@ -916,25 +1043,12 @@ export function SpectrumScreen({
                       disabled={starting}
                     />
                   )}
-                  {(doing === "levels" || !real) && current && !band && (
+                  {!real && current && !band && (
                     <div className="row job-go">
-                      {gainField}
                       <Button onClick={() => void begin()} disabled={starting || finding || !canStart} data-testid="monitor-start">
                         {t("monitor.start")}
                       </Button>
                     </div>
-                  )}
-                  {doing === "aps" && (
-                    <>
-                      <div className="row job-go">
-                        {gainField}
-                        <Button onClick={() => void findAps()} disabled={finding || starting || picked.length === 0} data-testid="ap-find">
-                          {finding ? t("wifi.aps.busy", { n: picked.length }) : t("wifi.aps.find")}
-                        </Button>
-                      </div>
-                      <p className="t-caption muted">{t("wifi.aps.hint")}</p>
-                      {aps && <ApTable aps={aps} onPick={pickAp} />}
-                    </>
                   )}
                 </div>
               }

@@ -6,9 +6,12 @@ import { Button, LockIcon } from "./ui";
 
 const NAV: Route["screen"][] = ["start", "bench", "sim", "scan", "follow", "ntn", "track", "sessions", "settings"];
 
+const SESSION_SCREENS: Route["screen"][] = ["scan", "follow", "ntn", "track"];
+
 /** global-nav: 앱 이름, 화면 이동, 현재 세션과 입력 소스. */
 export function GlobalNav({ route }: { route: Route }) {
   const { session, job } = useStore();
+  const inSession = SESSION_SCREENS.includes(route.screen);
   return (
     <header className="global-nav t-nav-link">
       <a className="brand" href="#/">
@@ -16,8 +19,12 @@ export function GlobalNav({ route }: { route: Route }) {
       </a>
       <nav aria-label={t("nav.label")}>
         {NAV.map((screen) => {
-          const needsSession = ["scan", "follow", "ntn", "track"].includes(screen);
-          if (needsSession && !session) return null;
+          // 세션 화면(스캔·따라가기·NTN·추적)은 그 안에 있을 때만 넷 다 보인다. 밖에서는 "Follow" 하나로 접어 둔다:
+          // 세션 하나를 열었다고 맨 위 줄에 항목이 넷씩 늘어나지 않게.
+          if (SESSION_SCREENS.includes(screen)) {
+            if (!session) return null;
+            if (!inSession && screen !== "follow") return null;
+          }
           return (
             <a key={screen} href={href(screen, session?.id)} aria-current={route.screen === screen ? "page" : undefined}>
               {t(`nav.${screen}`)}
