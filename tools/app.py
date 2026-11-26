@@ -288,6 +288,12 @@ def main() -> int:
         log(f"자체 점검: 서버 {'정상' if ok else '응답 없음'} · {launcher.oai_note}")
         return 0 if ok else 1
 
+    if sys.platform == "darwin":
+        # 이 컴퓨터에 맞춘 앱 꾸러미(Dock 에 "Wireless Lab" 으로 뜨는 것)를 만들어 둔다. 이미 있고 재료가 그대로면 아무것도 안 한다.
+        # 다음에 열 때부터 실행기가 그것을 쓴다. 만들지 못해도(clang 없음 등) 지금 방식 그대로 쓰면 된다.
+        threading.Thread(target=lambda: subprocess.run([venv_bin("python"), str(ROOT / "tools" / "make_app.py"), "--check"],
+                                                       capture_output=True, check=False), daemon=True).start()
+
     try:
         import webview  # pywebview: 화면을 독립된 창으로 연다
     except ImportError:
