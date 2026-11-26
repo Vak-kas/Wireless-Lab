@@ -262,7 +262,7 @@
   "spectrum.plan.wifi-5g": "Wi-Fi 5 GHz",
   "spectrum.plan.custom": "Custom",
   "spectrum.plan.hint_sim": "A simulated device cannot retune, so the band stored in its file is split into 16 slices.",
-  "spectrum.plan.hint_real": "Pick a band and click channels, or type a centre frequency and bandwidth below (any frequency works). Save values you use often with +.",
+  "spectrum.plan.hint_real": "Pick a band and click channels, or type a centre frequency and bandwidth below (any frequency works). Add places you watch often with +.",
   "spectrum.custom.center": "Centre frequency (MHz)",
   "spectrum.custom.span": "Total span (MHz)",
   "spectrum.custom.step": "Slice width (MHz)",
@@ -695,9 +695,10 @@
   "view.band.adsb": "Aircraft position broadcast 1090 MHz",
   "view.band.gps-l1": "GPS L1",
   "view.band.nr-n78": "5G 3.5 GHz",
-  "view.band.add": "Save the current value as a place",
+  "view.band.add": "Add a place to look",
   "view.band.name": "Name (blank: the frequency)",
-  "view.band.save": "Save",
+  "view.band.save": "Add",
+  "view.band.add_hint": "Enter a centre frequency and bandwidth below, give it a name and add it. It is saved in this browser.",
   "view.band.remove": "Remove {name}",
   "spectrum.look_picked": "Put the picked range into the look fields",
   "spectrum.device_info": "Device details: {label}",
@@ -765,6 +766,7 @@
   "hub.search.cleaned": "Stopped {n} process(es) that may have been holding the device.",
   "home.devices.more": "Device details and settings",
   "view.band.cancel": "Cancel",
+  "view.band.width": "Bandwidth (MHz, blank: {n})",
   "view.target": "Looking at: centre {c} MHz · width {w} MHz",
   "view.target.none": "Pick a place to look, or enter a centre frequency and bandwidth.",
   "view.target.clipped": "The picked range is wide, so only the middle {mhz} MHz is shown.",
@@ -854,7 +856,5 @@
   "tune.narrow": "Half width",
   "tune.wide": "Double width",
   "tune.here": "Centre",
-  "signal.col.tune": "Tune",
-  "view.band.what": "Saves what is in the fields now: centre {center} MHz · width {width} MHz",
-  "view.band.need": "First enter a centre frequency (and bandwidth) in the fields below. That value is saved under a name."
+  "signal.col.tune": "Tune"
 }

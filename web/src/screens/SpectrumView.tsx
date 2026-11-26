@@ -66,6 +66,7 @@ export function SpectrumView({
   onEdit,
   gainField,
   actions,
+  bare,
 }: {
   info: SurveyDevice;
   gain: string;
@@ -84,6 +85,8 @@ export function SpectrumView({
   gainField?: ReactNode;
   /** 있으면 받기 단추(실시간·녹화·한 번 보기) 자리에 이것을 그린다: 세기 비교나 신호 해석처럼 다른 일을 하는 중 */
   actions?: ReactNode;
+  /** true 면 selector 만 그린다: 위에서 볼 곳을 추가하는 중이라 볼 대역 칸과 단추를 잠시 치운다(같은 칸이 둘로 보이지 않게) */
+  bare?: boolean;
   /** 실시간으로 받는 중인지 바깥에 알린다 */
   onLive?: (running: boolean) => void;
 }) {
@@ -220,7 +223,7 @@ export function SpectrumView({
   const controls = (
     <div className={selector ? "card view-one" : "card view-controls"} data-testid="view-controls">
       {selector}
-      {!sim && (
+      {!sim && !bare && (
         <>
           {/* 볼 대역: 위에서 고르면 채워지고, 직접 적어도 된다(적은 값이 채널과 맞으면 위의 채널이 체크된다) */}
           <div className={selector ? "row view-target" : "row"}>
@@ -271,8 +274,8 @@ export function SpectrumView({
           ! {error}
         </p>
       )}
-      {actions}
-      {!actions && (
+      {!bare && actions}
+      {!actions && !bare && (
         <>
       <div className="row">
         {live.can && (

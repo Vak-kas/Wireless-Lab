@@ -262,7 +262,7 @@
   "spectrum.plan.wifi-5g": "Wi-Fi 5 GHz",
   "spectrum.plan.custom": "직접 지정",
   "spectrum.plan.hint_sim": "모의 장비는 주파수를 바꿀 수 없어서, 저장 파일에 담긴 대역을 16칸으로 나눠 봅니다.",
-  "spectrum.plan.hint_real": "대역을 고르고 채널을 누르거나, 아래 칸에 가운데 주파수와 대역폭을 직접 적으세요(어떤 주파수든 됩니다). 자주 보는 값은 + 로 저장해 둡니다.",
+  "spectrum.plan.hint_real": "대역을 고르고 채널을 누르거나, 아래 칸에 가운데 주파수와 대역폭을 직접 적으세요(어떤 주파수든 됩니다). 자주 보는 곳은 + 로 추가해 둡니다.",
   "spectrum.custom.center": "가운데 주파수 (MHz)",
   "spectrum.custom.span": "전체 폭 (MHz)",
   "spectrum.custom.step": "한 칸 폭 (MHz)",
@@ -695,9 +695,10 @@
   "view.band.adsb": "항공기 위치 방송 1090 MHz",
   "view.band.gps-l1": "GPS L1",
   "view.band.nr-n78": "5G 3.5 GHz",
-  "view.band.add": "지금 값을 볼 곳으로 저장",
+  "view.band.add": "볼 곳 추가",
   "view.band.name": "이름 (비우면 주파수)",
-  "view.band.save": "저장",
+  "view.band.save": "추가",
+  "view.band.add_hint": "아래 칸에 가운데 주파수와 대역폭을 넣고 이름을 붙여 등록하세요. 이 브라우저에 저장됩니다.",
   "view.band.remove": "{name} 지우기",
   "spectrum.look_picked": "고른 범위를 들여다보기 칸에 넣기",
   "spectrum.device_info": "장비 정보: {label}",
@@ -765,6 +766,7 @@
   "hub.search.cleaned": "장비를 잡고 있었을 수 있는 프로세스 {n}개를 끝냈습니다.",
   "home.devices.more": "장비 정보·설정",
   "view.band.cancel": "취소",
+  "view.band.width": "대역폭 (MHz, 비우면 {n})",
   "view.target": "볼 대역: 가운데 {c} MHz · 폭 {w} MHz",
   "view.target.none": "볼 곳을 고르거나, 가운데 주파수와 대역폭을 적으세요.",
   "view.target.clipped": "고른 범위가 넓어 가운데 {mhz} MHz 만 봅니다.",
@@ -854,7 +856,5 @@
   "tune.narrow": "폭 절반으로",
   "tune.wide": "폭 두 배로",
   "tune.here": "가운데로",
-  "signal.col.tune": "조정",
-  "view.band.what": "지금 칸의 값을 저장합니다: 가운데 {center} MHz · 폭 {width} MHz",
-  "view.band.need": "먼저 아래 칸에 가운데 주파수(와 대역폭)를 적으세요. 그 값을 이름 붙여 저장합니다."
+  "signal.col.tune": "조정"
 }
