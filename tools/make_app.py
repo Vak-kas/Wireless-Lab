@@ -31,6 +31,8 @@ ICON = ROOT / "Wireless Lab.app" / "Contents" / "Resources" / "AppIcon.icns"
 BUNDLE = ROOT / "sessions" / "run" / "Wireless Lab.app"
 NAME = "Wireless Lab"
 WHY = "Wireless Lab 의 프로그램과 저장한 신호 파일이 이 폴더에 있습니다."
+WHY_BLUETOOTH = "이 컴퓨터의 블루투스로 주변 기기가 방송하는 광고(이름, 제조사, 세기)를 봅니다. 연결하지 않습니다."
+WHY_LOCATION = "macOS 는 위치 권한이 있어야 주변 Wi-Fi 망의 이름을 알려 줍니다. 위치 자체는 쓰지도 저장하지도 않습니다."
 
 
 def venv_python() -> Path:
@@ -80,10 +82,17 @@ def build() -> int:
         # macOS 가 폴더 접근을 물을 때 보여 주는 까닭
         "NSDesktopFolderUsageDescription": WHY, "NSDocumentsFolderUsageDescription": WHY, "NSDownloadsFolderUsageDescription": WHY,
         "NSRemovableVolumesUsageDescription": WHY,
+        # 이 앱 아래에서 도는 프로그램들이 쓰는 것. 까닭이 적혀 있지 않으면 macOS 가 묻지도 않고 그 프로그램을 죽인다
+        # ("privacy-sensitive data without a usage description"): 블루투스 주변 기기 보기, Wi-Fi 망 이름 보기(위치 권한이 필요하다)
+        "NSBluetoothAlwaysUsageDescription": WHY_BLUETOOTH, "NSBluetoothPeripheralUsageDescription": WHY_BLUETOOTH,
+        "NSLocationWhenInUseUsageDescription": WHY_LOCATION, "NSLocationUsageDescription": WHY_LOCATION,
         "WirelessLabStamp": stamp(),
     }
     with (BUNDLE / "Contents" / "Info.plist").open("wb") as f:
         plistlib.dump(info, f)
+    # 파일에 붙은 꼬리표(Finder 정보 등)를 뗀다: 붙어 있으면 서명이 거부된다("detritus not allowed").
+    # 데스크탑처럼 동기화되는 폴더에서는 파일을 복사할 때 저절로 붙기도 한다
+    subprocess.run(["xattr", "-cr", str(BUNDLE)], capture_output=True, check=False)
     # 이 컴퓨터에서만 쓰는 서명(인증서 없이). 서명이 있어야 macOS 가 폴더 접근을 "물어볼" 수 있다
     signed = subprocess.run(["codesign", "--force", "--sign", "-", str(BUNDLE)], capture_output=True, text=True)
     if signed.returncode != 0:
