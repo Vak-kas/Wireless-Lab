@@ -4,6 +4,7 @@ import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Field } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { heatTable } from "./heat";
 
 /**
  * 신호 분석: 저장해 둔 I/Q 파일을 열어 뜯어본다. 장비는 쓰지 않는다.
@@ -26,11 +27,6 @@ const khz = (hz: number) => `${num(hz / 1e3, 1)} kHz`;
 
 /** 캔버스의 글자색(토큰의 계산된 값). 그릴 때는 이 색에 투명도(globalAlpha)만 바꿔 쓴다 */
 const inkCss = (el: HTMLElement) => getComputedStyle(el).color;
-/** 같은 색을 [r, g, b] 숫자로(점 하나하나의 진하기를 직접 채우는 스펙트로그램용) */
-function inkOf(el: HTMLElement): [number, number, number] {
-  const m = inkCss(el).match(/\d+(\.\d+)?/g) ?? ["0", "0", "0"];
-  return [Number(m[0]), Number(m[1]), Number(m[2])];
-}
 const noCanvas = () => navigator.userAgent.includes("jsdom"); // 테스트 환경에는 캔버스 그리기가 없다
 
 /** 그림 위에서 가로로 끌어 구간을 고른다. 0 ~ 1 의 비율로 알려 준다. 끌지 않고 누르기만 하면 onPick */
@@ -68,7 +64,7 @@ function useDrag(onSelect?: (a: number, b: number) => void, onPick?: (at: number
   };
 }
 
-/** 스펙트로그램: 가로가 시간, 세로가 주파수(위가 높은 쪽), 진할수록 세다. sel 은 고른 시간 구간, band 는 고른 주파수 띠(둘 다 0 ~ 1) */
+/** 스펙트로그램: 가로가 시간, 세로가 주파수(위가 높은 쪽). 색은 약한 것(어두운 보라) → 센 것(밝은 노랑). sel 은 고른 시간 구간, band 는 고른 주파수 띠(둘 다 0 ~ 1) */
 function Heat({ grid, sel, band, onSelect, label, testid }: { grid: AnalyzeGrid; sel?: [number, number] | null; band?: [number, number] | null; onSelect?: (a: number, b: number) => void; label: string; testid: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drag = useDrag(onSelect);
@@ -81,16 +77,17 @@ function Heat({ grid, sel, band, onSelect, label, testid }: { grid: AnalyzeGrid;
     const flat = grid.db.flat().sort((a, b) => a - b);
     const lo = flat[Math.floor(flat.length * 0.3)] ?? -100;
     const hi = Math.max(flat[flat.length - 1] ?? lo + 1, lo + 10);
-    const [r, gg, b] = inkOf(c);
+    const colors = heatTable();
     const img = g.createImageData(grid.cols, grid.rows);
     for (let x = 0; x < grid.cols; x++) {
       const col = grid.db[x]!;
       for (let y = 0; y < grid.rows; y++) {
         const k = ((grid.rows - 1 - y) * grid.cols + x) * 4; // 위쪽이 높은 주파수
+        const [r, gg, b] = colors[Math.round(255 * Math.min(1, Math.max(0, (col[y]! - lo) / (hi - lo))))]!;
         img.data[k] = r;
         img.data[k + 1] = gg;
         img.data[k + 2] = b;
-        img.data[k + 3] = Math.round(255 * Math.min(1, Math.max(0, (col[y]! - lo) / (hi - lo))));
+        img.data[k + 3] = 255;
       }
     }
     g.putImageData(img, 0, 0);
@@ -387,7 +384,9 @@ export function AnalyzeScreen() {
               <span>{span(total)}</span>
             </div>
             <Trace lines={envelope} sel={overSel} onSelect={(a, b) => move({ start: a * total, seconds: (b - a) * total })} label={t("analyze.plot.envelope")} testid="analyze-over-envelope" />
-            <p className="t-caption muted center">{t("analyze.over.caption")}</p>
+            <p className="t-caption muted center">
+              {LEGEND()} {t("analyze.over.caption")}
+            </p>
 
             <h4 className="t-caption-strong">{t("analyze.bursts.title", { n: over.bursts.length })}</h4>
             {over.bursts.length === 0 ? (
@@ -505,7 +504,9 @@ export function AnalyzeScreen() {
                 <Heat grid={det.spectrogram} band={band} onSelect={(a, b) => move({ start: det.start_s + a * det.seconds, seconds: (b - a) * det.seconds })} label={t("analyze.plot.spectrogram")} testid="analyze-heat" />
                 <div className="an-axis t-caption muted">
                   <span>{num(det.start_s, 5)} s</span>
-                  <span>{t("analyze.detail.heat_hint")}</span>
+                  <span>
+                    {LEGEND()} {t("analyze.detail.heat_hint")}
+                  </span>
                   <span>+{span(det.seconds)}</span>
                 </div>
 
@@ -564,8 +565,9 @@ export function AnalyzeScreen() {
                 {bits && (
                   <div data-testid="analyze-bits">
                     <p className="t-caption">
-                      {t("analyze.bits.summary", { kind: t(`analyze.mod.${bits.kind}`), rate: num(bits.symbol_rate_hz, 0), symbol: span(bits.symbol_s), n: bits.packets_total })}
+                      {t("analyze.bits.summary", { kind: t(`analyze.mod.${bits.kind}`), rate: num(bits.symbol_rate_hz, 0), symbol: span(bits.symbol_s), n: bits.packets_total, fit: Math.round(bits.fit * 100) })}
                     </p>
+                    {bits.fit < 0.8 && <Badge level="warn">{t("analyze.bits.poor")}</Badge>}
                     {bits.packets.map((p, k) => (
                       <div className="an-packet" key={k} data-testid={`analyze-packet-${k}`}>
                         <div className="t-caption muted">
@@ -604,6 +606,13 @@ export function AnalyzeScreen() {
     </>
   );
 }
+
+/** 스펙트로그램의 색 띠: 약함 → 셈 */
+const LEGEND = () => (
+  <span className="heat-legend">
+    {t("heat.weak")} <i aria-hidden="true" /> {t("heat.strong")}
+  </span>
+);
 
 /** 버스트를 앞뒤로 조금 여유를 두고 보는 구간 */
 function around(startS: number, seconds: number, total: number): Window {

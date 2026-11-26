@@ -52,6 +52,11 @@
   --color-viz-cat-5-on-dark: #b9a3f0;
   --color-viz-cat-6: #1f7f74;
   --color-viz-cat-6-on-dark: #62cdbf;
+  --color-viz-heat-0: #440154;
+  --color-viz-heat-1: #3b528b;
+  --color-viz-heat-2: #21918c;
+  --color-viz-heat-3: #5ec962;
+  --color-viz-heat-4: #fde725;
   --radius-none: 0px;
   --radius-xs: 5px;
   --radius-sm: 8px;

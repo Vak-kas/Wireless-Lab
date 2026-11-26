@@ -3,6 +3,7 @@ import type { SeenSignal, StreamTapState } from "../api";
 import { Button } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
+import { heatTable } from "./heat";
 
 const POLL_MS = 100; // 화면이 새 줄을 가져오는 간격(초당 10 번. 한 번에 두 줄쯤 온다)
 const HISTORY = 400; // 스펙트로그램에 남기는 줄 수(줄 하나가 50 ms 면 20 초)
@@ -103,7 +104,6 @@ export function LiveScope({
       setShown({ rows: total, lo, hi });
       if (navigator.userAgent.includes("jsdom")) return; // 테스트 환경에는 캔버스 그리기가 없다
       const inkCss = getComputedStyle(fall).color; // 글자색 토큰(계산된 값)
-      const ink = (inkCss.match(/\d+(\.\d+)?/g) ?? ["0", "0", "0"]).slice(0, 3).map(Number);
 
       // 스펙트로그램: 가로는 위 그림과 같은 주파수, 세로는 시간. 있던 그림을 아래로 밀고 새 줄들을 맨 위에 붙인다(맨 위가 지금)
       const f = fall.getContext("2d");
@@ -113,15 +113,17 @@ export function LiveScope({
         f.globalCompositeOperation = "copy"; // 밀 때 겹쳐 칠하지 않고 그대로 옮긴다
         f.drawImage(fall, 0, n);
         f.globalCompositeOperation = "source-over";
+        const colors = heatTable();
         const image = f.createImageData(bins, n);
         for (let j = 0; j < n; j++) {
           const row = max[max.length - 1 - j]!; // 가장 새 줄이 맨 위
           for (let b = 0; b < bins; b++) {
             const i = (j * bins + b) * 4;
-            image.data[i] = ink[0] ?? 0;
-            image.data[i + 1] = ink[1] ?? 0;
-            image.data[i + 2] = ink[2] ?? 0;
-            image.data[i + 3] = Math.round(255 * Math.max(0, Math.min(1, (row[b]! - lo) / (hi - lo))));
+            const [r, g, bl] = colors[Math.round(255 * Math.max(0, Math.min(1, (row[b]! - lo) / (hi - lo))))]!;
+            image.data[i] = r;
+            image.data[i + 1] = g;
+            image.data[i + 2] = bl;
+            image.data[i + 3] = 255;
           }
         }
         f.putImageData(image, 0, 0);
@@ -204,6 +206,11 @@ export function LiveScope({
         <span className="scope-when scope-now t-caption">{t("live.scope.now")}</span>
         <span className="scope-when scope-then t-caption">{t("live.scope.ago", { s: ((HISTORY * rowMs) / 1e3).toFixed(0) })}</span>
       </div>
+      <p className="t-caption muted center">
+        <span className="heat-legend">
+          {t("heat.weak")} <i aria-hidden="true" /> {t("heat.strong")}
+        </span>
+      </p>
       <p className="t-caption muted center" data-testid="live-scope-note">
         {shown ? t("live.scope.caption", { s: ((HISTORY * rowMs) / 1e3).toFixed(0), lo: shown.lo.toFixed(0), hi: shown.hi.toFixed(0), n: Math.round(1e3 / Math.max(rowMs, 1)) }) : t("live.scope.waiting")}
       </p>

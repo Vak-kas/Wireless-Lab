@@ -492,16 +492,46 @@ def slice_bits(level: np.ndarray, symbol: float) -> str:
 
 
 def symbol_length(level: np.ndarray) -> float | None:
-    """심볼 하나의 길이(샘플 수). 가장 짧은 토막들(아래 10%)을 한 심볼로 보고, 그 배수에 가까운 토막들로 다듬는다."""
+    """심볼 하나의 길이(샘플 수).
+
+    같은 값이 이어진 토막들의 길이를 본다. 토막을 짧은 것부터 늘어놓고 "시간으로 따져" 아래 10% 자리에 있는 토막을 한 심볼로 본다.
+    개수가 아니라 시간으로 따지는 까닭: 잡음 때문에 생긴 두세 샘플짜리 토막은 개수는 많아도 차지하는 시간은 거의 없다
+    (개수로 따지면 그 잡티가 심볼 길이로 잡혀, 진짜 심볼 하나가 비트 수백 개로 풀린다).
+    그다음 그 배수에 가까운 토막들로 다듬는다.
+    """
     edges = np.flatnonzero(np.diff(level.astype(np.int8))) + 1
     lengths = np.diff(edges)                                             # 처음과 끝 토막은 잘렸을 수 있어 뺀다
-    lengths = lengths[lengths >= 3]
     if len(lengths) < 4:
         return None
-    unit = float(np.percentile(lengths, 10))
-    multiples = np.maximum(np.rint(lengths / unit), 1)
+    ordered = np.sort(lengths)
+    share = np.cumsum(ordered) / ordered.sum()
+    unit = float(ordered[min(int(np.searchsorted(share, 0.10)), len(ordered) - 1)])
+    real = lengths[lengths >= 0.5 * unit]
+    multiples = np.maximum(np.rint(real / unit), 1)
     keep = multiples <= 4                                                # 아주 긴 토막(쉬는 구간)은 다듬는 데 쓰지 않는다
-    return float(np.median(lengths[keep] / multiples[keep])) if keep.any() else unit
+    return float(np.median(real[keep] / multiples[keep])) if keep.any() else unit
+
+
+def tidy(level: np.ndarray, shortest: float) -> np.ndarray:
+    """shortest(샘플 수)보다 짧은 토막을 앞의 값으로 덮는다: 값이 바뀌는 순간의 잡티(한순간 튀었다 돌아오는 것)를 지운다."""
+    out = level.copy()
+    edges = np.flatnonzero(np.diff(out.astype(np.int8))) + 1
+    bounds = np.concatenate([[0], edges, [len(out)]])
+    for a, b in zip(bounds[1:-1], bounds[2:], strict=True):              # 맨 앞 토막은 덮을 "앞의 값"이 없다
+        if b - a < shortest:
+            out[a:b] = out[a - 1]
+    return out
+
+
+def beat_fit(level: np.ndarray, unit: float) -> float:
+    """토막들이 심볼 길이의 배수에 얼마나 잘 맞는가(0 ~ 1, 시간으로 따진 비율). 낮으면 심볼 길이나 방식이 틀렸을 수 있다."""
+    edges = np.flatnonzero(np.diff(level.astype(np.int8))) + 1
+    lengths = np.diff(edges)
+    if len(lengths) == 0:
+        return 0.0
+    ratio = lengths / unit
+    close = np.abs(ratio - np.maximum(np.rint(ratio), 1)) < 0.25
+    return float(lengths[close].sum() / lengths.sum())
 
 
 def demodulate(cap: sigmf.Capture, start_s: float, seconds: float, offset_hz: float, bandwidth_hz: float,
@@ -540,7 +570,14 @@ def demodulate(cap: sigmf.Capture, start_s: float, seconds: float, offset_hz: fl
         level = np.convolve(mag, smooth, mode="same") > 0.5 * float(np.percentile(mag[mag > 0.3 * top], 50))
         gap = 0                                                          # 아래에서 심볼 길이를 잰 뒤 정한다
 
-    unit = symbol_s * rate if symbol_s else symbol_length(level[np.flatnonzero(on)[0]: np.flatnonzero(on)[-1] + 1] if on.any() else level)
+    lit = np.flatnonzero(on)
+    body = slice(int(lit[0]), int(lit[-1]) + 1) if len(lit) else slice(0, len(level))
+    unit = symbol_s * rate if symbol_s else symbol_length(level[body])
+    if unit and unit >= 2:
+        # 심볼의 1/3 보다 짧은 토막은 값이 바뀌는 순간의 잡티다: 지우고, 깨끗해진 것으로 심볼 길이를 한 번 더 잰다
+        level = tidy(level, unit * 0.35)
+        if not symbol_s:
+            unit = symbol_length(level[body]) or unit
     if not unit or unit < 2:
         raise AnalyzeError("심볼 길이를 재지 못했습니다(켜짐과 꺼짐이 너무 적습니다). 구간을 넓히거나 심볼 속도를 직접 적어 보세요.")
     if use == "ook":
@@ -574,6 +611,7 @@ def demodulate(cap: sigmf.Capture, start_s: float, seconds: float, offset_hz: fl
     for item in packets:
         item["repeats"] = same[item["bits"]]
     return {"kind": use, "guessed": guessed["kind"], "symbol_s": round(unit / rate, 8), "symbol_rate_hz": round(rate / unit, 1),
+            "fit": round(beat_fit(level[body], unit), 3),
             "packets": packets[:MAX_PACKETS], "packets_total": len(packets)}
 
 

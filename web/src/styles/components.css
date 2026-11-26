@@ -1993,3 +1993,18 @@ canvas[data-tunable] {
   word-break: break-all;
   font-size: 12px;
 }
+/* 스펙트로그램의 색 띠(범례): 약함 → 셈 */
+.heat-legend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--space-sm);
+  gap: var(--space-xs);
+}
+.heat-legend i {
+  display: inline-block;
+  width: 120px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to right, var(--color-viz-heat-0), var(--color-viz-heat-1), var(--color-viz-heat-2), var(--color-viz-heat-3), var(--color-viz-heat-4));
+}

@@ -104,10 +104,26 @@ def test_demodulate_turns_the_picked_signal_into_bits(tmp_path):
     forced = analyze.demodulate(cap, 0.295, len(tone) / RATE + 0.01, offset_hz=-300e3, bandwidth_hz=200e3, kind="fsk", symbol_s=200e-6)
     assert want in forced["packets"][0]["bits"]
 
+    assert shifted["fit"] > 0.9 and keyed["fit"] > 0.9                   # 토막들이 심볼 길이의 배수에 잘 맞는다
+    # 폭을 넓게 골라 잡음이 많이 섞여도(값이 바뀌는 순간마다 잡티가 생긴다) 심볼 길이를 잡티에 맞추지 않는다
+    wide = analyze.demodulate(cap, 0.295, len(tone) / RATE + 0.01, offset_hz=-300e3, bandwidth_hz=900e3, kind="fsk")
+    assert abs(wide["symbol_s"] - 200e-6) < 25e-6 and want in wide["packets"][0]["bits"]
+
     with pytest.raises(analyze.AnalyzeError):
         analyze.demodulate(cap, 0.04, 0.09, offset_hz=0, bandwidth_hz=0)     # 신호를 고르지 않았다
     with pytest.raises(analyze.AnalyzeError):
         analyze.demodulate(cap, 0.2, 0.02, offset_hz=0, bandwidth_hz=100e3)  # 잡음뿐인 곳: 방식을 알 수 없다
+
+
+def test_glitches_do_not_set_the_symbol_length():
+    level = np.repeat(np.array([1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0], dtype=bool), 100)
+    for at in (100, 300, 500, 900, 1100):                              # 값이 바뀌는 순간마다 세 샘플짜리 잡티
+        level[at + 4: at + 7] = ~level[at + 4: at + 7]
+    unit = analyze.symbol_length(level)
+    assert 90 < unit < 110
+    clean = analyze.tidy(level, unit * 0.35)
+    assert analyze.slice_bits(clean, analyze.symbol_length(clean)) == "10101100101010"
+    assert analyze.beat_fit(clean, 100) > 0.95 and analyze.beat_fit(clean, 37) < 0.6
 
 
 def test_manchester_is_recognised_and_hex_pads_the_tail():

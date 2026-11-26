@@ -525,6 +525,8 @@ export interface AnalyzeBits {
   guessed: string;
   symbol_s: number;
   symbol_rate_hz: number;
+  /** 토막들이 심볼 길이의 배수에 맞는 비율(0 ~ 1). 낮으면 방식이나 심볼 속도가 틀렸을 수 있다 */
+  fit: number;
   packets: { start_s: number; seconds: number; bits: string; hex: string; repeats: number; manchester?: { bits: string; hex: string } }[];
   packets_total: number;
 }
