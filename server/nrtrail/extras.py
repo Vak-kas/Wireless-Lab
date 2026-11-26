@@ -161,6 +161,10 @@ def register(app: FastAPI, store: SessionStore, pipeline: Pipeline, hub: Any, se
             except survey.SurveyError as e:
                 raise HTTPException(400, str(e)) from e
 
+    from . import analyze  # 신호 분석: 저장한 I/Q 파일을 뜯어본다(장비 없이)
+
+    analyze.register(app)
+
     from . import places  # + 로 추가한 "볼 곳"
 
     places.register(app)

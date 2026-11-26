@@ -11,6 +11,14 @@ import { PhoneTile } from "./PhoneTile";
 
 /** 1. 시작: 쓸 장비를 고르고 수신·송신(작업판)이나 시나리오로 들어간다. 준비 상태는 Settings, 지난 세션은 Sessions 에 있다. */
 const TASK_ICONS: Record<string, React.ReactNode> = {
+  // 파형을 들여다보는 돋보기
+  analyze: (
+    <>
+      <path d="M3 13h2l1.5-5 2 9 2-7 1 3h1.5" />
+      <circle cx="16.5" cy="14.5" r="3.5" />
+      <path d="M19 17l2.5 2.5" />
+    </>
+  ),
   // 기지국 탑과 퍼지는 신호
   nr: (
     <>
@@ -189,6 +197,11 @@ export function StartScreen() {
             )}
           </>
         )}
+        {/* 저장해 둔 파일로 하는 일: 장비가 없어도 된다 */}
+        <h3 className="t-tagline home-group">{t("home.files")}</h3>
+        <div className="tasks" data-testid="home-file-tasks">
+          <Task id="analyze" onClick={() => go("analyze")} />
+        </div>
         {!hub.adaptersReady && (
           <p className="searching t-caption" data-testid="home-adapters-loading">
             <span className="spinner" aria-hidden="true" /> {t("home.adapters.loading")}

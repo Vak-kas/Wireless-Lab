@@ -11,6 +11,7 @@ import { SpectrumScreen } from "./screens/SpectrumScreen";
 import { StartScreen } from "./screens/StartScreen";
 import { NearbyScreen } from "./screens/NearbyScreen";
 import { SimScreen } from "./screens/SimScreen";
+import { AnalyzeScreen } from "./screens/AnalyzeScreen";
 import { BenchScreen } from "./screens/BenchScreen";
 import { TxScreen } from "./screens/TxScreen";
 import { StoreProvider, useStore } from "./state/store";
@@ -50,6 +51,7 @@ function Screens() {
             {route.screen === "nearby" && <NearbyScreen />}
             {route.screen === "sim" && <SimScreen />}
             {route.screen === "bench" && <BenchScreen />}
+            {route.screen === "analyze" && <AnalyzeScreen />}
             {route.screen === "sessions" && <SessionsScreen />}
             {route.screen === "settings" && <SettingsScreen />}
           </>

@@ -452,6 +452,73 @@ export interface StreamTapState {
   ended?: boolean;
 }
 
+/** 분석할 파일. 날것 파일(.cfile 등)은 설명이 없어 샘플 속도를 함께 준다 */
+export interface AnalyzeSource {
+  path: string;
+  sample_rate_hz?: number;
+  center_hz?: number;
+}
+
+export interface AnalyzeFile {
+  path: string;
+  name: string;
+  datatype: string;
+  sample_rate_hz: number;
+  center_hz: number;
+  samples: number;
+  seconds: number;
+  bytes: number;
+}
+
+/** 스펙트로그램: db[열][행]. 열은 시간, 행은 주파수(낮은 쪽 → 높은 쪽) */
+export interface AnalyzeGrid {
+  cols: number;
+  rows: number;
+  db: number[][];
+  /** 파일이 길어 띄엄띄엄 본 것인가(전체 보기만) */
+  sparse?: boolean;
+}
+
+export interface AnalyzeBurst {
+  start_s: number;
+  seconds: number;
+  peak_db: number;
+  above_floor_db: number;
+}
+
+export interface AnalyzeOverview {
+  file: AnalyzeFile;
+  scan_s: number;
+  block_s: number;
+  floor_db: number;
+  envelope: { peak_db: number[]; mean_db: number[] };
+  bursts: AnalyzeBurst[];
+  spectrogram: AnalyzeGrid;
+}
+
+export interface AnalyzeDetail {
+  start_s: number;
+  seconds: number;
+  samples: number;
+  /** 구간이 길어 세기만 본 것(좁히면 나머지가 나온다) */
+  coarse: boolean;
+  offset_hz: number;
+  bandwidth_hz: number;
+  fft: number;
+  bin_hz: number;
+  power_db: number;
+  peak_db: number;
+  spectrogram: AnalyzeGrid;
+  spectrum: { mean_db: number[]; max_db: number[]; lo_hz: number; hi_hz: number };
+  /** 차지한 폭: 가운데에서 떨어진 만큼과 폭 */
+  occupied: { center_offset_hz: number; lo_hz: number; hi_hz: number; bandwidth_hz: number } | null;
+  wave: { max: number[]; min?: number[]; i?: number[]; q?: number[]; rate_hz: number };
+  inst_freq_hz?: (number | null)[];
+  constellation?: { i: number[]; q: number[] };
+  /** 모양으로 본 변조 방식(추정) */
+  modulation?: { kind: "ook" | "fsk" | "psk" | "unknown" | "unpicked"; shortest_on_s?: number; symbol_rate_hz?: number | null; deviation_hz?: number; tones_hz?: number[] };
+}
+
 /** 녹화 파일의 저장 위치와, 이 서버가 해 줄 수 있는 것 */
 export interface SavedState {
   folder: string;
@@ -664,6 +731,12 @@ export interface Api {
   streamRows(id: string, after: number): Promise<{ next: number; mean: number[][]; max: number[][]; signals?: SeenSignal[] }>;
   /** 받는 도중에 풀이를 꽂거나 뺀다 (녹화 단추: name = "record") */
   streamTap(id: string, name: string, on: boolean): Promise<StreamState>;
+  /** 신호 분석: 저장한 I/Q 파일을 연다(전체 훑기), 구간을 자세히 본다, 구간을 잘라 낸다 */
+  analyzeFiles(): Promise<{ folder: string; files: AnalyzeFile[]; can_choose: boolean }>;
+  analyzeChoose(): Promise<{ path: string | null }>;
+  analyzeOpen(src: AnalyzeSource): Promise<AnalyzeOverview>;
+  analyzeDetail(req: AnalyzeSource & { start_s: number; seconds: number; offset_hz: number; bandwidth_hz: number }): Promise<AnalyzeDetail>;
+  analyzeCut(req: AnalyzeSource & { start_s: number; seconds: number }): Promise<{ meta_path: string; data_path: string; bytes: number; seconds: number }>;
   /** + 로 추가한 "볼 곳"을 서버에 둔다(브라우저 저장소는 주소가 바뀌면 사라진다) */
   bandsLoad(): Promise<{ bands: { id: string; name: string; center_mhz: number; width_mhz: number }[] }>;
   bandsSave(bands: { id: string; name: string; center_mhz: number; width_mhz: number }[]): Promise<{ bands: { id: string; name: string; center_mhz: number; width_mhz: number }[] }>;

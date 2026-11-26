@@ -267,6 +267,17 @@ export const mockApi: Api = {
   streamStop: async () => {
     throw new Error("mock");
   },
+  analyzeFiles: async () => ({ folder: "", files: [], can_choose: false }),
+  analyzeChoose: async () => ({ path: null }),
+  analyzeOpen: async () => {
+    throw new Error("mock");
+  },
+  analyzeDetail: async () => {
+    throw new Error("mock");
+  },
+  analyzeCut: async () => {
+    throw new Error("mock");
+  },
   bandsLoad: async () => ({ bands: [] }),
   bandsSave: async (bands) => ({ bands }),
   savedState: async () => {

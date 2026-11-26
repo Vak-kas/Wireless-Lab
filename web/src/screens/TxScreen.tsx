@@ -127,6 +127,18 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
   const [standard, setStandard] = useState("wifi-he");
   const [plans, setPlans] = useState<SurveyPlan[]>([]);
   const [band, setBand] = useState("");
+  /** 수신 화면에서 + 로 추가해 둔 곳들: 여기서는 가운데 주파수를 채우는 데 쓴다(보낼 폭은 보낼 신호가 정한다) */
+  const [places, setPlaces] = useState<{ id: string; name: string; center_mhz: number; width_mhz: number }[]>([]);
+  useEffect(() => {
+    let on = true;
+    void api.bandsLoad().then(
+      (r) => on && setPlaces(r.bands),
+      () => undefined,
+    );
+    return () => {
+      on = false;
+    };
+  }, [api]);
   const [asking, setAsking] = useState<TxRequest | null>(null);
   const [agree, setAgree] = useState(false);
   const [closed, setClosed] = useState(false);
@@ -280,6 +292,19 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
                     {t(`spectrum.plan.${p.id}`)}
                   </Chip>
                 ))}
+                {places.map((x) => (
+                  <Chip
+                    key={x.id}
+                    selected={band === `place:${x.id}`}
+                    onSelect={() => {
+                      setBand(`place:${x.id}`);
+                      setCenter(show(x.center_mhz));
+                    }}
+                    disabled={sending}
+                  >
+                    {x.name}
+                  </Chip>
+                ))}
               </div>
               {cells.length > 0 && (
                 <div className="chmap" role="group" aria-label={t("monitor.map")} data-testid="tx-map">
@@ -299,7 +324,8 @@ export function TxScreen({ device: fixed, embedded, onDraft }: { device?: string
                   ))}
                 </div>
               )}
-              {band !== "" && <p className="t-caption muted">{t("tx.pick.hint")}</p>}
+              {cells.length > 0 && <p className="t-caption muted">{t("tx.pick.hint")}</p>}
+              {band.startsWith("place:") && <p className="t-caption muted">{t("tx.pick.place")}</p>}
             </div>
             <div className="row">
               <Field label={t("view.center")} error={error || undefined}>

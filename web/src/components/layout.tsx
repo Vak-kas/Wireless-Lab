@@ -4,7 +4,7 @@ import { go, href, type Route } from "../router";
 import { useStore } from "../state/store";
 import { Button, LockIcon } from "./ui";
 
-const NAV: Route["screen"][] = ["start", "bench", "sim", "scan", "follow", "ntn", "track", "sessions", "settings"];
+const NAV: Route["screen"][] = ["start", "bench", "analyze", "sim", "scan", "follow", "ntn", "track", "sessions", "settings"];
 
 const SESSION_SCREENS: Route["screen"][] = ["scan", "follow", "ntn", "track"];
 

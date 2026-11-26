@@ -14,6 +14,7 @@ The user interface is in Korean by default; an English translation is included.
 
 - **Follow a 5G NR base station** (NTN included): scan → SSB → MIB → SIB1 → SIB19, in order. Every value on screen can be expanded into "raw value → formula → result → clause of the standard".
 - **Receive**: pick a band and channels, or type a center frequency and bandwidth, to look at that band. Frequencies you look at often can be saved.
+- **Signal analysis**: opens a recorded I/Q file (SigMF, .cfile, .cs16) and takes it apart. It scans the whole file for on-off signals (bursts) and draws the spectrogram, spectrum, waveform, instantaneous frequency and constellation of any span. Pick one signal to measure its centre frequency, occupied width and (guessed) modulation. No device needed.
 - **Live view** (Pro): receives without gaps until you stop and draws the spectrum and spectrogram 20 times a second. It names the signals it sees from their width and band (a guess) and marks separately the ones that were actually decoded. A record button saves the I/Q to a file (SigMF) while receiving.
 - **Compare channel levels**: steps through Wi-Fi 2.4 / 5 / 6 GHz and Bluetooth channels and compares their power.
 - **Wi-Fi**: Pro also decodes nearby APs, frame types and bandwidth.

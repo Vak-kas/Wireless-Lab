@@ -1897,3 +1897,85 @@ canvas[data-tunable] {
     transition: none;
   }
 }
+
+/* ---------- 신호 분석 ---------- */
+.an-card {
+  display: grid;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  text-align: left;
+}
+.an-open,
+.an-controls,
+.an-buttons {
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.an-plot {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  user-select: none;
+}
+.an-plot[data-selectable] {
+  cursor: crosshair;
+}
+.an-heat,
+.an-trace,
+.an-scatter {
+  display: block;
+  width: 100%;
+  color: var(--fg);
+}
+.an-heat {
+  height: 240px;
+  image-rendering: pixelated;
+}
+.an-trace {
+  height: 150px;
+}
+/* 고른 시간 구간(세로 띠)과 고른 주파수(가로 띠): 그림 위에 겹친다 */
+.an-sel,
+.an-band {
+  position: absolute;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--link) 22%, transparent);
+  outline: 1px solid var(--link);
+}
+.an-sel {
+  top: 0;
+  bottom: 0;
+}
+.an-band {
+  left: 0;
+  right: 0;
+}
+.an-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.an-bursts {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.an-facts {
+  margin: 0;
+}
+.an-scatter-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+.an-scatter {
+  width: 300px;
+  height: 300px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+}
+.an-scatter-wrap p {
+  flex: 1;
+  min-width: 200px;
+}
