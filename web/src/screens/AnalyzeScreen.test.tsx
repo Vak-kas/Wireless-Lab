@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
-import type { AnalyzeDetail, AnalyzeFile, AnalyzeOverview } from "../api";
+import type { AnalyzeCompare, AnalyzeDetail, AnalyzeFile, AnalyzeOverview } from "../api";
 import { fakeApi, renderWithStore } from "../test-utils";
 import { AnalyzeScreen } from "./AnalyzeScreen";
 
@@ -100,4 +100,47 @@ test("수신 화면에서 녹화하고 넘어오면 그 파일을 바로 연다"
   renderWithStore(<AnalyzeScreen />, a);
   await waitFor(() => expect(a.analyzeOpen).toHaveBeenCalledWith({ path: "/d/k.sigmf-meta" }));
   expect(sessionStorage.getItem("nrtrail.analyze.next")).toBeNull();
+});
+
+test("버스트 전체 비교: 신호(반송파·편이·심볼 속도)와 데이터(줄 맞춘 비트, 고정 칸·바뀌는 칸, 다른 자리 수)를 따로 보여 준다", async () => {
+  const burst = (index: number, payload: string, carrier: number) => ({
+    index, start_s: 0.1 + index, seconds: 0.27, peak_db: -14, power_db: -16.4, carrier_offset_hz: carrier, deviation_hz: 37119, symbol_rate_hz: 4004.85, fit: 1,
+    bits: "1010" + payload, hex: "A", preamble: { start: 0, length: 642 }, payload, payload_hex: "9", repeat_period: null,
+    manchester: { bits: payload.slice(0, 4), errors: 1, shift: 0, broken_at: [3] },
+  });
+  const cols = { length: 8, mask: "====xxxx", same: 4, varies: 4, groups: [[0], [1]], distance: [[0, 3], [3, 0]],
+    fields: [{ start: 0, length: 4, kind: "same" as const, bits: "1001", hex: "9" }, { start: 4, length: 4, kind: "varies" as const, distinct: 2, step: 1 }] };
+  const result: AnalyzeCompare = {
+    kind: "fsk", offset_hz: -99705, bandwidth_hz: 339843, center_hz: 434.016e6, total_bursts: 2, decoded: [0, 1],
+    bursts: [burst(0, "10010101", -99397), burst(1, "10010110", -99415)],
+    symbols: cols, manchester: { ...cols, length: 4, mask: "===x", same: 3, varies: 1, rows: [0, 1], fields: [{ start: 0, length: 3, kind: "same", bits: "100", hex: "8" }, { start: 3, length: 1, kind: "varies", distinct: 2 }] },
+    signal: { carrier_offset_hz: { mean: -99406, min: -99415, max: -99397, std: 9 }, deviation_hz: { mean: 37119, min: 37113, max: 37126, std: 4 }, symbol_rate_hz: { mean: 4004.85, min: 4003.35, max: 4006.84, std: 0.8 },
+      power_db: { mean: -16.4, min: -17.5, max: -15, std: 0.6 }, seconds: { mean: 0.27, min: 0.267, max: 0.274, std: 0.002 } },
+    traces: { per_symbol: 8, before: 24, after: 104, lines: [[0, 1, -1], [0, 1, 1]] },
+  };
+  const a = fakeApi();
+  a.analyzeFiles = vi.fn(async () => ({ folder: "/d", files: [FILE], can_choose: true }));
+  a.analyzeOpen = vi.fn(async () => OVER);
+  a.analyzeDetail = vi.fn(async () => detail());
+  a.analyzeCompare = vi.fn(async () => result);
+  renderWithStore(<AnalyzeScreen />, a);
+  await userEvent.click(await screen.findByTestId("analyze-open-key.sigmf-data"));
+  await userEvent.click(await screen.findByTestId("compare-go"));
+  // 고른 주파수가 없으면 서버가 가장 센 버스트에서 잰 값을 쓴다(폭 0 으로 묻는다)
+  expect(a.analyzeCompare).toHaveBeenCalledWith({ path: "/d/key.sigmf-meta", offset_hz: 0, bandwidth_hz: 0, kind: "auto", symbol_rate_hz: undefined });
+  expect(await screen.findByTestId("compare-summary")).toHaveTextContent("버스트 2개 가운데 2개를 풀었습니다 (주파수 바꾸기 (FSK)). 서로 다른 내용은 2가지입니다. 누를 때마다 내용이 전부 다릅니다.");
+  // 신호: 반송파의 절대 주파수와 흩어진 정도, 버스트마다 평균과의 차
+  expect(screen.getByTestId("compare-spread")).toHaveTextContent("433.916594 MHz · 가장 낮은 것과 높은 것의 차 18 Hz");
+  expect(screen.getByTestId("compare-table")).toHaveTextContent("+9 Hz");
+  expect(screen.getByTestId("compare-table")).toHaveTextContent("±37.119 kHz");
+  // 데이터: 모두 풀리면 맨체스터를 푼 것부터 보여 주고, 심볼로 바꿔 볼 수 있다
+  expect(screen.getByTestId("compare-layer-manchester")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByTestId("compare-fields")).toHaveTextContent("100 (HEX 8)");
+  expect(screen.getByTestId("compare-broken")).toHaveTextContent("규칙이 깨진 자리(첫 버스트): 3");
+  await userEvent.click(screen.getByTestId("compare-layer-symbols"));
+  const grid = screen.getByTestId("compare-grid");
+  expect(grid.querySelectorAll(".an-vary")).toHaveLength(2); // 줄마다 바뀌는 칸 하나
+  expect(grid).toHaveTextContent("10010101");
+  expect(screen.getByTestId("compare-fields")).toHaveTextContent("서로 다른 값 2가지 (버스트 2개) · 누를 때마다 1씩 달라짐 · 매번 다름");
+  expect(screen.getByTestId("compare-distance")).toHaveTextContent("3");
 });

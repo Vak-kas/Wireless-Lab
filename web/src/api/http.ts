@@ -104,6 +104,7 @@ export const httpApi: Api = {
   analyzeOpen: (src) => call("/analyze/open", "POST", src),
   analyzeDetail: (req) => call("/analyze/detail", "POST", req),
   analyzeDemod: (req) => call("/analyze/demod", "POST", req),
+  analyzeCompare: (req) => call("/analyze/compare", "POST", req),
   analyzeCut: (req) => call("/analyze/cut", "POST", req),
   bandsLoad: () => call("/bands", "GET"),
   bandsSave: (bands) => call("/bands", "POST", { bands }),

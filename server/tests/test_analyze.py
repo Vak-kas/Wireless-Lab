@@ -171,3 +171,57 @@ def test_recent_lists_recordings_in_the_save_folder_newest_first(tmp_path, monke
     monkeypatch.setattr(analyze, "folder", lambda: tmp_path)
     write(tmp_path, np.zeros(1000), name="a")
     assert [f["name"] for f in analyze.recent()] == ["a.sigmf-data"]
+
+
+def test_columns_tell_fixed_fields_from_changing_ones_and_spot_a_counter():
+    rows = ["1100" + format(n, "08b") + "1111" + r for n, r in zip((5, 6, 7), ("0110100", "1010011", "0001110"), strict=True)]
+    out = analyze.columns(rows)
+    assert out["length"] == 23 and out["mask"].startswith("====") and out["groups"] == [[0], [1], [2]]
+    kinds = [(f["start"], f["length"], f["kind"]) for f in out["fields"]]
+    assert kinds[0] == (0, 10, "same") and out["fields"][0]["bits"] == "1100000001"   # 머리 4자리 + 세는 값의 안 바뀌는 윗자리
+    counter = next(f for f in out["fields"] if f["kind"] == "varies")
+    assert counter["distinct"] == 3 and counter.get("step") == 1          # 누를 때마다 1 씩 늘어난다
+    assert out["distance"][0][0] == 0 and out["distance"][0][1] == out["distance"][1][0] > 0
+    assert analyze.columns(["1010", "1010"])["groups"] == [[0, 1]]         # 내용이 같은 줄은 한 묶음
+
+
+def test_preamble_end_and_manchester_with_violations():
+    assert analyze.preamble_end("0" + "10" * 12 + "0110") == (0, 25)        # 번갈아 나오기가 깨지는 자리부터가 내용
+    assert analyze.preamble_end("110011") == (0, 0)
+    out = analyze.manchester_from("1001" * 3 + "11" + "0110")
+    assert out["bits"] == "101010?01" and out["errors"] == 1 and out["broken_at"] == [6]
+    assert analyze.repeat_period(("1011001110001011" * 3 + "0") * 3) == 49
+
+
+def test_compare_decodes_every_burst_and_separates_signal_from_data(tmp_path):
+    rng = np.random.default_rng(9)
+    n = int(RATE * 0.6)
+    iq = (rng.normal(0, 1e-3, n) + 1j * rng.normal(0, 1e-3, n)).astype(np.complex64)
+    ident = [1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0]
+    for k, at in enumerate((0.05, 0.25, 0.45)):                          # 세 번 누른 것: 고정된 번호 + 누를 때마다 느는 값 + 끝 표시
+        counter = [int(c) for c in format(9 + k, "06b")]
+        bits = [1, 0] * 20 + [1, 1] + ident + counter + [1, 1, 1, 0, 0, 0, 1, 1]
+        tone = fsk(bits, -300e3 + 400 * k)                                # 누를 때마다 반송파가 400 Hz 씩 밀린다(신호의 차이)
+        iq[int(at * RATE): int(at * RATE) + len(tone)] += tone
+    cap = analyze.source(str(write(tmp_path, iq)))
+    out = analyze.compare(cap, offset_hz=-300e3, bandwidth_hz=200e3)
+    assert out["kind"] == "fsk" and out["decoded"] == [0, 1, 2]
+    # 신호: 편이와 심볼 속도는 셋이 같고, 반송파는 조금씩 다르다
+    assert abs(out["signal"]["deviation_hz"]["mean"] - 40e3) < 3e3 and abs(out["signal"]["symbol_rate_hz"]["mean"] - 5000) < 60
+    carriers = [b["carrier_offset_hz"] for b in out["bursts"]]
+    assert all(abs(c + 300e3) < 1.5e3 for c in carriers) and carriers[2] - carriers[0] > 500
+    # 데이터: 앞머리 뒤를 0 번으로 맞추면 번호는 고정, 세는 값은 바뀐다
+    assert all(b["preamble"]["length"] >= 38 for b in out["bursts"])
+    sym = out["symbols"]
+    assert sym["groups"] == [[0], [1], [2]] and sym["same"] > sym["varies"] > 0
+    assert any(f["kind"] == "same" and "".join(map(str, ident)) in f["bits"] for f in sym["fields"])
+    assert any(f["kind"] == "varies" and f.get("step") == 1 for f in sym["fields"])
+    # 겹쳐 보기: 버스트마다 같은 길이의 줄
+    lines = out["traces"]["lines"]
+    assert len(lines) == 3 and len({len(line) for line in lines}) == 1
+
+
+def test_compare_needs_bursts(tmp_path):
+    cap = analyze.source(str(write(tmp_path, np.zeros(200_000) + 1e-4)))
+    with pytest.raises(analyze.AnalyzeError):
+        analyze.compare(cap)

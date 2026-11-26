@@ -531,6 +531,62 @@ export interface AnalyzeBits {
   packets_total: number;
 }
 
+/** 같은 자리끼리 견준 결과. mask 는 자리마다 "="(모두 같다)·"x"(다른 것이 있다), fields 는 그것을 묶은 칸 */
+export interface AnalyzeColumns {
+  length: number;
+  mask: string;
+  same: number;
+  varies: number;
+  fields: { start: number; length: number; kind: "same" | "varies"; bits?: string; hex?: string; distinct?: number; step?: number }[];
+  /** 두 줄 사이에 다른 자리의 수 */
+  distance: number[][];
+  /** 내용이 완전히 같은 줄끼리(줄 번호) */
+  groups: number[][];
+}
+
+export interface AnalyzeSpread {
+  mean: number;
+  min: number;
+  max: number;
+  std: number;
+}
+
+/** 버스트 전체 비교 */
+export interface AnalyzeCompare {
+  kind: "ook" | "fsk";
+  offset_hz: number;
+  bandwidth_hz: number;
+  center_hz: number;
+  total_bursts: number;
+  decoded: number[];
+  bursts: {
+    index: number;
+    start_s: number;
+    seconds: number;
+    peak_db: number;
+    error?: string;
+    power_db?: number;
+    /** 반송파: 녹화한 가운데에서 떨어진 만큼(두 주파수의 한가운데) */
+    carrier_offset_hz?: number;
+    deviation_hz?: number;
+    symbol_rate_hz?: number;
+    fit?: number;
+    bits?: string;
+    hex?: string;
+    preamble?: { start: number; length: number };
+    /** 앞머리 뒤의 내용(줄을 맞추는 0 번 자리부터) */
+    payload?: string;
+    payload_hex?: string;
+    repeat_period?: number | null;
+    manchester?: { bits: string; errors: number; shift: number; broken_at: number[] };
+  }[];
+  symbols: AnalyzeColumns;
+  /** 모든 버스트가 맨체스터 부호로 풀릴 때만 */
+  manchester: (AnalyzeColumns & { rows: number[] }) | null;
+  signal: Record<"carrier_offset_hz" | "deviation_hz" | "symbol_rate_hz" | "power_db" | "seconds", AnalyzeSpread | null>;
+  traces: { per_symbol: number; before: number; after: number; lines: ((number | null)[] | null)[] };
+}
+
 /** 녹화 파일의 저장 위치와, 이 서버가 해 줄 수 있는 것 */
 export interface SavedState {
   folder: string;
@@ -750,6 +806,8 @@ export interface Api {
   analyzeDetail(req: AnalyzeSource & { start_s: number; seconds: number; offset_hz: number; bandwidth_hz: number }): Promise<AnalyzeDetail>;
   /** 고른 신호를 비트로 푼다. kind: "auto" | "ook" | "fsk". symbol_rate_hz 를 비우면 잰 값을 쓴다 */
   analyzeDemod(req: AnalyzeSource & { start_s: number; seconds: number; offset_hz: number; bandwidth_hz: number; kind: string; symbol_rate_hz?: number }): Promise<AnalyzeBits>;
+  /** 파일의 버스트를 모두 풀어 신호와 데이터를 서로 견준다. bandwidth_hz 가 0 이면 가장 센 버스트에서 잰 주파수를 쓴다 */
+  analyzeCompare(req: AnalyzeSource & { offset_hz: number; bandwidth_hz: number; kind: string; symbol_rate_hz?: number }): Promise<AnalyzeCompare>;
   analyzeCut(req: AnalyzeSource & { start_s: number; seconds: number }): Promise<{ meta_path: string; data_path: string; bytes: number; seconds: number }>;
   /** + 로 추가한 "볼 곳"을 서버에 둔다(브라우저 저장소는 주소가 바뀌면 사라진다) */
   bandsLoad(): Promise<{ bands: { id: string; name: string; center_mhz: number; width_mhz: number }[] }>;

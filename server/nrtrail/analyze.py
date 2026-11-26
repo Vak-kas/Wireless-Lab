@@ -6,7 +6,8 @@
     2. detail      고른 시간 구간을 자세히 본다: 스펙트로그램, 스펙트럼, 시간 파형, 순간 주파수, 성상도, 잰 값들.
                    offset_hz 와 bandwidth_hz 를 주면 그 주파수의 신호만 골라내고(가운데로 옮긴 뒤 저역 통과) 본다.
     3. demodulate  고른 신호를 0·1 로 푼다(켜고 끄는 신호와 주파수를 바꾸는 신호). 패킷마다 비트와 HEX 를 내놓는다.
-    4. cut         고른 구간만 새 SigMF 파일로 잘라 낸다.
+    4. compare     버스트를 모두 풀어 서로 견준다: 신호가 같은가(주파수·편이·박자·세기)와 데이터가 같은가(비트)를 따로 본다.
+    5. cut         고른 구간만 새 SigMF 파일로 잘라 낸다.
 
 큰 파일
     몇 GB 짜리도 메모리에 다 올리지 않는다. 훑기는 조각(CHUNK_SAMPLES)씩 읽어 블록마다 최대·평균 세기만 남기고,
@@ -615,7 +616,264 @@ def demodulate(cap: sigmf.Capture, start_s: float, seconds: float, offset_hz: fl
             "packets": packets[:MAX_PACKETS], "packets_total": len(packets)}
 
 
-# ── 4. 구간 잘라 내기 ──────────────────────────────────────────────────────────
+# ── 4. 버스트 전체를 풀어 서로 견주기 ──────────────────────────────────────────
+#
+# 견주는 것은 두 가지다. 둘은 서로 다른 질문이다.
+#   데이터가 같은가   푼 비트가 같은가. 같은 단추를 눌러도 다를 수 있다(누를 때마다 바뀌게 만든 기기가 많다).
+#   신호가 같은가     전파의 모양이 같은가: 가운데 주파수, 주파수 편이, 심볼 속도, 세기, 길이.
+#                     같은 기기면 데이터가 달라도 이 값들은 거의 같고, 기기의 "지문"처럼 조금씩 다르다.
+
+MAX_COMPARE = 40                   # 한 번에 견주는 버스트 수의 한도
+PREAMBLE_MIN = 16                  # 이만큼은 번갈아 나와야 앞머리로 본다
+TRACE_BEFORE, TRACE_AFTER = 24, 104  # 겹쳐 보기: 앞머리 끝의 앞 24심볼 ~ 뒤 104심볼
+TRACE_PER_SYMBOL = 8
+
+
+def slice_with_places(level: np.ndarray, symbol: float) -> tuple[str, np.ndarray]:
+    """slice_bits 와 같은데, 비트마다 그 비트가 시작한 샘플 자리도 함께 준다(비트를 파형의 자리에 맞추는 데 쓴다)."""
+    edges = np.flatnonzero(np.diff(level.astype(np.int8))) + 1
+    bounds = np.concatenate([[0], edges, [len(level)]])
+    bits: list[str] = []
+    places: list[float] = []
+    for a, b in zip(bounds[:-1], bounds[1:], strict=True):
+        n = int(round((b - a) / symbol))
+        if n >= 1:
+            bits.append(("1" if level[a] else "0") * n)
+            places.extend(a + (b - a) * k / n for k in range(n))
+    return "".join(bits)[:MAX_BITS], np.asarray(places[:MAX_BITS])
+
+
+def preamble_end(bits: str) -> tuple[int, int]:
+    """앞머리(0 과 1 이 번갈아 나오는 구간)의 (시작, 끝). 끝은 번갈아 나오기가 처음 깨지는 자리다(그 자리부터가 내용).
+    PREAMBLE_MIN 넘게 번갈아 나오는 첫 구간을 앞머리로 본다. 없으면 (0, 0)."""
+    start = 0
+    for k in range(1, len(bits) + 1):
+        if k == len(bits) or bits[k] == bits[k - 1]:
+            if k - start >= PREAMBLE_MIN:
+                return start, k
+            start = k
+    return 0, 0
+
+
+def manchester_from(bits: str) -> dict[str, Any]:
+    """맨체스터 부호를 처음부터 두 칸씩 끊어 푼다. 끊는 자리 둘(0, 1) 가운데 어긋남("00"·"11")이 적은 쪽을 쓴다.
+    어긋난 칸은 "?" 로 적는다. errors 는 어긋난 칸 수, shift 는 고른 끊는 자리, broken_at 은 어긋난 칸의 자리들.
+    어긋남이 늘 같은 자리에 있으면 잡음이 아니라 일부러 규칙을 깬 것이다(패킷의 시작을 알리는 표시로 흔히 쓴다)."""
+    best: dict[str, Any] | None = None
+    for shift in (0, 1):
+        pairs = [bits[k:k + 2] for k in range(shift, len(bits) - 1, 2)]
+        out = "".join("1" if p == "10" else "0" if p == "01" else "?" for p in pairs)
+        item = {"bits": out, "errors": out.count("?"), "shift": shift, "broken_at": [k for k, c in enumerate(out) if c == "?"][:40]}
+        if best is None or item["errors"] < best["errors"]:
+            best = item
+    return best or {"bits": "", "errors": 0, "shift": 0, "broken_at": []}
+
+
+def repeat_period(bits: str) -> int | None:
+    """내용이 일정한 간격으로 되풀이되면 그 간격(비트 수). 같은 패킷을 여러 번 이어 보내는 기기를 알아본다."""
+    if len(bits) < 96:
+        return None
+    row = np.frombuffer(bits.encode(), dtype=np.uint8) == ord("1")
+    best, best_lag = 0.0, None
+    for lag in range(24, len(row) // 2):
+        agree = float(np.mean(row[:-lag] == row[lag:]))
+        if agree > best + 1e-9:
+            best, best_lag = agree, lag
+    return best_lag if best >= 0.95 else None
+
+
+def columns(rows: list[str]) -> dict[str, Any]:
+    """같은 자리끼리 견준다. rows 는 같은 자리에서 시작하도록 맞춘 비트열들이다(길이는 가장 짧은 것에 맞춘다).
+
+    mask      자리마다 "=" (모두 같다) 또는 "x" (다른 것이 있다)
+    fields    이어진 같은 종류의 자리를 한 칸으로 묶은 것. 고정 칸은 그 값, 바뀌는 칸은 서로 다른 값의 수와
+              "매번 일정하게 늘어나는가"(세는 값인지 알아보는 실마리)
+    distance  두 줄 사이에 다른 자리의 수(해밍 거리)의 표
+    groups    내용이 완전히 같은 줄끼리 묶은 것(줄 번호들)
+    """
+    rows = [r for r in rows]
+    if not rows:
+        return {"length": 0, "mask": "", "fields": [], "distance": [], "groups": [], "same": 0, "varies": 0}
+    length = min(len(r) for r in rows)
+    # 글자 그대로 견준다("0", "1", 그리고 맨체스터에서 풀지 못한 칸 "?")
+    grid = np.array([list(r[:length].encode()) for r in rows], dtype=np.uint8)
+    varies = (grid != grid[0]).any(axis=0) if len(rows) > 1 else np.zeros(length, dtype=bool)
+    mask = "".join("x" if v else "=" for v in varies)
+    fields: list[dict[str, Any]] = []
+    k = 0
+    while k < length:
+        j = k
+        while j < length and varies[j] == varies[k]:
+            j += 1
+        field: dict[str, Any] = {"start": k, "length": j - k, "kind": "varies" if varies[k] else "same"}
+        if not varies[k]:
+            field["bits"] = rows[0][k:j]
+            field["hex"] = to_hex(rows[0][k:j])
+        fields.append(field)
+        k = j
+    fields = merge_slivers(fields, rows)
+    distance = (grid[:, None, :] != grid[None, :, :]).sum(axis=2).astype(int).tolist()
+    seen: dict[str, list[int]] = {}
+    for index, r in enumerate(rows):
+        seen.setdefault(r[:length], []).append(index)
+    return {"length": length, "mask": mask, "fields": fields, "distance": distance, "groups": list(seen.values()),
+            "same": int((~varies).sum()), "varies": int(varies.sum())}
+
+
+def merge_slivers(fields: list[dict[str, Any]], rows: list[str]) -> list[dict[str, Any]]:
+    """바뀌는 칸 사이에 낀 한두 자리짜리 고정 칸을 바뀌는 칸에 합친다.
+
+    견주는 줄이 많지 않으면, 바뀌는 칸 안에서도 어떤 자리는 우연히 모든 줄이 같은 값이다. 그대로 두면 칸이 잘게 쪼개져
+    어디서 어디까지가 한 칸인지 보이지 않는다. mask 는 그대로 두고(자리마다의 사실) 칸 묶음만 이렇게 다듬는다.
+    """
+    out: list[dict[str, Any]] = []
+    for k, field in enumerate(fields):
+        sliver = (field["kind"] == "same" and field["length"] <= 2 and 0 < k < len(fields) - 1
+                  and fields[k - 1]["kind"] == "varies" and fields[k + 1]["kind"] == "varies")
+        if out and out[-1]["kind"] == "varies" and (sliver or field["kind"] == "varies"):
+            out[-1]["length"] += field["length"]
+        else:
+            out.append({"start": field["start"], "length": field["length"], "kind": "varies" if sliver else field["kind"]}
+                       | ({"bits": field["bits"], "hex": field["hex"]} if field["kind"] == "same" and not sliver else {}))
+    for field in out:
+        if field["kind"] != "varies":
+            continue
+        values = [r[field["start"]: field["start"] + field["length"]] for r in rows]
+        field["distinct"] = len(set(values))
+        if field["length"] <= 48 and all(set(v) <= {"0", "1"} for v in values):
+            steps = np.diff([int(v, 2) for v in values])
+            if len(steps) and len(set(steps.tolist())) == 1 and steps[0] != 0:
+                field["step"] = int(steps[0])                             # 누를 때마다 같은 만큼 늘어난다(세는 값의 모양)
+    return out
+
+
+def spread(values: list[float]) -> dict[str, float] | None:
+    """값들의 평균, 가장 작은 것, 가장 큰 것, 표준편차."""
+    if not values:
+        return None
+    v = np.asarray(values, dtype=np.float64)
+    return {"mean": round(float(v.mean()), 3), "min": round(float(v.min()), 3), "max": round(float(v.max()), 3), "std": round(float(v.std()), 3)}
+
+
+def compare(cap: sigmf.Capture, offset_hz: float = 0.0, bandwidth_hz: float = 0.0, kind: str = "auto",
+            symbol_s: float | None = None) -> dict[str, Any]:
+    """파일의 버스트를 모두 풀어 서로 견준다.
+
+    하는 순서
+      1. 버스트 목록을 가져온다(훑기). 주파수를 고르지 않았으면 가장 센 버스트에서 잰 가운데와 폭(의 두 배)을 쓴다.
+      2. 버스트마다: 그 주파수의 신호만 남기고, 0/1 로 가르고, 심볼 길이를 재고, 비트로 적는다.
+         함께 잰다: 세기, 반송파(두 주파수의 한가운데), 주파수 편이, 심볼 속도, 길이.
+      3. 줄 맞추기: 버스트마다 앞머리(1010…)의 길이가 조금씩 다르므로, 앞머리가 끝나는 자리를 0 번으로 삼는다.
+      4. 같은 자리끼리 견준다(columns). 맨체스터 부호로 보이면 푼 것끼리도 견준다.
+      5. 겹쳐 보기용으로, 앞머리 끝 둘레의 파형을 버스트마다 같은 눈금으로 뽑는다.
+    """
+    scanned = scan(cap)
+    found, _ = bursts(scanned)
+    if not found:
+        raise AnalyzeError("이 파일에서 켜졌다 꺼지는 신호(버스트)를 찾지 못했습니다.")
+    limit = MAX_DETAIL_SAMPLES / cap.sample_rate_hz
+    usable = [b for b in found if b["seconds"] + 0.01 <= limit][:MAX_COMPARE]
+    if not usable:
+        raise AnalyzeError(f"버스트가 너무 깁니다(한 번에 풀 수 있는 길이는 {limit:.2f}초).")
+    if not bandwidth_hz:
+        best = max(usable, key=lambda b: b["above_floor_db"])
+        occupied = detail(cap, best["start_s"], best["seconds"])["occupied"]
+        if not occupied:
+            raise AnalyzeError("신호의 주파수를 재지 못했습니다. 자세히 보기에서 신호를 고른 뒤 다시 해 보세요.")
+        offset_hz = occupied["center_offset_hz"]
+        bandwidth_hz = max(occupied["bandwidth_hz"] * 2, 8 * cap.sample_rate_hz / FFT_BINS)
+
+    items: list[dict[str, Any]] = []
+    traces: list[list[float] | None] = []
+    use = kind
+    for number, b in enumerate(usable):
+        pad = 0.004
+        start = max(0.0, b["start_s"] - pad)
+        picked, rate, first = pick(cap, start, b["seconds"] + 2 * pad, offset_hz, bandwidth_hz)
+        mag = np.abs(picked)
+        top = float(mag.max())
+        item: dict[str, Any] = {"index": number, "start_s": b["start_s"], "seconds": b["seconds"], "peak_db": b["peak_db"]}
+        items.append(item)
+        traces.append(None)
+        if top <= 0:
+            item["error"] = "신호가 없습니다."
+            continue
+        if use == "auto":                                                # 첫 버스트에서 정한 방식을 나머지에도 쓴다
+            use = guess_modulation(picked, rate)["kind"]
+            if use not in ("ook", "fsk"):
+                raise AnalyzeError("변조 방식을 알아보지 못했습니다. '켜고 끄기'나 '주파수 바꾸기'를 직접 골라 보세요.")
+        smooth = np.ones(5, dtype=np.float32) / 5
+        on = mag > (0.3 if use == "fsk" else 0.15) * top
+        lit = np.flatnonzero(on)
+        if len(lit) < 64:
+            item["error"] = "신호가 너무 짧습니다."
+            continue
+        body = slice(int(lit[0]), int(lit[-1]) + 1)
+        item["power_db"] = round(float(db(np.mean(mag[body] ** 2))), 2)
+        if use == "fsk":
+            turn = np.angle(picked[1:] * np.conj(picked[:-1])) * rate / (2 * np.pi)
+            wave = np.convolve(np.concatenate([[turn[0]], turn]), smooth, mode="same")
+            lo, hi = np.percentile(wave[body], [10, 90])
+            middle = (lo + hi) / 2
+            level = wave > middle
+            tone_lo, tone_hi = float(np.median(wave[body][~level[body]])), float(np.median(wave[body][level[body]]))
+            item["carrier_offset_hz"] = round(offset_hz + (tone_lo + tone_hi) / 2, 1)   # 반송파: 두 주파수의 한가운데
+            item["deviation_hz"] = round((tone_hi - tone_lo) / 2, 1)
+            centre, half = (tone_lo + tone_hi) / 2, max((tone_hi - tone_lo) / 2, 1e-9)
+        else:
+            wave = np.convolve(mag, smooth, mode="same")
+            high = float(np.percentile(mag[mag > 0.3 * top], 50))
+            level = wave > 0.5 * high
+            centre, half = 0.5 * high, 0.5 * high
+        unit = symbol_s * rate if symbol_s else symbol_length(level[body])
+        if unit and unit >= 2:
+            level = tidy(level, unit * 0.35)
+            if not symbol_s:
+                unit = symbol_length(level[body]) or unit
+        if not unit or unit < 2:
+            item["error"] = "심볼 길이를 재지 못했습니다."
+            continue
+        # 심볼 속도를 더 정밀하게: 처음 바뀐 자리부터 마지막 바뀐 자리까지의 길이를 그 사이의 심볼 수로 나눈다
+        # (토막 하나의 길이는 샘플 단위로 뭉툭하지만, 수백 심볼에 걸친 길이는 그렇지 않다)
+        turns = np.flatnonzero(np.diff(level[body].astype(np.int8))) + 1
+        between = int(np.rint(np.diff(turns) / unit).sum()) if len(turns) > 8 else 0
+        precise = (turns[-1] - turns[0]) / between if between else unit
+        bits, places = slice_with_places(level[body], unit)
+        if use == "ook":
+            cut_front = len(bits) - len(bits.lstrip("0"))
+            bits, places = bits.strip("0"), places[cut_front: cut_front + len(bits.strip("0"))]
+        pre_start, pre_end = preamble_end(bits)
+        payload = bits[pre_end:]
+        item |= {"symbol_rate_hz": round(float(rate / precise), 2), "fit": round(beat_fit(level[body], unit), 3), "bits": bits, "hex": to_hex(bits),
+                 "preamble": {"start": pre_start, "length": pre_end - pre_start}, "payload": payload, "payload_hex": to_hex(payload),
+                 "repeat_period": repeat_period(payload)}
+        item["manchester"] = manchester_from(payload)
+        # 겹쳐 보기: 앞머리 끝 둘레의 파형을 심볼마다 TRACE_PER_SYMBOL 점으로, 세로는 -1 ~ +1 로 맞춘다
+        anchor = body.start + (float(places[pre_end]) if pre_end < len(places) else 0.0)
+        at = anchor + (np.arange((TRACE_BEFORE + TRACE_AFTER) * TRACE_PER_SYMBOL) / TRACE_PER_SYMBOL - TRACE_BEFORE) * unit
+        inside = (at >= 0) & (at <= len(wave) - 1)
+        line = np.full(len(at), np.nan)
+        line[inside] = (np.interp(at[inside], np.arange(len(wave)), wave) - centre) / half
+        traces[-1] = [None if np.isnan(v) else round(float(np.clip(v, -2, 2)), 2) for v in line]
+
+    good = [it for it in items if "bits" in it]
+    if not good:
+        raise AnalyzeError("풀린 버스트가 없습니다. 자세히 보기에서 신호를 고르고 방식과 심볼 속도를 확인해 보세요.")
+    symbols = columns([it["payload"] for it in good])
+    clean = [it for it in good if it["manchester"]["bits"] and it["manchester"]["errors"] <= 0.05 * len(it["manchester"]["bits"])]
+    coded = columns([it["manchester"]["bits"] for it in clean]) | {"rows": [it["index"] for it in clean]} if len(clean) == len(good) else None
+    return {"kind": use, "offset_hz": offset_hz, "bandwidth_hz": bandwidth_hz, "center_hz": cap.center_freq_hz,
+            "bursts": items, "decoded": [it["index"] for it in good], "total_bursts": len(found),
+            "symbols": symbols, "manchester": coded,
+            "signal": {"carrier_offset_hz": spread([it["carrier_offset_hz"] for it in good if "carrier_offset_hz" in it]),
+                       "deviation_hz": spread([it["deviation_hz"] for it in good if "deviation_hz" in it]),
+                       "symbol_rate_hz": spread([it["symbol_rate_hz"] for it in good]),
+                       "power_db": spread([it["power_db"] for it in good]),
+                       "seconds": spread([it["seconds"] for it in good])},
+            "traces": {"per_symbol": TRACE_PER_SYMBOL, "before": TRACE_BEFORE, "after": TRACE_AFTER, "lines": traces}}
+
+
+# ── 5. 구간 잘라 내기 ──────────────────────────────────────────────────────────
 
 def cut(cap: sigmf.Capture, start_s: float, seconds: float) -> dict[str, Any]:
     """구간만 새 SigMF 파일로 남긴다(원본 옆, 숫자 형식은 그대로). 같은 이름이 있으면 번호를 붙인다."""
@@ -670,6 +928,13 @@ class DemodBody(DetailBody):
     symbol_rate_hz: float | None = None
 
 
+class CompareBody(FileBody):
+    offset_hz: float = 0.0
+    bandwidth_hz: float = 0.0            # 0 이면 가장 센 버스트에서 잰 값을 쓴다
+    kind: str = "auto"
+    symbol_rate_hz: float | None = None
+
+
 class CutBody(FileBody):
     start_s: float
     seconds: float
@@ -714,6 +979,14 @@ def register(app: FastAPI) -> None:
         try:
             return demodulate(cap_of(body), body.start_s, body.seconds, body.offset_hz, body.bandwidth_hz, body.kind,
                               1.0 / body.symbol_rate_hz if body.symbol_rate_hz and body.symbol_rate_hz > 0 else None)
+        except AnalyzeError as e:
+            raise HTTPException(400, str(e)) from e
+
+    @app.post("/api/analyze/compare")
+    def analyze_compare(body: CompareBody) -> dict[str, Any]:
+        try:
+            return compare(cap_of(body), body.offset_hz, body.bandwidth_hz, body.kind,
+                           1.0 / body.symbol_rate_hz if body.symbol_rate_hz and body.symbol_rate_hz > 0 else None)
         except AnalyzeError as e:
             raise HTTPException(400, str(e)) from e
 

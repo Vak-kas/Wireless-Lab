@@ -111,6 +111,7 @@ export function fakeApi(results: Record<string, StageResult> = {}): FakeApi {
     analyzeOpen: no,
     analyzeDetail: no,
     analyzeDemod: no,
+    analyzeCompare: no,
     analyzeCut: no,
     bandsLoad: async () => ({ bands: [] }),
     bandsSave: async (bands) => ({ bands }),

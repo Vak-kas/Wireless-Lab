@@ -2008,3 +2008,36 @@ canvas[data-tunable] {
   border-radius: var(--radius-pill);
   background: linear-gradient(to right, var(--color-viz-heat-0), var(--color-viz-heat-1), var(--color-viz-heat-2), var(--color-viz-heat-3), var(--color-viz-heat-4));
 }
+/* 버스트 비교: 줄 맞춘 비트. 같은 자리는 옅게, 다른 자리는 바탕을 칠해 눈에 띄게 */
+.an-grid {
+  margin: 0;
+  padding: var(--space-sm);
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}
+.an-same {
+  color: var(--fg-muted);
+}
+.an-vary {
+  color: var(--fg);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--link) 18%, transparent);
+}
+.an-distance {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.an-distance th,
+.an-distance td {
+  min-width: 30px;
+  padding: var(--space-xxs);
+  text-align: center;
+  border: 1px solid var(--line);
+}

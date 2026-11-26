@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import type { AnalyzeBits, AnalyzeDetail, AnalyzeFile, AnalyzeGrid, AnalyzeOverview, AnalyzeSource } from "../api";
+import type { AnalyzeBits, AnalyzeColumns, AnalyzeCompare, AnalyzeDetail, AnalyzeFile, AnalyzeGrid, AnalyzeOverview, AnalyzeSource } from "../api";
 import { SubNav, Tile, TileHead } from "../components/layout";
 import { Badge, Button, Field } from "../components/ui";
 import { t } from "../i18n";
@@ -438,6 +438,8 @@ export function AnalyzeScreen() {
           </div>
         )}
 
+        {over && src && over.bursts.length > 0 && <BurstCompare key={src.path} src={src} pick={pick} kind={demodKind} baud={baud} onLook={(s, len) => setWin(around(s, len, total))} />}
+
         {over && win && (
           <div className="card an-card" data-testid="analyze-detail">
             <h3 className="t-tagline">{t("analyze.detail.title")}</h3>
@@ -616,6 +618,273 @@ export function AnalyzeScreen() {
         <p className="t-caption muted center">{t("analyze.notice")}</p>
       </Tile>
     </>
+  );
+}
+
+/** 줄 맞춘 비트 한 줄을 칸(고정·바뀜)마다 나눠 그린다 */
+function BitRow({ bits, fields }: { bits: string; fields: AnalyzeColumns["fields"] }) {
+  return (
+    <>
+      {fields.map((f) => (
+        <span key={f.start} className={f.kind === "same" ? "an-same" : "an-vary"}>
+          {bits.slice(f.start, f.start + f.length)}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** 자리 번호 눈금: 16자리마다 그 번호를 적는다 */
+const ruler = (length: number) =>
+  Array.from({ length: Math.ceil(length / 16) }, (_, k) => String(k * 16).padEnd(16, " "))
+    .join("")
+    .slice(0, length);
+
+/**
+ * 버스트 전체 비교: 파일의 버스트를 모두 풀어 "신호가 같은가"와 "데이터가 같은가"를 따로 보여 준다.
+ *   신호   버스트마다 잰 반송파·주파수 편이·심볼 속도·세기·길이와, 그 값들이 얼마나 흩어져 있는지
+ *   데이터 앞머리가 끝나는 자리를 0 번으로 줄을 맞춘 비트, 모든 줄이 같은 자리와 다른 자리, 그것을 묶은 칸,
+ *          두 줄 사이에 다른 자리의 수, 파형 겹쳐 보기
+ */
+function BurstCompare({ src, pick, kind, baud, onLook }: { src: AnalyzeSource; pick: { offset: number; width: number }; kind: string; baud: string; onLook: (startS: number, seconds: number) => void }) {
+  const { api, fail } = useStore();
+  const [res, setRes] = useState<AnalyzeCompare | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [layer, setLayer] = useState<"symbols" | "manchester">("symbols");
+  const run = async () => {
+    setBusy(true);
+    try {
+      const got = await api.analyzeCompare({ ...src, offset_hz: pick.offset, bandwidth_hz: pick.width, kind, symbol_rate_hz: Number(baud) > 0 ? Number(baud) : undefined });
+      setRes(got);
+      setLayer(got.manchester ? "manchester" : "symbols");
+    } catch (e) {
+      fail(String(e instanceof Error ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const traces = useMemo(() => (res?.traces.lines ?? []).filter((l): l is (number | null)[] => l !== null).map((values) => ({ values, faint: true })), [res]);
+  const good = res ? res.bursts.filter((b) => b.bits !== undefined) : [];
+  const cols = res ? (layer === "manchester" && res.manchester ? res.manchester : res.symbols) : null;
+  const rowOf = (b: AnalyzeCompare["bursts"][number]) => (layer === "manchester" && res?.manchester ? (b.manchester?.bits ?? "") : (b.payload ?? ""));
+  const carrier = res?.signal.carrier_offset_hz;
+  const rate = res?.signal.symbol_rate_hz;
+  const absolute = res && carrier ? res.center_hz + carrier.mean : 0;
+  /** 내용이 같은 묶음에서 이 줄이 몇 번째 묶음인가(1부터) */
+  const groupOf = (row: number) => (cols ? cols.groups.findIndex((g) => g.includes(row)) + 1 : 0);
+  const farthest = cols ? Math.max(1, ...cols.distance.flat()) : 1;
+  return (
+    <div className="card an-card" data-testid="analyze-compare">
+      <h3 className="t-tagline">{t("compare.title")}</h3>
+      <p className="t-caption muted">{t("compare.lead")}</p>
+      <div className="row an-buttons">
+        <Button onClick={() => void run()} disabled={busy} data-testid="compare-go">
+          {busy ? t("compare.busy") : t("compare.go")}
+        </Button>
+        <span className="t-caption muted">{t(pick.width > 0 ? "compare.using_pick" : "compare.using_auto")}</span>
+      </div>
+      {res && cols && (
+        <>
+          <p className="t-caption" data-testid="compare-summary">
+            {t("compare.summary", { n: good.length, total: res.bursts.length, kind: t(`analyze.mod.${res.kind}`), groups: cols.groups.length })}{" "}
+            {t(cols.groups.length === good.length ? "compare.summary.all_differ" : cols.groups.length === 1 ? "compare.summary.all_same" : "compare.summary.some_same")}
+          </p>
+
+          <h4 className="t-caption-strong">{t("compare.signal.title")}</h4>
+          <p className="t-caption muted">{t("compare.signal.lead")}</p>
+          <dl className="facts t-caption an-facts" data-testid="compare-spread">
+            {carrier && (
+              <div>
+                <dt className="muted">{t("compare.fact.carrier")}</dt>
+                <dd>
+                  {num(absolute / 1e6, 6)} MHz · {t("compare.fact.range", { v: `${num(carrier.max - carrier.min, 1)} Hz`, extra: `${num(((carrier.max - carrier.min) / absolute) * 1e6, 3)} ppm` })}
+                </dd>
+              </div>
+            )}
+            {res.signal.deviation_hz && (
+              <div>
+                <dt className="muted">{t("compare.fact.deviation")}</dt>
+                <dd>
+                  ±{num(res.signal.deviation_hz.mean / 1e3, 3)} kHz · {t("compare.fact.range", { v: `${num(res.signal.deviation_hz.max - res.signal.deviation_hz.min, 1)} Hz`, extra: "" })}
+                </dd>
+              </div>
+            )}
+            {rate && (
+              <div>
+                <dt className="muted">{t("compare.fact.rate")}</dt>
+                <dd>
+                  {num(rate.mean, 2)} /s · {t("compare.fact.range", { v: `${num(rate.max - rate.min, 2)} /s`, extra: `${num(((rate.max - rate.min) / rate.mean) * 1e6, 0)} ppm` })}
+                </dd>
+              </div>
+            )}
+            {res.signal.power_db && (
+              <div>
+                <dt className="muted">{t("compare.fact.power")}</dt>
+                <dd>
+                  {num(res.signal.power_db.mean, 1)} dBFS · {t("compare.fact.range", { v: `${num(res.signal.power_db.max - res.signal.power_db.min, 1)} dB`, extra: "" })}
+                </dd>
+              </div>
+            )}
+          </dl>
+          <div className="table-wrap an-bursts">
+            <table className="data t-caption" data-testid="compare-table">
+              <caption className="sr-only">{t("compare.signal.title")}</caption>
+              <thead>
+                <tr>
+                  {["no", "start", "length", "power", "carrier", "deviation", "rate", "fit", "preamble", "payload", "group", "go"].map((c) => (
+                    <th key={c} scope="col" className={`t-caption-strong ${c === "go" ? "" : "right"}`}>
+                      {t(`compare.col.${c}`)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {res.bursts.map((b) => (
+                  <tr key={b.index}>
+                    <td className="right">{b.index + 1}</td>
+                    <td className="right">{num(b.start_s, 3)} s</td>
+                    <td className="right">{span(b.seconds)}</td>
+                    {b.bits === undefined ? (
+                      <td colSpan={8}>! {b.error}</td>
+                    ) : (
+                      <>
+                        <td className="right">{num(b.power_db ?? 0, 1)}</td>
+                        <td className="right">{b.carrier_offset_hz !== undefined && carrier ? `${b.carrier_offset_hz - carrier.mean >= 0 ? "+" : ""}${num(b.carrier_offset_hz - carrier.mean, 1)} Hz` : "—"}</td>
+                        <td className="right">{b.deviation_hz !== undefined ? `±${num(b.deviation_hz / 1e3, 3)} kHz` : "—"}</td>
+                        <td className="right">{num(b.symbol_rate_hz ?? 0, 2)}</td>
+                        <td className="right">{Math.round((b.fit ?? 0) * 100)}%</td>
+                        <td className="right">{b.preamble?.length ?? 0}</td>
+                        <td className="right">{b.payload?.length ?? 0}</td>
+                        <td className="right">{groupOf(good.indexOf(b))}</td>
+                      </>
+                    )}
+                    <td>
+                      <Button variant="link" onClick={() => onLook(b.start_s, b.seconds)}>
+                        {t("analyze.bursts.go")}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="t-caption muted">{t("compare.signal.note")}</p>
+
+          <h4 className="t-caption-strong">{t("compare.data.title")}</h4>
+          <p className="t-caption muted">{t("compare.data.lead", { pre: good[0]?.preamble?.length ?? 0, ms: num(((good[0]?.preamble?.length ?? 0) / (rate?.mean ?? 1)) * 1e3, 0) })}</p>
+          <div className="row an-buttons">
+            <div className="segments" role="group" aria-label={t("compare.layer")}>
+              <button type="button" className="segment t-caption" aria-pressed={layer === "symbols"} onClick={() => setLayer("symbols")} data-testid="compare-layer-symbols">
+                {t("compare.layer.symbols")}
+              </button>
+              <button type="button" className="segment t-caption" aria-pressed={layer === "manchester"} disabled={!res.manchester} onClick={() => setLayer("manchester")} data-testid="compare-layer-manchester">
+                {t("compare.layer.manchester")}
+              </button>
+            </div>
+            <span className="t-caption muted">
+              {t("compare.data.counts", { length: cols.length, same: cols.same, varies: cols.varies })} <span className="an-same">{t("compare.legend.same")}</span> <span className="an-vary">{t("compare.legend.varies")}</span>
+            </span>
+          </div>
+          <p className="t-caption muted">{t(res.manchester ? (layer === "manchester" ? "compare.layer.manchester.note" : "compare.layer.symbols.note") : "compare.layer.no_manchester")}</p>
+          <pre className="an-grid t-caption" data-testid="compare-grid">
+            <span className="muted">{"    "}{ruler(cols.length)}</span>
+            {"\n"}
+            {good.map((b) => (
+              <span key={b.index}>
+                <span className="muted">{String(b.index + 1).padStart(3, " ")} </span>
+                <BitRow bits={rowOf(b).slice(0, cols.length)} fields={cols.fields} />
+                {"\n"}
+              </span>
+            ))}
+          </pre>
+
+          <h4 className="t-caption-strong">{t("compare.fields.title", { n: cols.fields.length })}</h4>
+          <div className="table-wrap">
+            <table className="data t-caption" data-testid="compare-fields">
+              <caption className="sr-only">{t("compare.fields.title", { n: cols.fields.length })}</caption>
+              <thead>
+                <tr>
+                  {["at", "length", "kind", "value"].map((c) => (
+                    <th key={c} scope="col" className={`t-caption-strong ${c === "at" || c === "length" ? "right" : ""}`}>
+                      {t(`compare.fields.col.${c}`)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cols.fields.map((f) => (
+                  <tr key={f.start}>
+                    <td className="right">
+                      {f.start} ~ {f.start + f.length - 1}
+                    </td>
+                    <td className="right">{f.length}</td>
+                    <td>{t(`compare.fields.${f.kind}`)}</td>
+                    <td>
+                      {f.kind === "same" ? (
+                        <code>
+                          {f.length <= 64 ? f.bits : `${f.bits?.slice(0, 64)}…`} (HEX {f.hex})
+                        </code>
+                      ) : (
+                        <>
+                          {t("compare.fields.distinct", { n: f.distinct ?? 0, of: good.length })}
+                          {f.step !== undefined ? ` · ${t("compare.fields.step", { step: f.step })}` : ""}
+                          {f.distinct === good.length ? ` · ${t("compare.fields.every")}` : ""}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="t-caption muted">{t("compare.fields.note")}</p>
+          {layer === "manchester" && good[0]?.manchester && good[0].manchester.errors > 0 && (
+            <p className="t-caption muted" data-testid="compare-broken">
+              {t("compare.broken", { at: good[0].manchester.broken_at.join(", ") })}
+            </p>
+          )}
+
+          <h4 className="t-caption-strong">{t("compare.distance.title")}</h4>
+          <div className="table-wrap an-bursts">
+            <table className="an-distance t-caption" data-testid="compare-distance">
+              <caption className="sr-only">{t("compare.distance.title")}</caption>
+              <thead>
+                <tr>
+                  <th scope="col" />
+                  {good.map((b) => (
+                    <th key={b.index} scope="col">
+                      {b.index + 1}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cols.distance.map((line, r) => (
+                  <tr key={r}>
+                    <th scope="row">{(good[r]?.index ?? r) + 1}</th>
+                    {line.map((d, c) => (
+                      <td key={c} style={{ background: `color-mix(in srgb, var(--link) ${Math.round((d / farthest) * 60)}%, transparent)` }}>
+                        {d}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="t-caption muted">{t("compare.distance.note", { length: cols.length })}</p>
+
+          <h4 className="t-caption-strong">{t("compare.overlay.title")}</h4>
+          <Trace lines={traces} label={t("compare.overlay.title")} testid="compare-overlay" />
+          <div className="an-axis t-caption muted">
+            <span>{t("compare.overlay.before", { n: res.traces.before })}</span>
+            <span>{t("compare.overlay.zero")}</span>
+            <span>{t("compare.overlay.after", { n: res.traces.after })}</span>
+          </div>
+          <p className="t-caption muted">{t("compare.overlay.note")}</p>
+        </>
+      )}
+    </div>
   );
 }
 
