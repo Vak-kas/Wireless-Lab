@@ -82,6 +82,12 @@ export function RelayTargetLine({
           {t(target ? "relay.change" : "relay.set")}
         </Button>
         {children}
+        {/* 정해 둔 곳을 지운다: 고치는 칸을 열지 않아도 바로 보이게 */}
+        {target && (
+          <Button variant="link" onClick={() => void run(onForget)} disabled={busy || locked} data-testid={`${id}-forget`}>
+            {t("relay.forget")}
+          </Button>
+        )}
       </div>
       {editing && (
         <form
@@ -124,11 +130,6 @@ export function RelayTargetLine({
             <Button variant="link" onClick={() => setEditing(false)}>
               {t("saved.cancel")}
             </Button>
-            {target && (
-              <Button variant="link" onClick={() => void run(onForget)} disabled={busy} data-testid={`${id}-forget`}>
-                {t("relay.forget")}
-              </Button>
-            )}
           </div>
           <p className="relay-wide muted">{t("relay.form.hint")}</p>
         </form>

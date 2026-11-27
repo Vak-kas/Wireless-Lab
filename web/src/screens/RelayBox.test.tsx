@@ -75,6 +75,12 @@ test("보낼 곳을 한 줄로 붙여 넣거나 칸마다 적어 정하고, 연�
   expect(await screen.findByTestId("relay-checked")).toHaveTextContent(
     "상한 16.0 MB/s · 받는 쪽 2 · 방이 닫히기까지 50분",
   );
+
+  // 정해 둔 곳은 줄에서 바로 지울 수 있다
+  a.relayForget = vi.fn(async () => NONE);
+  await userEvent.click(screen.getByTestId("relay-forget"));
+  expect(await screen.findByText("보낼 곳을 아직 정하지 않았습니다")).toBeInTheDocument();
+  expect(screen.queryByTestId("relay-checked")).toBeNull();
 });
 
 test("서버가 거절하면 이유를 보여 주고 칸을 닫지 않는다", async () => {
