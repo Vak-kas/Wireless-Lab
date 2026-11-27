@@ -2104,8 +2104,47 @@ canvas[data-tunable] {
 .relay-box {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
   text-align: left;
+  margin-top: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--link);
+  border-radius: var(--radius-md);
+}
+.relay-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.relay-head h4 {
+  margin: 0;
+}
+.relay-where code {
+  flex: 1 1 280px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.relay-acts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+/* 줄 끝의 작은 단추: 글자만 있던 것을 테두리 있는 알약으로 */
+.btn.relay-act {
+  min-height: 0;
+  padding: var(--space-xxs) var(--space-sm);
+  border: 1px solid var(--link);
+  border-radius: var(--radius-pill);
+}
+.btn.relay-act:hover {
+  text-decoration: none;
+}
+.btn.relay-reset {
+  color: var(--fg-muted);
+  border-color: var(--line);
 }
 .relay-box p {
   margin: 0;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { RelayCheck, RelayLink, RelayState, StreamTapState } from "../api";
-import { Button } from "../components/ui";
+import { Badge, Button } from "../components/ui";
 import { t } from "../i18n";
 import { useStore } from "../state/store";
 import { RelayTargetLine } from "./RelayTarget";
@@ -109,6 +109,7 @@ export function RelayBox({ live, file }: { live?: Live; file?: string }) {
         example="wss://smjgallery.kr/relay/ws/…/iq/send?token=…"
         tokenLabel={t("relay.token")}
         locked={busy || sending}
+        badge={sending ? <Badge level="info">{t("relay.status.on")}</Badge> : target ? <Badge level="ok">{t("relay.badge.set")}</Badge> : undefined}
         onSave={async (body) => {
           setChecked(null);
           setState(await api.relayTarget(body));
@@ -119,7 +120,7 @@ export function RelayBox({ live, file }: { live?: Live; file?: string }) {
         }}
       >
         {target && (
-          <Button variant="link" onClick={() => void check()} disabled={busy || sending} data-testid="relay-check">
+          <Button variant="link" className="relay-act" onClick={() => void check()} disabled={busy || sending} data-testid="relay-check">
             {t("relay.check")}
           </Button>
         )}
@@ -132,7 +133,7 @@ export function RelayBox({ live, file }: { live?: Live; file?: string }) {
 
       {live && target && (
         <div className="relay-line">
-          <Button variant="secondary" onClick={() => live.onToggle(!relaying)} disabled={!live.running || busy} aria-pressed={relaying} data-testid="relay-live-toggle">
+          <Button variant={relaying ? "secondary" : "primary"} onClick={() => live.onToggle(!relaying)} disabled={!live.running || busy} aria-pressed={relaying} data-testid="relay-live-toggle">
             {relaying ? `■ ${t("relay.live.stop")}` : `▲ ${t("relay.live.start")}`}
           </Button>
           {!live.running && <span className="muted">{t("relay.live.idle")}</span>}
@@ -160,7 +161,7 @@ export function RelayBox({ live, file }: { live?: Live; file?: string }) {
             </Button>
           ) : (
             <>
-              <Button variant="secondary" onClick={() => void run(() => api.relayFile(file, loop))} disabled={busy} data-testid="relay-file-start">
+              <Button onClick={() => void run(() => api.relayFile(file, loop))} disabled={busy} data-testid="relay-file-start">
                 ▲ {t("relay.file.start")}
               </Button>
               <label className="relay-tick">

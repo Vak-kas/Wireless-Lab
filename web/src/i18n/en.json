@@ -1072,7 +1072,7 @@
   "relay.token.kept": "keeps the saved one",
   "relay.tls": "Encrypted (wss)",
   "relay.save": "Use this",
-  "relay.forget": "Forget",
+  "relay.forget": "Reset",
   "relay.form.hint": "The token stays on this computer (sessions/relay.json) and is never shown again. Nothing is sent until you press a button.",
   "relay.plain": "This address is not encrypted: the token and the signal travel in the clear. Use it only with the reference relay on this computer.",
   "relay.checked": "The server answered. Limit {limit} MB/s · receivers {n} · room closes in {min} min",
@@ -1109,5 +1109,7 @@
   "relay.recv.file.full": "stopped at the size limit",
   "relay.recv.analyze": "Analyze",
   "relay.recv.writing": "Receiving…",
-  "relay.recv.none": "No source set yet"
+  "relay.recv.none": "No source set yet",
+  "relay.badge.set": "Set",
+  "relay.recv.badge.on": "Receiving"
 }

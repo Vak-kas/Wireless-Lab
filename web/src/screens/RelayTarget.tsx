@@ -16,6 +16,7 @@ export function RelayTargetLine({
   example,
   tokenLabel,
   locked,
+  badge,
   onSave,
   onForget,
   children,
@@ -30,6 +31,8 @@ export function RelayTargetLine({
   tokenLabel: string;
   /** 주고받는 중이라 바꿀 수 없다 */
   locked?: boolean;
+  /** 제목 옆에 붙일 상태 표시(보내는 중, 받는 중 등) */
+  badge?: ReactNode;
   /** 서버가 거절하면 이유를 던진다 */
   onSave: (body: RelayTargetBody) => Promise<void>;
   onForget: () => Promise<void>;
@@ -75,19 +78,24 @@ export function RelayTargetLine({
 
   return (
     <>
-      <div className="relay-line">
-        <span className="muted">{title}</span>
+      <div className="relay-head">
+        <h4 className="t-caption-strong">{title}</h4>
+        {badge}
+      </div>
+      <div className="relay-line relay-where">
         {target ? <code title={target.url}>{target.url}</code> : <span className="muted">{none ?? t("relay.none")}</span>}
-        <Button variant="link" onClick={edit} disabled={busy || locked} data-testid={`${id}-edit`}>
-          {t(target ? "relay.change" : "relay.set")}
-        </Button>
-        {children}
-        {/* 정해 둔 곳을 지운다: 고치는 칸을 열지 않아도 바로 보이게 */}
-        {target && (
-          <Button variant="link" onClick={() => void run(onForget)} disabled={busy || locked} data-testid={`${id}-forget`}>
-            {t("relay.forget")}
+        <span className="relay-acts">
+          <Button variant="link" className="relay-act" onClick={edit} disabled={busy || locked} data-testid={`${id}-edit`}>
+            {t(target ? "relay.change" : "relay.set")}
           </Button>
-        )}
+          {children}
+          {/* 정해 둔 곳을 지우고 처음으로: 고치는 칸을 열지 않아도 바로 보이게 */}
+          {target && (
+            <Button variant="link" className="relay-act relay-reset" onClick={() => void run(onForget)} disabled={busy || locked} data-testid={`${id}-forget`}>
+              {t("relay.forget")}
+            </Button>
+          )}
+        </span>
       </div>
       {editing && (
         <form

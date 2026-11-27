@@ -73,6 +73,7 @@ export function RelayReceive({ onOpen }: { onOpen: (path: string) => void }) {
         example="wss://smjgallery.kr/relay/ws/…/iq/recv?token=…"
         tokenLabel={t("relay.recv.token")}
         locked={busy || running}
+        badge={running ? <Badge level="info">{t("relay.recv.badge.on")}</Badge> : target ? <Badge level="ok">{t("relay.badge.set")}</Badge> : undefined}
         onSave={async (body) => setState(await api.relayRecvTarget(body))}
         onForget={async () => setState(await api.relayRecvForget())}
       />

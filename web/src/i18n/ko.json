@@ -1072,7 +1072,7 @@
   "relay.token.kept": "적어 둔 것을 그대로 씀",
   "relay.tls": "암호화 (wss)",
   "relay.save": "이곳으로",
-  "relay.forget": "지우기",
+  "relay.forget": "초기화",
   "relay.form.hint": "토큰은 이 컴퓨터(sessions/relay.json)에만 두고 화면에 다시 보여 주지 않습니다. 보내는 것은 단추를 누를 때뿐입니다.",
   "relay.plain": "암호화하지 않는 주소입니다. 토큰과 신호가 그대로 지나갑니다. 내 컴퓨터의 견본 서버로 시험할 때만 쓰세요.",
   "relay.checked": "서버가 답했습니다. 상한 {limit} MB/s · 받는 쪽 {n} · 방이 닫히기까지 {min}분",
@@ -1109,5 +1109,7 @@
   "relay.recv.file.full": "한도에 닿아 여기까지",
   "relay.recv.analyze": "분석하기",
   "relay.recv.writing": "받는 중…",
-  "relay.recv.none": "받을 곳을 아직 정하지 않았습니다"
+  "relay.recv.none": "받을 곳을 아직 정하지 않았습니다",
+  "relay.badge.set": "정해 둠",
+  "relay.recv.badge.on": "받는 중"
 }
